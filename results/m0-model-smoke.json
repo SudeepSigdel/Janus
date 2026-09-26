@@ -1,0 +1,28 @@
+[
+  {
+    "model": "qwen3:4b",
+    "json_valid": 10,
+    "correct": 10,
+    "total": 10,
+    "mean_latency_s": 0.88,
+    "errors": []
+  },
+  {
+    "model": "qwen2.5:7b-instruct",
+    "json_valid": 10,
+    "correct": 8,
+    "total": 10,
+    "mean_latency_s": 1.14,
+    "errors": []
+  },
+  {
+    "model": "qwen3:8b",
+    "json_valid": 9,
+    "correct": 9,
+    "total": 10,
+    "mean_latency_s": 4.03,
+    "errors": [
+      "unparseable chat response: Unterminated string starting at: line 1 column 11 (char 10)"
+    ]
+  }
+]
