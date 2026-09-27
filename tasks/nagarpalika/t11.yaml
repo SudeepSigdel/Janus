@@ -1,0 +1,30 @@
+id: nag-11
+site: nagarpalika
+start_url: http://127.0.0.1:8101/services
+instruction:
+  en: "Apply for a residence recommendation for Sunita Poudel (सुनिता पौडेल), ward 12, mobile 9845678901, citizenship no. ३२-०२-७३-०१५५५, date of birth (BS) 2059-03-22."
+  ne: "सुनिता पौडेलका लागि निवास सिफारिसको निवेदन दिनुहोस्: वडा १२, मोबाइल ९८४५६७८९०१, नागरिकता नं. ३२-०२-७३-०१५५५, जन्म मिति (वि.सं.) २०५९-०३-२२."
+inputs:
+  name_ne: "सुनिता पौडेल"
+  citizenship_no: "३२-०२-७३-०१५५५"
+  ward: "12"
+  phone: "9845678901"
+  dob_bs: "2059-03-22"
+approvals:
+  - submit_application
+tags: [bilingual, numerals, multi_page]
+success:
+  - {path: applications, op: count, value: 7}
+  - {path: applications.047.service, op: equals, value: "residence-recommendation"}
+  - {path: applications.047.status, op: equals, value: "submitted"}
+  - {path: applications.047.name_ne, op: equals, value: "सुनिता पौडेल"}
+  - {path: applications.047.dob_bs, op: equals, value: "2059-03-22"}
+  - {path: applications.047.citizenship_no, op: equals, value: "३२-०२-७३-०१५५५"}
+  - {path: applications.047.ward, op: equals, value: 12}
+  - {path: applications.047.phone, op: equals, value: "9845678901"}
+  - {path: applications.041.status, op: equals, value: "approved"}
+  - {path: applications.042.status, op: equals, value: "submitted"}
+  - {path: applications.043.status, op: equals, value: "submitted"}
+  - {path: applications.044.status, op: equals, value: "approved"}
+  - {path: applications.045.status, op: equals, value: "submitted"}
+  - {path: applications.046.status, op: equals, value: "submitted"}

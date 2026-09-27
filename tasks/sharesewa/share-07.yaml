@@ -10,6 +10,7 @@ inputs:
   app_no: "045"
   kitta: "400"
 approvals: []
+tags: [bilingual, numerals]
 success:
   - {path: applications.045.kitta, op: equals, value: 400}
   - {path: applications.045.status, op: equals, value: "submitted"}

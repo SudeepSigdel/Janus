@@ -1,0 +1,31 @@
+id: nag-15
+site: nagarpalika
+start_url: http://127.0.0.1:8101/services
+instruction:
+  en: "Apply for a relationship certificate for Anjali Sharma (अन्जली शर्मा), ward 22, mobile 9889012345, citizenship no. ३६-०६-७७-०५९९९, date of birth (BS) 2060-02-14."
+  ne: "अन्जली शर्माका लागि नाता प्रमाणितको निवेदन दिनुहोस्: वडा २२, मोबाइल ९८८९०१२३४५, नागरिकता नं. ३६-०६-७७-०५९९९, जन्म मिति (वि.सं.) २०६०-०२-१४."
+inputs:
+  service: "relationship-certificate"
+  name_ne: "अन्जली शर्मा"
+  citizenship_no: "३६-०६-७७-०५९९९"
+  ward: "22"
+  phone: "9889012345"
+  dob_bs: "2060-02-14"
+approvals:
+  - submit_application
+tags: [bilingual, numerals, multi_page]
+success:
+  - {path: applications, op: count, value: 7}
+  - {path: applications.047.service, op: equals, value: "relationship-certificate"}
+  - {path: applications.047.status, op: equals, value: "submitted"}
+  - {path: applications.047.name_ne, op: equals, value: "अन्जली शर्मा"}
+  - {path: applications.047.dob_bs, op: equals, value: "2060-02-14"}
+  - {path: applications.047.citizenship_no, op: equals, value: "३६-०६-७७-०५९९९"}
+  - {path: applications.047.ward, op: equals, value: 22}
+  - {path: applications.047.phone, op: equals, value: "9889012345"}
+  - {path: applications.041.status, op: equals, value: "approved"}
+  - {path: applications.042.status, op: equals, value: "submitted"}
+  - {path: applications.043.status, op: equals, value: "submitted"}
+  - {path: applications.044.status, op: equals, value: "approved"}
+  - {path: applications.045.status, op: equals, value: "submitted"}
+  - {path: applications.046.status, op: equals, value: "submitted"}

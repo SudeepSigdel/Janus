@@ -1,16 +1,16 @@
-id: nag-03
+id: nag-18
 site: nagarpalika
 start_url: http://127.0.0.1:8101/applications
 instruction:
-  en: "Update the mobile number on application 043 (०४३) to 9851098765."
-  ne: "निवेदन नं. ०४३ को मोबाइल नं. ९८५१०९८७६५ मा परिवर्तन गर्नुहोस्।"
+  en: "Update the mobile number on application 046 (०४६) to 9852109876."
+  ne: "निवेदन नं. ०४६ को मोबाइल नं. ९८५२१०९८७६ मा परिवर्तन गर्नुहोस्।"
 inputs:
-  app_no: "043"
-  phone: "9851098765"
+  app_no: "046"
+  phone: "9852109876"
 approvals: []
 tags: [bilingual, numerals]
 success:
-  - {path: applications.043.phone, op: equals, value: "9851098765"}
+  - {path: applications.046.phone, op: equals, value: "9852109876"}
   - {path: applications, op: count, value: 6}
   - {path: applications.041.status, op: equals, value: "approved"}
   - {path: applications.042.status, op: equals, value: "submitted"}

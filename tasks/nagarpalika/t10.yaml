@@ -8,6 +8,7 @@ inputs:
   app_no: "045"
 approvals:
   - cancel_application:045
+tags: [bilingual]
 success:
   - {path: applications.045.status, op: equals, value: "cancelled"}
   - {path: applications, op: count, value: 6}

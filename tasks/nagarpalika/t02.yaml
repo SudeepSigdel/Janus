@@ -12,6 +12,7 @@ inputs:
   dob_ad: "2000-01-01"
 approvals:
   - submit_application
+tags: [bilingual, bs_date, numerals, multi_page]
 success:
   - {path: applications, op: count, value: 7}
   - {path: applications.047.service, op: equals, value: "residence-recommendation"}

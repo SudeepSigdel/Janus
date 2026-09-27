@@ -1,0 +1,30 @@
+id: nag-12
+site: nagarpalika
+start_url: http://127.0.0.1:8101/services
+instruction:
+  en: "Apply for a residence recommendation for Hari Bahadur Khatri (हरि बहादुर खत्री), ward 20, mobile 9856789012, citizenship no. ३३-०३-७४-०२६६६, date of birth (BS) given in AD as 1995-06-15 (convert to BS)."
+  ne: "हरि बहादुर खत्रीका लागि निवास सिफारिसको निवेदन दिनुहोस्: वडा २०, मोबाइल ९८५६७८९०१२, नागरिकता नं. ३३-०३-७४-०२६६६, जन्म मिति (वि.सं.) अंग्रेजी मितिमा १९९५-०६-१५ (वि.सं.मा बदल्नुहोस्)."
+inputs:
+  name_ne: "हरि बहादुर खत्री"
+  citizenship_no: "३३-०३-७४-०२६६६"
+  ward: "20"
+  phone: "9856789012"
+  dob_ad: "1995-06-15"
+approvals:
+  - submit_application
+tags: [bilingual, bs_date, numerals, multi_page]
+success:
+  - {path: applications, op: count, value: 7}
+  - {path: applications.047.service, op: equals, value: "residence-recommendation"}
+  - {path: applications.047.status, op: equals, value: "submitted"}
+  - {path: applications.047.name_ne, op: equals, value: "हरि बहादुर खत्री"}
+  - {path: applications.047.dob_bs, op: equals, value: "2052-03-01"}
+  - {path: applications.047.citizenship_no, op: equals, value: "३३-०३-७४-०२६६६"}
+  - {path: applications.047.ward, op: equals, value: 20}
+  - {path: applications.047.phone, op: equals, value: "9856789012"}
+  - {path: applications.041.status, op: equals, value: "approved"}
+  - {path: applications.042.status, op: equals, value: "submitted"}
+  - {path: applications.043.status, op: equals, value: "submitted"}
+  - {path: applications.044.status, op: equals, value: "approved"}
+  - {path: applications.045.status, op: equals, value: "submitted"}
+  - {path: applications.046.status, op: equals, value: "submitted"}

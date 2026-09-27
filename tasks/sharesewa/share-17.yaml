@@ -1,0 +1,32 @@
+id: share-17
+site: sharesewa
+start_url: http://127.0.0.1:8102/login
+instruction:
+  en: "Log in (BOID १३३४५६७८, password Sajilo@741) and apply for the NIC Asia Debenture 2083 issue with the minimum allowed 10 kitta: bank NIC Asia Bank, CRN CRN-482907, transaction PIN १३५७."
+  ne: "लगइन गर्नुहोस् (वीओआईडी १३३४५६७८, पासवर्ड Sajilo@741) र एनआईसी एशिया डिबेन्चर २०८३ का लागि न्यूनतम १० कित्तामा आवेदन दिनुहोस्: एनआईसी एशिया बैंक, सीआरएन CRN-482907, ट्रान्जेक्सन पिन १३५७।"
+inputs:
+  boid: "१३३४५६७८"
+  password: "Sajilo@741"
+  issue: "nic-asia-debenture"
+  bank: "nic-asia"
+  kitta: "10"
+  crn: "CRN-482907"
+  pin: "१३५७"
+approvals:
+  - apply_issue
+sensitive_field_names:
+  - pin
+tags: [bilingual, numerals, multi_page]
+success:
+  - {path: applications, op: count, value: 6}
+  - {path: applications.046.issue, op: equals, value: "nic-asia-debenture"}
+  - {path: applications.046.bank, op: equals, value: "nic-asia"}
+  - {path: applications.046.kitta, op: equals, value: 10}
+  - {path: applications.046.crn, op: equals, value: "CRN-482907"}
+  - {path: applications.046.pin, op: equals, value: "१३५७"}
+  - {path: applications.046.status, op: equals, value: "submitted"}
+  - {path: applications.041.status, op: equals, value: "allotted"}
+  - {path: applications.042.status, op: equals, value: "submitted"}
+  - {path: applications.043.status, op: equals, value: "submitted"}
+  - {path: applications.044.status, op: equals, value: "allotted"}
+  - {path: applications.045.status, op: equals, value: "submitted"}

@@ -16,10 +16,11 @@ def _ad_to_bs_string(ad_iso: str) -> str:
     return f"{year:04d}-{month:02d}-{day:02d}"
 
 
-def _submit_residence(page: Page, task: TaskSpec, dob_bs: str) -> None:
+def _submit_service(page: Page, task: TaskSpec, dob_bs: str) -> None:
     inputs = task.inputs
+    service = inputs.get("service", "residence-recommendation")
     page.goto(task.start_url)
-    page.click('a[href="/apply/residence-recommendation"]')
+    page.click(f'a[href="/apply/{service}"]')
     page.fill("#name_ne", inputs["name_ne"])
     page.fill("#dob_bs", dob_bs)
     page.fill("#citizenship_no", inputs["citizenship_no"])
@@ -31,11 +32,11 @@ def _submit_residence(page: Page, task: TaskSpec, dob_bs: str) -> None:
 
 
 def _submit_bs(page: Page, task: TaskSpec) -> None:
-    _submit_residence(page, task, task.inputs["dob_bs"])
+    _submit_service(page, task, task.inputs["dob_bs"])
 
 
 def _submit_ad(page: Page, task: TaskSpec) -> None:
-    _submit_residence(page, task, _ad_to_bs_string(task.inputs["dob_ad"]))
+    _submit_service(page, task, _ad_to_bs_string(task.inputs["dob_ad"]))
 
 
 def _update_phone(page: Page, task: TaskSpec) -> None:
@@ -102,6 +103,16 @@ ROUTINES: dict[str, Callable[[Page, TaskSpec], None]] = {
     "nag-08": _submit_bs,
     "nag-09": _submit_bs,
     "nag-10": _cancel,
+    "nag-11": _submit_bs,
+    "nag-12": _submit_ad,
+    "nag-13": _submit_bs,
+    "nag-14": _submit_ad,
+    "nag-15": _submit_bs,
+    "nag-16": _submit_ad,
+    "nag-17": _update_phone,
+    "nag-18": _update_phone,
+    "nag-19": _cancel,
+    "nag-20": _cancel,
     "share-01": _apply,
     "share-02": _apply,
     "share-03": _apply,
@@ -118,6 +129,11 @@ ROUTINES: dict[str, Callable[[Page, TaskSpec], None]] = {
     "share-14": _apply,
     "share-15": _apply,
     "share-16": _edit_kitta,
+    "share-17": _apply,
+    "share-18": _apply,
+    "share-19": _edit_kitta,
+    "share-20": _withdraw,
+    "share-21": _apply,
 }
 
 

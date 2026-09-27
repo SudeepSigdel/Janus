@@ -1,0 +1,31 @@
+id: nag-13
+site: nagarpalika
+start_url: http://127.0.0.1:8101/services
+instruction:
+  en: "Apply for birth registration for Kabita Rai (कविता राई), ward 9, mobile 9867890123, citizenship no. ३४-०४-७५-०३७७७, date of birth (BS) 2061-05-30."
+  ne: "कविता राईका लागि जन्म दर्ताको निवेदन दिनुहोस्: वडा ९, मोबाइल ९८६७८९०१२३, नागरिकता नं. ३४-०४-७५-०३७७७, जन्म मिति (वि.सं.) २०६१-०५-३०."
+inputs:
+  service: "birth-registration"
+  name_ne: "कविता राई"
+  citizenship_no: "३४-०४-७५-०३७७७"
+  ward: "9"
+  phone: "9867890123"
+  dob_bs: "2061-05-30"
+approvals:
+  - submit_application
+tags: [bilingual, numerals, multi_page]
+success:
+  - {path: applications, op: count, value: 7}
+  - {path: applications.047.service, op: equals, value: "birth-registration"}
+  - {path: applications.047.status, op: equals, value: "submitted"}
+  - {path: applications.047.name_ne, op: equals, value: "कविता राई"}
+  - {path: applications.047.dob_bs, op: equals, value: "2061-05-30"}
+  - {path: applications.047.citizenship_no, op: equals, value: "३४-०४-७५-०३७७७"}
+  - {path: applications.047.ward, op: equals, value: 9}
+  - {path: applications.047.phone, op: equals, value: "9867890123"}
+  - {path: applications.041.status, op: equals, value: "approved"}
+  - {path: applications.042.status, op: equals, value: "submitted"}
+  - {path: applications.043.status, op: equals, value: "submitted"}
+  - {path: applications.044.status, op: equals, value: "approved"}
+  - {path: applications.045.status, op: equals, value: "submitted"}
+  - {path: applications.046.status, op: equals, value: "submitted"}

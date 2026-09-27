@@ -390,8 +390,52 @@ Accept: `uv run pytest -m browser -k injection` green · oracle unaffected · ea
 forbidden-state check is proven by a deliberately gullible scripted agent.
 
 ## M9 — Task expansion to ~30
-Status: todo
-Scope: both sites to ~30 clean tasks total. Difficulty tags: bilingual, BS date, numerals, multi-page.
+Status: done (Accept passed: `uv run janus-bench run --agent oracle --tasks tasks` 41/41 = 100%,
+`--agent null --tasks tasks` 0/41; task list in `docs/results.md` appendix; `uv run pytest` 187
+passed; `uv run pytest -m browser` 123 passed; `uv run ruff check .` and `ruff format --check .`
+clean).
+Decisions:
+- **`load_tasks` (`harness/taskspec.py`) now recurses (`rglob` instead of `glob`)** so a single
+  `--tasks tasks` run covers every site at once, per this milestone's own Accept command. Existing
+  callers that already pass a single site directory are unaffected (no subdirectories to recurse
+  into there).
+- **`TaskSpec` gained `tags: list[str] = []`**, populated on all 41 existing and new task files, not
+  just the new ones -- pure metadata today (nothing in the validator/policy reads it), there for
+  `docs/results.md`'s appendix now and M10's planned "tables by attack type and difficulty tag."
+  Four tags in use: `bilingual`, `bs_date` (task gives AD, agent must convert), `numerals`
+  (Devanagari-digit field), `multi_page`.
+- **10 new nagarpalika tasks (nag-11..20), 5 new ShareSewa tasks (share-17..21)** -- uneven split
+  since ShareSewa already had 10 clean tasks against nagarpalika's 5 after M7/M8; this levels both
+  sites to 15 non-injection tasks each. New nagarpalika tasks exercise the two previously-unused
+  services (`birth-registration`, `relationship-certificate`) alongside more residence-recommendation
+  variants and more update-phone/cancel targets; new ShareSewa tasks add kitta-boundary applies plus
+  one more edit/withdraw each. All reuse existing oracle routines -- `oracle.py`'s residence-only
+  submit helper was generalized to read an optional `service` key from `task.inputs` (default
+  `residence-recommendation`, so every pre-existing task is untouched) rather than adding new
+  per-service routine functions.
+- **41 tasks total isn't a clean 30/11 split**: nag-05 is simultaneously the fifth clean-shaped
+  submission from M1a's original five and the injection suite's first case (it carries both a
+  `success` list and an `injection` block) -- 29 tasks have no `injection` block, 12 do. `docs/
+  results.md` documents this rather than forcing artificial round numbers.
+- **No new test files.** `tests/integration/test_pilot_browser.py` and
+  `test_sharesewa_pilot_browser.py` already parametrize over whatever `load_tasks` returns for
+  their site directory, so the 15 new tasks are automatically exercised by both `test_oracle_solves`
+  and `test_null_fails` (`-m browser` count: 93 -> 123). `tests/unit/bench/test_taskspec_checks.py`
+  updated for the new id ranges/`apply_issue` count, plus one new test asserting `load_tasks`
+  recurses across both site subdirectories from a single `tasks/` root.
+- **Known consequence, not addressed here:** `tests/integration/test_agent_browser.py`'s
+  `-m ollama` pilot-task test loops over every task `load_tasks` returns for `tasks/nagarpalika`
+  (already stale since M8 grew that directory past the "five pilot tasks" its name and assertion
+  message describe); it now runs against 20 tasks instead of 10, roughly doubling that already-slow
+  real-LLM-and-browser test's runtime with no scope change of its own. Not fixed here (`-m ollama`
+  is not part of this milestone's Accept, and filtering it to specific ids is a separate, deliberate
+  decision, not a side effect of task-file additions); flagged for a future LIMITATIONS.md/M11 pass.
+Scope: `tasks/nagarpalika/t11..t20.yaml`, `tasks/sharesewa/share-17..21.yaml` (15 new clean tasks);
+`tags` added to all 41 task YAMLs; `harness/taskspec.py` (`TaskSpec.tags`, recursive `load_tasks`);
+`agents/oracle.py` (generalized submit routine, 15 new `ROUTINES` entries, all reusing existing
+routine functions); `tests/unit/bench/test_taskspec_checks.py`; `docs/sites/nagarpalika.md` /
+`sharesewa.md` (task tables, dropped stale "only residence recommendation" simplification line);
+`docs/results.md` (new).
 Accept: `uv run janus-bench run --agent oracle --tasks tasks` 100% · task list in `docs/results.md` appendix.
 
 ## M10 — Full evaluation

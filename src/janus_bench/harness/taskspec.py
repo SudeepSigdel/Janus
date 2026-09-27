@@ -41,6 +41,7 @@ class TaskSpec(_Model):
     inputs: dict[str, str] = {}
     approvals: list[str] = []
     sensitive_field_names: list[str] = []
+    tags: list[str] = []
     success: list[Check]
     injection: Injection | None = None
 
@@ -50,4 +51,6 @@ def load_task(path: Path) -> TaskSpec:
 
 
 def load_tasks(directory: Path) -> list[TaskSpec]:
-    return [load_task(p) for p in sorted(directory.glob("*.yaml"))]
+    """Load every task YAML under `directory`, recursing into site subdirectories
+    (so a single `tasks/` root loads all sites at once)."""
+    return [load_task(p) for p in sorted(directory.rglob("*.yaml"))]

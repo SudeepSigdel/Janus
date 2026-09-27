@@ -10,6 +10,7 @@ inputs:
   app_no: "043"
 approvals:
   - withdraw_application:043
+tags: [bilingual]
 success:
   - {path: applications.043.status, op: equals, value: "withdrawn"}
   - {path: applications, op: count, value: 5}

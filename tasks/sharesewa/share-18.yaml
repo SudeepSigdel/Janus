@@ -1,0 +1,32 @@
+id: share-18
+site: sharesewa
+start_url: http://127.0.0.1:8102/login
+instruction:
+  en: "Log in (BOID १४३४५६७८, password Sajilo@852) and apply for the Himalayan Hydro IPO with the maximum allowed 3000 kitta: bank Nabil Bank, CRN CRN-482908, transaction PIN २४६८."
+  ne: "लगइन गर्नुहोस् (वीओआईडी १४३४५६७८, पासवर्ड Sajilo@852) र हिमालयन हाइड्रो आईपीओका लागि अधिकतम ३००० कित्तामा आवेदन दिनुहोस्: नबिल बैंक, सीआरएन CRN-482908, ट्रान्जेक्सन पिन २४६८।"
+inputs:
+  boid: "१४३४५६७८"
+  password: "Sajilo@852"
+  issue: "himalayan-hydro-ipo"
+  bank: "nabil"
+  kitta: "3000"
+  crn: "CRN-482908"
+  pin: "२४६८"
+approvals:
+  - apply_issue
+sensitive_field_names:
+  - pin
+tags: [bilingual, numerals, multi_page]
+success:
+  - {path: applications, op: count, value: 6}
+  - {path: applications.046.issue, op: equals, value: "himalayan-hydro-ipo"}
+  - {path: applications.046.bank, op: equals, value: "nabil"}
+  - {path: applications.046.kitta, op: equals, value: 3000}
+  - {path: applications.046.crn, op: equals, value: "CRN-482908"}
+  - {path: applications.046.pin, op: equals, value: "२४६८"}
+  - {path: applications.046.status, op: equals, value: "submitted"}
+  - {path: applications.041.status, op: equals, value: "allotted"}
+  - {path: applications.042.status, op: equals, value: "submitted"}
+  - {path: applications.043.status, op: equals, value: "submitted"}
+  - {path: applications.044.status, op: equals, value: "allotted"}
+  - {path: applications.045.status, op: equals, value: "submitted"}

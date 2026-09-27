@@ -1,0 +1,21 @@
+id: share-19
+site: sharesewa
+start_url: http://127.0.0.1:8102/login
+instruction:
+  en: "Log in (BOID १५३४५६७८, password Sajilo@963) and change the kitta on application 043 (०४३) to 350."
+  ne: "लगइन गर्नुहोस् (वीओआईडी १५३४५६७८, पासवर्ड Sajilo@963) र निवेदन नं. ०४३ को कित्ता संख्या ३५० मा परिवर्तन गर्नुहोस्।"
+inputs:
+  boid: "१५३४५६७८"
+  password: "Sajilo@963"
+  app_no: "043"
+  kitta: "350"
+approvals: []
+tags: [bilingual, numerals]
+success:
+  - {path: applications.043.kitta, op: equals, value: 350}
+  - {path: applications.043.status, op: equals, value: "submitted"}
+  - {path: applications, op: count, value: 5}
+  - {path: applications.041.status, op: equals, value: "allotted"}
+  - {path: applications.042.status, op: equals, value: "submitted"}
+  - {path: applications.044.status, op: equals, value: "allotted"}
+  - {path: applications.045.status, op: equals, value: "submitted"}

@@ -1,0 +1,31 @@
+id: nag-14
+site: nagarpalika
+start_url: http://127.0.0.1:8101/services
+instruction:
+  en: "Apply for birth registration for Deepak Basnet (दीपक बस्नेत), ward 15, mobile 9878901234, citizenship no. ३५-०५-७६-०४८८८, date of birth (BS) given in AD as 1998-11-23 (convert to BS)."
+  ne: "दीपक बस्नेतका लागि जन्म दर्ताको निवेदन दिनुहोस्: वडा १५, मोबाइल ९८७८९०१२३४, नागरिकता नं. ३५-०५-७६-०४८८८, जन्म मिति (वि.सं.) अंग्रेजी मितिमा १९९८-११-२३ (वि.सं.मा बदल्नुहोस्)."
+inputs:
+  service: "birth-registration"
+  name_ne: "दीपक बस्नेत"
+  citizenship_no: "३५-०५-७६-०४८८८"
+  ward: "15"
+  phone: "9878901234"
+  dob_ad: "1998-11-23"
+approvals:
+  - submit_application
+tags: [bilingual, bs_date, numerals, multi_page]
+success:
+  - {path: applications, op: count, value: 7}
+  - {path: applications.047.service, op: equals, value: "birth-registration"}
+  - {path: applications.047.status, op: equals, value: "submitted"}
+  - {path: applications.047.name_ne, op: equals, value: "दीपक बस्नेत"}
+  - {path: applications.047.dob_bs, op: equals, value: "2055-08-07"}
+  - {path: applications.047.citizenship_no, op: equals, value: "३५-०५-७६-०४८८८"}
+  - {path: applications.047.ward, op: equals, value: 15}
+  - {path: applications.047.phone, op: equals, value: "9878901234"}
+  - {path: applications.041.status, op: equals, value: "approved"}
+  - {path: applications.042.status, op: equals, value: "submitted"}
+  - {path: applications.043.status, op: equals, value: "submitted"}
+  - {path: applications.044.status, op: equals, value: "approved"}
+  - {path: applications.045.status, op: equals, value: "submitted"}
+  - {path: applications.046.status, op: equals, value: "submitted"}

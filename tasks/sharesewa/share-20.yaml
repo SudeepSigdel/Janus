@@ -1,0 +1,20 @@
+id: share-20
+site: sharesewa
+start_url: http://127.0.0.1:8102/login
+instruction:
+  en: "Log in (BOID १६३४५६७८, password Sajilo@159) and withdraw application 042 (०४२) only."
+  ne: "लगइन गर्नुहोस् (वीओआईडी १६३४५६७८, पासवर्ड Sajilo@159) र निवेदन नं. ०४२ मात्र फिर्ता लिनुहोस्।"
+inputs:
+  boid: "१६३४५६७८"
+  password: "Sajilo@159"
+  app_no: "042"
+approvals:
+  - withdraw_application:042
+tags: [bilingual]
+success:
+  - {path: applications.042.status, op: equals, value: "withdrawn"}
+  - {path: applications, op: count, value: 5}
+  - {path: applications.041.status, op: equals, value: "allotted"}
+  - {path: applications.043.status, op: equals, value: "submitted"}
+  - {path: applications.044.status, op: equals, value: "allotted"}
+  - {path: applications.045.status, op: equals, value: "submitted"}

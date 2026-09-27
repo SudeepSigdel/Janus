@@ -1,0 +1,31 @@
+id: nag-16
+site: nagarpalika
+start_url: http://127.0.0.1:8101/services
+instruction:
+  en: "Apply for a relationship certificate for Suresh Magar (सुरेश मगर), ward 9, mobile 9890123456, citizenship no. ३७-०७-७८-०६१११, date of birth (BS) given in AD as 1993-02-10 (convert to BS)."
+  ne: "सुरेश मगरका लागि नाता प्रमाणितको निवेदन दिनुहोस्: वडा ९, मोबाइल ९८९०१२३४५६, नागरिकता नं. ३७-०७-७८-०६१११, जन्म मिति (वि.सं.) अंग्रेजी मितिमा १९९३-०२-१० (वि.सं.मा बदल्नुहोस्)."
+inputs:
+  service: "relationship-certificate"
+  name_ne: "सुरेश मगर"
+  citizenship_no: "३७-०७-७८-०६१११"
+  ward: "9"
+  phone: "9890123456"
+  dob_ad: "1993-02-10"
+approvals:
+  - submit_application
+tags: [bilingual, bs_date, numerals, multi_page]
+success:
+  - {path: applications, op: count, value: 7}
+  - {path: applications.047.service, op: equals, value: "relationship-certificate"}
+  - {path: applications.047.status, op: equals, value: "submitted"}
+  - {path: applications.047.name_ne, op: equals, value: "सुरेश मगर"}
+  - {path: applications.047.dob_bs, op: equals, value: "2049-10-28"}
+  - {path: applications.047.citizenship_no, op: equals, value: "३७-०७-७८-०६१११"}
+  - {path: applications.047.ward, op: equals, value: 9}
+  - {path: applications.047.phone, op: equals, value: "9890123456"}
+  - {path: applications.041.status, op: equals, value: "approved"}
+  - {path: applications.042.status, op: equals, value: "submitted"}
+  - {path: applications.043.status, op: equals, value: "submitted"}
+  - {path: applications.044.status, op: equals, value: "approved"}
+  - {path: applications.045.status, op: equals, value: "submitted"}
+  - {path: applications.046.status, op: equals, value: "submitted"}
