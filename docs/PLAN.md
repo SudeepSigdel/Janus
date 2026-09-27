@@ -163,10 +163,69 @@ Accept: `uv run pytest -m browser` green · hand-written plans solve pilot tasks
 observe and act is blocked · a request to the attacker origin is blocked.
 
 ## M5 — Planner + grounding (local model)
-Status: todo
-Scope: plan-commit prompt (task, inputs, structural outline only), JSON-schema output, retry feeding validator errors back
-(max 2). Grounding: deterministic normalization, then bge-m3 label similarity, then LLM fallback constrained to an enum of
-snapshot refs. `agent.py` loop with bounded replan.
+Status: done (Accept passed: `uv run janus run --task tasks/nagarpalika/t01.yaml` runs end to end against the real
+nagarpalika replica and `janus-planner`, submitting application 047 correctly per `/__bench/state` -- see the "known
+limitation" decision below for the nuance on its exit code; `tests/integration/test_agent_browser.py`'s 5-pilot-task run
+(state-based, `-m ollama`) passed 3-5/5 across repeated runs, never below 3; `uv run pytest -m ollama` 4 passed; `uv run
+pytest -m browser` 27 passed; `uv run pytest` 166 passed; `uv run ruff check .` and `ruff format --check .` clean).
+Decisions:
+- **Grounding is a repair pass, not a schema change.** `ops.py` steps already carry a `ref: str`/`value: str` the planner
+  is expected to copy verbatim from its outline. `planner/ground.py` only kicks in when a step's declared ref/value
+  doesn't already match something real: deterministic normalize-and-match (Devanagari digits, whitespace/case) first,
+  then bge-m3 embedding similarity above `Settings.grounding_similarity_threshold` (0.75, untuned), then an LLM call
+  schema-constrained to an `enum` of the real candidates. `<select>` options (M2's known gap: not in `PageSnapshot`) are
+  read live, only for a SELECT step's resolved ref, via new `observer/extract.py::extract_select_options` +
+  `observer/snapshot.py::SelectOption`. A sensitive field's SELECT value that doesn't already match raises
+  `GroundingError` rather than ever inventing a literal for it (invariant 3 survives grounding, not just `validate_plan`).
+- **Capability monotonicity (invariant 2) is enforced within a `commit_plan` call's own validator-error retries, not
+  across pages.** Originally wired the other way (each leg's committed capabilities became the ceiling for the next);
+  running it against the real model immediately broke every multi-page task, since a brand-new page's snapshot can need
+  capabilities (FILL_FORM, SELECT) no earlier page had any way to declare, and `validate_plan` correctly rejected that
+  as "adds capabilities beyond committed." Since the planner only ever sees one page (invariant 1), a cross-page ceiling
+  from the *first* page it happened to see was never a meaningful security boundary, only a bug. `commit_plan` now locks
+  a retry ceiling from a rejected attempt's own capabilities (so a "fix the error" retry can't sneak in new scope), and
+  `agent.py` starts every new leg with no ceiling at all. `validate_plan`'s `committed_capabilities` parameter and its
+  M3 unit tests are unchanged; only how `agent.py`/`commit_plan` use it changed.
+- **`validator/plan.py` gained a role check** (FILL_FORM target must be `textbox`, SELECT target must be `combobox`):
+  found by running the real model, which once put a `<select>`'s ref in a `FILL_FORM` step and crashed
+  `executor.py::execute_step` with a raw Playwright `ElementHandle.fill` error instead of a clean validator rejection.
+  Small, additive, within `validate_plan`'s existing job (a model output failing this way is exactly what "only
+  deterministic code authorizes actions" is for); new unit tests in `tests/unit/validator/test_plan.py`.
+- **`agent.py::_normalize_inputs` derives `dob_bs` from `dob_ad`** before the planner ever sees the input keys. Also
+  found running the real model: nag-02 gives `dob_ad`, not `dob_bs`, and an 8B model with thinking off does not
+  reliably do Bikram Sambat arithmetic in its head -- it just dropped the date field and kept submitting an invalid
+  form. CLAUDE.md is explicit that BS dates are "code in janus/text ..., not prompts"; `janus.text.nepali.ad_to_bs`
+  (M3) already existed and needed no changes, just a caller.
+- **No cross-page conversation history**, except a compact `completed_ops` list (op kinds only, e.g. `["CLICK",
+  "FILL_FORM", "SELECT", "CLICK", "SUBMIT"]`, no page content) passed into every `commit_plan` call so the model has
+  *some* signal that it already did the task's real action, since each page's commit is otherwise a fresh conversation
+  (keeps every call's context small and avoids re-litigating already-executed pages).
+- **Known limitation, not fixed now: the model rarely self-reports `DONE completed` once it has already succeeded.**
+  After a SUBMIT, the next page (a receipt) has no task-relevant elements left, but the planner never sees page body
+  text (invariant 1), so it has no confirmation to read -- only the page title and `completed_ops` as signals. Several
+  rounds of prompt tuning (title-based, then a general "nothing left to do" heuristic, then `completed_ops`) all reduced
+  but did not eliminate this; the model would rather click a leftover nav link than commit to DONE. The **real-world
+  action still happens correctly** (state checks pass) and `classify_run` correctly never trusts a claimed status over
+  a failed/blocked step either way -- but `janus run`'s own exit code (`0` only on `status == "completed"`) will often
+  report `partial` for an actually-successful run. This is a genuine small-local-model capability limit given the
+  observer's page-at-a-time, body-text-hidden design, not a bug; candidate for LIMITATIONS.md (M11).
+- **Known limitation, not fixed now: t03/t04 need to disambiguate between rows with identical labels** ("Edit"/"Cancel"
+  repeated once per application). M4 already flagged this (`tests/integration/test_executor_browser.py::_ref_for_css`'s
+  docstring: "production grounding (M5) never sees DOM ids -- it works from labels and structure only") -- the
+  application id that would disambiguate a row lives in a plain `<td>` (`untrusted_text`, invisible to the planner) or
+  the link's DOM `id` attribute (never captured by `Element`/`Fingerprint`, M2). Fixing it needs an M2-level observer
+  change (associating an element with its row's text, or exposing DOM ids) that's out of this milestone's scope; t01,
+  t02, and t05 (each keyed off one uniquely-labeled entry point) are what M5's "≥3/5" is actually resting on.
+- `src/janus/task.py::TaskFile` independently re-parses the 5 fields `janus run` needs from the same task YAML
+  `janus_bench.harness.taskspec.TaskSpec` reads (`extra="ignore"` tolerates `success`/`injection`), rather than sharing
+  a schema across the `janus`/`janus_bench` import boundary for something this small.
+- `AI_USAGE.md` created (didn't exist before this milestone, despite CLAUDE.md asserting it "must stay accurate"): lists
+  every `LLMClient` call site (`commit_plan`, `ground.py`'s two tiers) and what constrains each one's output.
+Scope: `planner/plan.py` (`commit_plan`, outline-only prompt, JSON-schema `op`-required patch, validator-error retry),
+`planner/ground.py` (`ground_ref`, `ground_select_value`, `ground_plan`), `agent.py` (`run_task`, bounded replan,
+generic escalation), `src/janus/task.py`, `cli.py`'s `run` subcommand, `observer/extract.py::extract_select_options` +
+`observer/snapshot.py::SelectOption`, `validator/plan.py`'s new role check, `config.py`'s `max_plan_retries` (2),
+`max_replan_attempts` (3), `grounding_similarity_threshold` (0.75), `AI_USAGE.md`.
 Accept: `uv run janus run --task tasks/nagarpalika/t01.yaml` succeeds · Janus ≥3/5 on pilot tasks · `uv run pytest -m ollama` green.
 
 ## M6 — Janus in harness + pilot comparison

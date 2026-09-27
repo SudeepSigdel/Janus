@@ -11,7 +11,8 @@ import pytest
 from playwright.sync_api import Browser, Page, sync_playwright
 
 from janus.config import get_settings
-from janus.observer.extract import extract_snapshot
+from janus.executor.resolve import resolve_element
+from janus.observer.extract import extract_select_options, extract_snapshot
 from janus.observer.snapshot import PageSnapshot
 from janus_bench.harness.server import running_site
 from janus_bench.sites.nagarpalika.seed import INJECTION_NOTICE_NE, INJECTION_NOTICE_VARIANT
@@ -107,3 +108,16 @@ def test_services_snapshot_is_under_caps(page: Page, base_url: str) -> None:
 
 def test_form_snapshot_is_under_caps(page: Page, base_url: str) -> None:
     _assert_under_caps(_form_snapshot(page, base_url))
+
+
+def test_extract_select_options_reads_the_ward_dropdown(page: Page, base_url: str) -> None:
+    snapshot = _form_snapshot(page, base_url)
+    ward = next(e for e in snapshot.elements if e.name_attr == "ward")
+    handle = resolve_element(page, ward)
+
+    options = extract_select_options(handle)
+
+    values = {o.value: o.label for o in options}
+    assert len(options) == 33  # blank placeholder + wards 1-32
+    assert "5" in values
+    assert "5" in values["5"] or "५" in values["5"]

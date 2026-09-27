@@ -13,7 +13,7 @@ from playwright.sync_api import ElementHandle, Page
 
 from janus.config import Settings, get_settings
 from janus.observer.fingerprint import compute_fingerprint
-from janus.observer.snapshot import Element, PageSnapshot
+from janus.observer.snapshot import Element, PageSnapshot, SelectOption
 
 # Kept in sync with the identical literal inside `_JS` below by the golden-snapshot
 # tests (any drift changes what `extract_snapshot` returns). Exported so M4's executor
@@ -207,3 +207,19 @@ def handle_at_index(page: Page, index: int) -> ElementHandle | None:
     """
     handle = page.evaluate_handle(_HANDLE_AT_INDEX_JS, [INTERACTIVE_SELECTOR, index])
     return handle.as_element()
+
+
+_SELECT_OPTIONS_JS = """
+(select) => Array.from(select.options).map((o) => ({ value: o.value, label: o.textContent.trim() }))
+"""
+
+
+def extract_select_options(handle: ElementHandle) -> list[SelectOption]:
+    """A `<select>`'s options, read live from an already-resolved handle.
+
+    Options aren't part of the bounded `PageSnapshot` (M2's known gap) -- this is
+    only ever called for a `<select>` a committed plan actually targets
+    (planner/ground.py), never eagerly for every element on the page.
+    """
+    raw: list[dict[str, str]] = handle.evaluate(_SELECT_OPTIONS_JS)
+    return [SelectOption(value=o["value"], label=o["label"]) for o in raw]

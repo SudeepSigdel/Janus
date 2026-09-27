@@ -5,7 +5,11 @@ authorizes actions").
 Checks, all deterministic and model-free:
   - every step's op is in the task's allowed ops, and the plan doesn't exceed max_steps
   - NAVIGATE targets are on the origin allowlist (invariant 6)
-  - every element ref a step touches actually exists on the current snapshot
+  - every element ref a step touches actually exists on the current snapshot, and
+    its role matches the op (FILL_FORM needs a textbox, SELECT needs a combobox) --
+    a role mismatch is rejected here rather than left to crash the executor with a
+    raw Playwright error (found running the real planner model in M5: it once put a
+    combobox's ref in a FILL_FORM step)
   - a sensitive field (by name attribute) is bound via `$inputs.<key>`, never a literal
     the model could have invented (invariant 3)
   - when replanning (`committed_capabilities` given), the new plan's capabilities are a
@@ -93,6 +97,11 @@ def validate_plan(
                 if element is None:
                     errors.append(f"step {i}: unknown element ref {field_value.ref!r}")
                     continue
+                if element.role != "textbox":
+                    errors.append(
+                        f"step {i}: field {field_value.ref!r} is role {element.role!r}, "
+                        "not fillable (expected textbox; a combobox needs SELECT instead)"
+                    )
                 consequential = consequential or is_consequential(step.op, element.accessible_name)
                 _check_sensitive_binding(
                     errors, i, policy, element, field_value.ref, field_value.value
@@ -107,6 +116,11 @@ def validate_plan(
                 decisions.append(StepDecision(i, step.consequential_hint))
                 continue
             if step.op == "SELECT":
+                if element.role != "combobox":
+                    errors.append(
+                        f"step {i}: SELECT target {step.ref!r} is role {element.role!r}, "
+                        "not selectable (expected combobox)"
+                    )
                 _check_sensitive_binding(errors, i, policy, element, step.ref, step.value)
             consequential = (
                 is_consequential(step.op, element.accessible_name) or step.consequential_hint

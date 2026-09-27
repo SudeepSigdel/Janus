@@ -4,25 +4,37 @@ from __future__ import annotations
 
 from janus.observer.fingerprint import compute_fingerprint
 from janus.observer.snapshot import Element, PageSnapshot
-from janus.planner.ops import ClickStep, FieldValue, FillFormStep, NavigateStep, Plan, SubmitStep
+from janus.planner.ops import (
+    ClickStep,
+    FieldValue,
+    FillFormStep,
+    NavigateStep,
+    Plan,
+    SelectStep,
+    SubmitStep,
+)
 from janus.validator.plan import validate_plan
 from janus.validator.policy import Policy, capabilities_of
 
 
 def make_element(
-    ref: str, accessible_name: str, name_attr: str | None, form_id: str | None = "apply-form"
+    ref: str,
+    accessible_name: str,
+    name_attr: str | None,
+    form_id: str | None = "apply-form",
+    role: str = "textbox",
 ) -> Element:
     fingerprint = compute_fingerprint(
-        role="textbox",
+        role=role,
         accessible_name=accessible_name,
         name_attr=name_attr,
         form_id=form_id,
-        tag="input",
+        tag="input" if role == "textbox" else "select",
     )
     return Element(
         ref=ref,
-        tag="input",
-        role="textbox",
+        tag="input" if role == "textbox" else "select",
+        role=role,
         accessible_name=accessible_name,
         name_attr=name_attr,
         form_id=form_id,
@@ -38,6 +50,7 @@ SNAPSHOT = PageSnapshot(
         make_element("e1", "वडा नं. / Ward no.", "ward"),
         make_element("e2", "पेश गर्नुहोस् / Submit application", None),
         make_element("e3", "रद्द / Cancel", None, form_id=None),
+        make_element("e4", "वडा नं. / Ward no. (select)", "ward_select", role="combobox"),
     ],
     untrusted_text=[],
 )
@@ -147,3 +160,26 @@ def test_click_on_plain_element_without_hint_is_not_consequential() -> None:
     plan = Plan(task_id="t", steps=[ClickStep(ref="e1")])
     result = validate_plan(plan, POLICY, SNAPSHOT, inputs={})
     assert result.decisions[0].consequential is False
+
+
+def test_fill_form_targeting_a_combobox_is_rejected() -> None:
+    # A real planner model once did exactly this instead of using SELECT; catching
+    # it here means a validator error instead of execute_step crashing on Playwright's
+    # ElementHandle.fill() (which only works on textbox/textarea elements).
+    plan = Plan(task_id="t", steps=[FillFormStep(fields=[FieldValue(ref="e4", value="5")])])
+    result = validate_plan(plan, POLICY, SNAPSHOT, inputs={})
+    assert not result.ok
+    assert any("not fillable" in e for e in result.errors)
+
+
+def test_select_targeting_a_textbox_is_rejected() -> None:
+    plan = Plan(task_id="t", steps=[SelectStep(ref="e1", value="5")])
+    result = validate_plan(plan, POLICY, SNAPSHOT, inputs={})
+    assert not result.ok
+    assert any("not selectable" in e for e in result.errors)
+
+
+def test_select_targeting_a_combobox_is_accepted() -> None:
+    plan = Plan(task_id="t", steps=[SelectStep(ref="e4", value="5")])
+    result = validate_plan(plan, POLICY, SNAPSHOT, inputs={})
+    assert result.ok

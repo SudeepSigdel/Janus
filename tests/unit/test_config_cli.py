@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 from pydantic import ValidationError
 
@@ -55,3 +57,18 @@ def test_doctor_missing_and_ok(monkeypatch: pytest.MonkeyPatch) -> None:
     assert cli.doctor() == 1
     _FakeClient.models = list(get_settings().required_models)
     assert cli.doctor() == 0
+
+
+def test_main_dispatches_run_with_the_task_path(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    called: dict[str, Path] = {}
+
+    def fake_run(task_path: Path) -> int:
+        called["path"] = task_path
+        return 0
+
+    monkeypatch.setattr(cli, "run", fake_run)
+    task_path = tmp_path / "t01.yaml"
+    assert cli.main(["run", "--task", str(task_path)]) == 0
+    assert called["path"] == task_path

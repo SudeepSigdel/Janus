@@ -42,6 +42,18 @@ class Element(_Model):
     fingerprint: Fingerprint
 
 
+class SelectOption(_Model):
+    """One `<option>` of a `<select>` element.
+
+    Not part of `PageSnapshot` -- options aren't enumerated in the bounded snapshot
+    the planner sees (they'd blow the element/label caps on a long list). Read live,
+    only for a `<select>` a committed plan actually targets (planner/ground.py).
+    """
+
+    value: str
+    label: str
+
+
 class PageSnapshot(_Model):
     """A bounded observation of one page.
 
