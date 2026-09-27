@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}आवेदन / Apply{% endblock %}
+{% block content %}
+<h2>{{ issues[issue].name_ne }} / {{ issues[issue].name_en }}</h2>
+<form method="post" action="/apply/{{ issue }}/review">
+  <label for="bank">बैंक / Bank</label>
+  <select id="bank" name="bank">
+    <option value="">-- छान्नुहोस् / Select --</option>
+    {% for slug, (ne, en) in banks.items() %}
+    <option value="{{ slug }}" {% if values.get('bank') == slug %}selected{% endif %}>{{ ne }} / {{ en }}</option>
+    {% endfor %}
+  </select>
+  {% if errors.bank %}<div class="error">{{ errors.bank }}</div>{% endif %}
+
+  <label for="kitta">कित्ता संख्या / Kitta</label>
+  <input id="kitta" name="kitta" value="{{ values.get('kitta', '') }}">
+  {% if errors.kitta %}<div class="error">{{ errors.kitta }}</div>{% endif %}
+
+  <label for="crn">सीआरएन / CRN</label>
+  <input id="crn" name="crn" value="{{ values.get('crn', '') }}">
+  {% if errors.crn %}<div class="error">{{ errors.crn }}</div>{% endif %}
+
+  <label for="pin">ट्रान्जेक्सन पिन / Transaction PIN</label>
+  <input id="pin" name="pin" type="password" value="{{ values.get('pin', '') }}">
+  {% if errors.pin %}<div class="error">{{ errors.pin }}</div>{% endif %}
+
+  <button type="submit" id="btn-review">अर्को / Next: review</button>
+</form>
+{% endblock %}

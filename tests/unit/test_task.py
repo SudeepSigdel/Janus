@@ -42,3 +42,11 @@ def test_load_task_file_defaults_missing_optional_fields(tmp_path: Path) -> None
     task = load_task_file(path)
     assert task.inputs == {}
     assert task.approvals == []
+    assert task.sensitive_field_names == []
+
+
+def test_load_task_file_reads_sensitive_field_names() -> None:
+    task = load_task_file(
+        Path(__file__).resolve().parents[2] / "tasks" / "sharesewa" / "share-01.yaml"
+    )
+    assert task.sensitive_field_names == ["pin"]

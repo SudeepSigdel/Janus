@@ -30,11 +30,10 @@
 <body>
   <header>
     <h1>{{ site_name_ne }} <small>{{ site_name_en }}</small></h1>
-    <small>वडा सेवा पोर्टल / Ward Service Portal (काल्पनिक नमूना / fictional replica)</small>
+    <small>{{ site_tagline }}</small>
   </header>
   <nav>
-    <a href="/services">सेवाहरू / Services</a>
-    <a href="/applications">मेरा निवेदन / My Applications</a>
+    {% for href, label in nav_links %}<a href="{{ href }}">{{ label }}</a>{% endfor %}
   </nav>
   <main>
     {% block content %}{% endblock %}

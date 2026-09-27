@@ -38,6 +38,7 @@ class TaskSpec(_Model):
     instruction: Instruction
     inputs: dict[str, str] = {}
     approvals: list[str] = []
+    sensitive_field_names: list[str] = []
     success: list[Check]
     injection: Injection | None = None
 

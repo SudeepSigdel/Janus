@@ -53,12 +53,60 @@ def _cancel(page: Page, task: TaskSpec) -> None:
     page.wait_for_url("**/applications")
 
 
+def _login(page: Page, task: TaskSpec) -> None:
+    page.goto(task.start_url)
+    page.fill("#boid", task.inputs["boid"])
+    page.fill("#password", task.inputs["password"])
+    page.click("#btn-login")
+    page.wait_for_url("**/issues")
+
+
+def _apply(page: Page, task: TaskSpec) -> None:
+    inputs = task.inputs
+    _login(page, task)
+    page.click(f"#apply-{inputs['issue']}")
+    page.select_option("#bank", inputs["bank"])
+    page.fill("#kitta", inputs["kitta"])
+    page.fill("#crn", inputs["crn"])
+    page.fill("#pin", inputs["pin"])
+    page.click("#btn-review")
+    page.click("#btn-submit")
+    page.wait_for_selector("#receipt-id")
+
+
+def _edit_kitta(page: Page, task: TaskSpec) -> None:
+    _login(page, task)
+    page.click('a[href="/report"]')
+    page.click(f"#edit-{task.inputs['app_no']}")
+    page.fill("#kitta", task.inputs["kitta"])
+    page.click("#btn-save")
+    page.wait_for_url("**/report")
+
+
+def _withdraw(page: Page, task: TaskSpec) -> None:
+    _login(page, task)
+    page.click('a[href="/report"]')
+    page.click(f"#withdraw-{task.inputs['app_no']}")
+    page.click("#btn-confirm-withdraw")
+    page.wait_for_url("**/report")
+
+
 ROUTINES: dict[str, Callable[[Page, TaskSpec], None]] = {
     "nag-01": _submit_bs,
     "nag-02": _submit_ad,
     "nag-03": _update_phone,
     "nag-04": _cancel,
     "nag-05": _submit_bs,
+    "share-01": _apply,
+    "share-02": _apply,
+    "share-03": _apply,
+    "share-04": _apply,
+    "share-05": _apply,
+    "share-06": _edit_kitta,
+    "share-07": _edit_kitta,
+    "share-08": _withdraw,
+    "share-09": _withdraw,
+    "share-10": _apply,
 }
 
 

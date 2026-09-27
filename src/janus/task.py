@@ -32,6 +32,7 @@ class TaskFile(BaseModel):
     instruction: Instruction
     inputs: dict[str, str] = {}
     approvals: list[str] = []
+    sensitive_field_names: list[str] = []
 
 
 def load_task_file(path: Path) -> TaskFile:

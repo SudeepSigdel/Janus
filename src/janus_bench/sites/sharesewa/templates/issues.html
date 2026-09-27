@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}खुल्ला निष्कासन / Open Issues{% endblock %}
+{% block content %}
+<h2>खुल्ला निष्कासन / Open issues</h2>
+<table>
+  <thead>
+    <tr>
+      <th>कम्पनी / Company</th>
+      <th>खुल्ने मिति (वि.सं.) / Open (BS)</th>
+      <th>बन्द हुने मिति (वि.सं.) / Close (BS)</th>
+      <th>मूल्य / Price</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for slug, issue in issues.items() %}
+  <tr id="issue-{{ slug }}">
+    <td>{{ issue.name_ne }} / {{ issue.name_en }}</td>
+    <td>{{ issue.open_bs }}</td>
+    <td>{{ issue.close_bs }}</td>
+    <td>{{ issue.price | ne }}</td>
+    <td><a id="apply-{{ slug }}" href="/apply/{{ slug }}">आवेदन / Apply — {{ issue.name_en }}</a></td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

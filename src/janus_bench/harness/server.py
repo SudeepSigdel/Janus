@@ -13,9 +13,12 @@ from fastapi import FastAPI
 
 from janus_bench.sites.nagarpalika.app import PORT as NAGARPALIKA_PORT
 from janus_bench.sites.nagarpalika.app import create_app as create_nagarpalika
+from janus_bench.sites.sharesewa.app import PORT as SHARESEWA_PORT
+from janus_bench.sites.sharesewa.app import create_app as create_sharesewa
 
 SITES: dict[str, tuple[Callable[[], FastAPI], int]] = {
     "nagarpalika": (create_nagarpalika, NAGARPALIKA_PORT),
+    "sharesewa": (create_sharesewa, SHARESEWA_PORT),
 }
 HOST = "127.0.0.1"
 

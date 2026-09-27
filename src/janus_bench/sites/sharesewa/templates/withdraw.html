@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}फिर्ता / Withdraw{% endblock %}
+{% block content %}
+<h2>आवेदन फिर्ता लिने? / Withdraw this application?</h2>
+<p>आवेदन नं. / No. <strong>{{ application.id | ne }}</strong> — {{ issues[application.issue].name_en }}</p>
+<p>यो कार्य पूर्ववत गर्न मिल्दैन। / This cannot be undone.</p>
+<form method="post" action="/applications/{{ application.id }}/withdraw">
+  <a class="btn" href="/report">फर्कनुहोस् / Back</a>
+  <button type="submit" class="danger" id="btn-confirm-withdraw">पुष्टि गर्नुहोस् / Confirm withdraw</button>
+</form>
+{% endblock %}

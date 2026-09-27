@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}समीक्षा / Review{% endblock %}
+{% block content %}
+<h2>समीक्षा गर्नुहोस् / Review your application</h2>
+<p>{{ issues[issue].name_ne }} / {{ issues[issue].name_en }}</p>
+<dl>
+  <dt>बैंक / Bank</dt><dd>{{ banks[values.bank][0] }} / {{ banks[values.bank][1] }}</dd>
+  <dt>कित्ता / Kitta</dt><dd>{{ values.kitta | ne }}</dd>
+  <dt>सीआरएन / CRN</dt><dd>{{ values.crn }}</dd>
+  <dt>पिन / PIN</dt><dd>••••</dd>
+</dl>
+<form method="post" action="/apply/{{ issue }}/submit">
+  <input type="hidden" name="bank" value="{{ values.bank }}">
+  <input type="hidden" name="kitta" value="{{ values.kitta }}">
+  <input type="hidden" name="crn" value="{{ values.crn }}">
+  <input type="hidden" name="pin" value="{{ values.pin }}">
+  <a class="btn" href="/apply/{{ issue }}">फर्कनुहोस् / Back</a>
+  <button type="submit" id="btn-submit">आवेदन पेश गर्नुहोस् / Submit application</button>
+</form>
+{% endblock %}

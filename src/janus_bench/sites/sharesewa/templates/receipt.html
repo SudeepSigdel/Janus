@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block title %}रसिद / Receipt{% endblock %}
+{% block content %}
+<h2>आवेदन पेश भयो / Application submitted</h2>
+<p>आवेदन नं. / Application no.: <strong id="receipt-id">{{ application.id | ne }}</strong></p>
+<p>{{ issues[application.issue].name_ne }} / {{ issues[application.issue].name_en }}</p>
+<p><a href="/report">मेरो रिपोर्ट हेर्नुहोस् / View my report</a></p>
+{% endblock %}

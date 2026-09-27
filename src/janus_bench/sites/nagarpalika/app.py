@@ -85,6 +85,11 @@ def create_app() -> FastAPI:
     templates.env.globals.update(
         site_name_ne="सहयात्री नगरपालिका",
         site_name_en="Sahayatri Nagarpalika",
+        site_tagline="वडा सेवा पोर्टल / Ward Service Portal (काल्पनिक नमूना / fictional replica)",
+        nav_links=[
+            ("/services", "सेवाहरू / Services"),
+            ("/applications", "मेरा निवेदन / My Applications"),
+        ],
         services=SERVICES,
     )
 

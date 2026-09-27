@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}आवेदन रिपोर्ट / Application Report{% endblock %}
+{% block content %}
+<h2>मेरो आवेदन रिपोर्ट / My application report</h2>
+<table>
+  <thead>
+    <tr>
+      <th>नं. / No.</th>
+      <th>कम्पनी / Company</th>
+      <th>बैंक / Bank</th>
+      <th>कित्ता / Kitta</th>
+      <th>स्थिति / Status</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for a in applications %}
+  <tr id="app-{{ a.id }}">
+    <td>{{ a.id | ne }}</td>
+    <td>{{ issues[a.issue].name_ne }} / {{ issues[a.issue].name_en }}</td>
+    <td>{{ banks[a.bank][0] }} / {{ banks[a.bank][1] }}</td>
+    <td>{{ a.kitta | ne }}</td>
+    <td class="status-{{ a.status }}">
+      {% if a.status == "submitted" %}पेश गरिएको / Submitted
+      {% elif a.status == "allotted" %}कित्ता प्राप्त / Allotted
+      {% else %}फिर्ता लिइएको / Withdrawn{% endif %}
+    </td>
+    <td>
+      {% if a.status == "submitted" %}<a id="edit-{{ a.id }}" href="/applications/{{ a.id }}/edit">सम्पादन / Edit</a>
+      <a id="withdraw-{{ a.id }}" href="/applications/{{ a.id }}/withdraw">फिर्ता / Withdraw</a>{% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

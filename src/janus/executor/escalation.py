@@ -21,6 +21,11 @@ keyword match ("submit" / "पेश") flags it consequential either way. Runnin
 planner against the harness's deterministic simulated user (M6) showed it reliably
 plans that button as CLICK, so SUBMIT-only left every submit-flow task blocked on its
 last step. Same rationale as `cancel_application` below, just discovered later.
+
+`apply_issue` (ShareSewa, M7) and `withdraw_application` (ShareSewa, M7) follow the
+same {SUBMIT, CLICK} shape for the same reason -- their final buttons ("Submit
+Application" / "Confirm withdraw") also trip a consequential keyword regardless of
+which op the planner names them.
 """
 
 from __future__ import annotations
@@ -32,6 +37,8 @@ _APPROVAL_OP_KINDS: dict[str, frozenset[OpKind]] = {
     # Cancelling is a link click (navigates to a confirmation page) followed by a
     # form submit; both trip the "cancel" consequential keyword (validator/consequential.py).
     "cancel_application": frozenset({"CLICK", "SUBMIT"}),
+    "apply_issue": frozenset({"SUBMIT", "CLICK"}),
+    "withdraw_application": frozenset({"CLICK", "SUBMIT"}),
 }
 
 

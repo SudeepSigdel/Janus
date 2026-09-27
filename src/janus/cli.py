@@ -52,6 +52,7 @@ def run(task_path: Path) -> int:
         allowed_origins=frozenset({origin_of(task.start_url)}),
         allowed_ops=frozenset(get_args(OpKind)),
         max_steps=20,
+        sensitive_fields=frozenset(task.sensitive_field_names),
     )
     granted_ops = make_granted_ops(task.approvals)
 

@@ -263,9 +263,56 @@ Accept: `uv run janus-bench run --agent janus --tasks tasks/nagarpalika --repeat
 injection outcome for task 5 recorded for both.
 
 ## M7 — Site 2: ShareSewa (fictional share/IPO portal)
-Status: todo
-Scope: login, open issues (BS open/close dates), apply form (bank, kitta, CRN, PIN), confirm, application report. 10 tasks.
-Provenance notes in `docs/sites/sharesewa.md`.
+Status: done (Accept passed: `uv run janus-bench run --agent oracle --tasks tasks/sharesewa` 10/10;
+`--agent null --tasks tasks/sharesewa` 0/10; `uv run pytest` 181 passed; `uv run pytest -m browser`
+47 passed; `uv run ruff check .` and `ruff format --check .` clean).
+Decisions:
+- **No injection variant in M7's 10 tasks.** PLAN.md's own M8 line ("~12 cases across both sites")
+  already scopes the injection suite as a separate milestone; nagarpalika's own first 5 tasks
+  likewise shipped with only one injection case before M8 was meant to expand it. Kept ShareSewa's
+  M7 tasks clean-only, matching the "10 tasks" scope line exactly.
+- **Login is not approval-gated.** `validator/consequential.py` flags every `SUBMIT` op
+  unconditionally and any op whose target's accessible name matches a keyword; "Login" / "लगइन"
+  matches neither. As long as the login button is planned as `CLICK` (M6 found the real model
+  reliably does this for in-form buttons regardless of HTML `type`), no escalation is needed to
+  log in -- matching real-world intuition that authenticating isn't itself a consequential action.
+  If a future model plans it as `SUBMIT` instead, `is_consequential` will flag it and it'll simply
+  block without a granted op; not fixed defensively here since it isn't exercised by oracle/null.
+- **Two new escalation labels**, `apply_issue` and `withdraw_application`, added to
+  `executor/escalation.py::_APPROVAL_OP_KINDS`, both `{SUBMIT, CLICK}` -- same rationale as
+  `submit_application`/`cancel_application` (M4/M6): the final button's label carries the
+  consequential keyword ("Submit Application" / "Confirm withdraw"), not the op kind, so both
+  op kinds must be granted regardless of which one the planner picks. Editing kitta ("Save") has
+  no keyword match and needs no approval, matching nagarpalika's own phone-edit task.
+- **`sensitive_fields` is now wired end to end for the PIN field**, not just present in `Policy`'s
+  schema. `TaskSpec`/`TaskFile` both gained `sensitive_field_names: list[str] = []`; `janus.cli::run`
+  and `janus_bench.agents.janus_agent::_policy_for` both now pass
+  `sensitive_fields=frozenset(task.sensitive_field_names)` into the `Policy` they build. Before this,
+  no call site populated `sensitive_fields` for *any* field on *either* site -- invariant 3
+  ($inputs binding for sensitive fields) was real machinery (M3) but dead in practice. Only PIN is
+  marked sensitive for M7; nagarpalika's citizenship_no/dob_bs are pre-existing candidates left
+  unmarked (out of scope here -- would need its own task-file review, not a ShareSewa change).
+- **Issue-selection links use unique accessible names** (`"Apply — <issue name>"` per row) rather
+  than repeated generic labels, deliberately avoiding the row-disambiguation gap M4/M5/M6 already
+  documented for nagarpalika's identical "Edit"/"Cancel" labels (the disambiguating id there lives
+  in `untrusted_text`, invisible to the planner). Not needed for M7's oracle/null Accept bar, but
+  keeps ShareSewa's tasks solvable by a future real-planner run without hitting the same wall.
+- **`sites/common/templates/base.html` was de-hardcoded.** It previously baked in nagarpalika's own
+  tagline ("Ward Service Portal") and nav links (`/services`, `/applications`) directly, despite
+  living under `sites/common/` as shared infrastructure -- unusable as-is for a second site.
+  Replaced with `site_tagline` and `nav_links` Jinja globals, each site's `create_app()` now sets
+  its own; nagarpalika's values were copied over unchanged so its rendered HTML (and golden
+  snapshots in `tests/integration/golden/`) stayed byte-identical -- verified by the unchanged
+  `test_observer_browser.py` golden-snapshot tests passing.
+- Login state is a single global `logged_in` flag in `StateStore` (like nagarpalika's single
+  shared applications dict), not a per-browser session/cookie; any BOID/password meeting the
+  format rules logs in, there's no real credential check. Noted in `docs/sites/sharesewa.md`'s
+  Simplifications section.
+Scope: `src/janus_bench/sites/sharesewa/` (app, seed, templates for login/issues/apply/review/
+receipt/report/edit/withdraw); registered in `harness/server.py`'s `SITES` (port 8102);
+`tasks/sharesewa/share-01..10.yaml`; `agents/oracle.py` routines for all 10 task ids;
+`docs/sites/sharesewa.md`; `tests/unit/bench/test_sharesewa_site.py`;
+`tests/integration/test_sharesewa_pilot_browser.py`; escalation/task-schema/policy changes above.
 Accept: `uv run janus-bench run --agent oracle --tasks tasks/sharesewa` 10/10 · `--agent null` 0/10.
 
 ## M8 — Injection suite

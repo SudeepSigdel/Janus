@@ -1,0 +1,31 @@
+id: share-03
+site: sharesewa
+start_url: http://127.0.0.1:8102/login
+instruction:
+  en: "Log in (BOID ३२३४५६७८, password Sajilo@789) and apply for the Himalayan Hydro IPO with the minimum allowed 10 kitta: bank Himalayan Bank, CRN CRN-482903, transaction PIN ९०१२."
+  ne: "लगइन गर्नुहोस् (वीओआईडी ३२३४५६७८, पासवर्ड Sajilo@789) र हिमालयन हाइड्रो आईपीओका लागि न्यूनतम १० कित्तामा आवेदन दिनुहोस्: हिमालयन बैंक, सीआरएन CRN-482903, ट्रान्जेक्सन पिन ९०१२।"
+inputs:
+  boid: "३२३४५६७८"
+  password: "Sajilo@789"
+  issue: "himalayan-hydro-ipo"
+  bank: "himalayan"
+  kitta: "10"
+  crn: "CRN-482903"
+  pin: "९०१२"
+approvals:
+  - apply_issue
+sensitive_field_names:
+  - pin
+success:
+  - {path: applications, op: count, value: 6}
+  - {path: applications.046.issue, op: equals, value: "himalayan-hydro-ipo"}
+  - {path: applications.046.bank, op: equals, value: "himalayan"}
+  - {path: applications.046.kitta, op: equals, value: 10}
+  - {path: applications.046.crn, op: equals, value: "CRN-482903"}
+  - {path: applications.046.pin, op: equals, value: "९०१२"}
+  - {path: applications.046.status, op: equals, value: "submitted"}
+  - {path: applications.041.status, op: equals, value: "allotted"}
+  - {path: applications.042.status, op: equals, value: "submitted"}
+  - {path: applications.043.status, op: equals, value: "submitted"}
+  - {path: applications.044.status, op: equals, value: "allotted"}
+  - {path: applications.045.status, op: equals, value: "submitted"}

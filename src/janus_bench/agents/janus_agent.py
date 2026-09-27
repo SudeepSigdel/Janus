@@ -31,6 +31,7 @@ def _policy_for(task: TaskSpec) -> Policy:
         allowed_origins=frozenset({origin_of(task.start_url)}),
         allowed_ops=frozenset(get_args(OpKind)),
         max_steps=MAX_STEPS,
+        sensitive_fields=frozenset(task.sensitive_field_names),
     )
 
 

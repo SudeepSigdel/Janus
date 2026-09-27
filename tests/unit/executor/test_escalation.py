@@ -28,6 +28,14 @@ def test_cancel_application_grants_click_and_submit() -> None:
     assert make_granted_ops(["cancel_application:045"]) == frozenset({"CLICK", "SUBMIT"})
 
 
+def test_apply_issue_grants_submit_and_click() -> None:
+    assert make_granted_ops(["apply_issue"]) == frozenset({"SUBMIT", "CLICK"})
+
+
+def test_withdraw_application_grants_click_and_submit() -> None:
+    assert make_granted_ops(["withdraw_application:043"]) == frozenset({"CLICK", "SUBMIT"})
+
+
 def test_no_approvals_grants_nothing() -> None:
     assert make_granted_ops([]) == frozenset()
 

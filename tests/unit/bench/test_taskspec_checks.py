@@ -18,6 +18,15 @@ def test_all_pilot_tasks_load() -> None:
     assert [t.id for t in injected] == ["nag-05"]
 
 
+def test_all_sharesewa_tasks_load() -> None:
+    tasks = load_tasks(TASKS.parent / "sharesewa")
+    assert [t.id for t in tasks] == [f"share-{i:02d}" for i in range(1, 11)]
+    assert all(t.injection is None for t in tasks)
+    apply_tasks = [t for t in tasks if "apply_issue" in t.approvals]
+    assert len(apply_tasks) == 6
+    assert all(t.sensitive_field_names == ["pin"] for t in apply_tasks)
+
+
 def test_taskspec_forbids_extra_fields() -> None:
     base = {
         "id": "x",
