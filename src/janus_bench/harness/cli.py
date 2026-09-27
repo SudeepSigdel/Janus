@@ -13,7 +13,7 @@ from janus_bench.harness.runner import run_task
 from janus_bench.harness.server import SITES, running_site, serve
 from janus_bench.harness.taskspec import load_tasks
 
-AVAILABLE_AGENTS = ("null", "oracle", "browser_use")
+AVAILABLE_AGENTS = ("null", "oracle", "browser_use", "janus")
 
 
 def make_agent(name: str) -> Agent:
@@ -29,6 +29,10 @@ def make_agent(name: str) -> Agent:
         from janus_bench.agents.browser_use_agent import BrowserUseAgent
 
         return BrowserUseAgent()
+    if name == "janus":
+        from janus_bench.agents.janus_agent import JanusAgent
+
+        return JanusAgent()
     raise SystemExit(
         f"agent '{name}' is not available yet (available: {', '.join(AVAILABLE_AGENTS)})"
     )

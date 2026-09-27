@@ -17,8 +17,11 @@ def test_parse_approval_without_target() -> None:
     assert parse_approval("submit_application") == ("submit_application", None)
 
 
-def test_submit_application_grants_submit_only() -> None:
-    assert make_granted_ops(["submit_application"]) == frozenset({"SUBMIT"})
+def test_submit_application_grants_submit_and_click() -> None:
+    # Both, not SUBMIT alone: the planner isn't forced to call the submit button's op
+    # SUBMIT rather than CLICK, and either op trips the same "submit"/"पेश" keyword
+    # (validator/consequential.py) -- see escalation.py's module docstring (M6).
+    assert make_granted_ops(["submit_application"]) == frozenset({"SUBMIT", "CLICK"})
 
 
 def test_cancel_application_grants_click_and_submit() -> None:

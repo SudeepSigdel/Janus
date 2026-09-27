@@ -13,6 +13,14 @@ nagarpalika's forms set no form_id at all, so nothing downstream of this functio
 can currently tell "cancel 045" from "cancel 046" apart. The suffix is parsed and
 available for tests/logging, but is not enforced by authorize_action. That gap is
 a known M4 limitation (see docs/PLAN.md), not something this module papers over.
+
+`submit_application` grants both SUBMIT and CLICK (not SUBMIT alone): nagarpalika's
+final submit control is an ordinary `<button type="submit">`, and nothing forces the
+planner to name that verb SUBMIT rather than CLICK -- validator/consequential.py's
+keyword match ("submit" / "पेश") flags it consequential either way. Running the real
+planner against the harness's deterministic simulated user (M6) showed it reliably
+plans that button as CLICK, so SUBMIT-only left every submit-flow task blocked on its
+last step. Same rationale as `cancel_application` below, just discovered later.
 """
 
 from __future__ import annotations
@@ -20,7 +28,7 @@ from __future__ import annotations
 from janus.planner.ops import OpKind, Step
 
 _APPROVAL_OP_KINDS: dict[str, frozenset[OpKind]] = {
-    "submit_application": frozenset({"SUBMIT"}),
+    "submit_application": frozenset({"SUBMIT", "CLICK"}),
     # Cancelling is a link click (navigates to a confirmation page) followed by a
     # form submit; both trip the "cancel" consequential keyword (validator/consequential.py).
     "cancel_application": frozenset({"CLICK", "SUBMIT"}),
