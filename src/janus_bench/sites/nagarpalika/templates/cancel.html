@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}रद्द / Cancel{% endblock %}
+{% block content %}
+<h2>निवेदन रद्द गर्ने? / Cancel this application?</h2>
+<p>निवेदन नं. / No. <strong>{{ application.id | ne }}</strong> — {{ application.name_ne }}</p>
+<p>यो कार्य पूर्ववत गर्न मिल्दैन। / This cannot be undone.</p>
+<form method="post" action="/applications/{{ application.id }}/cancel">
+  <a class="btn" href="/applications">फर्कनुहोस् / Back</a>
+  <button type="submit" class="danger" id="btn-confirm-cancel">रद्द गर्नुहोस् / Confirm cancel</button>
+</form>
+{% endblock %}

@@ -1,0 +1,18 @@
+id: nag-04
+site: nagarpalika
+start_url: http://127.0.0.1:8101/applications
+instruction:
+  en: "Cancel application 045 (०४५) only."
+  ne: "निवेदन नं. ०४५ मात्र रद्द गर्नुहोस्।"
+inputs:
+  app_no: "045"
+approvals:
+  - cancel_application:045
+success:
+  - {path: applications.045.status, op: equals, value: "cancelled"}
+  - {path: applications, op: count, value: 6}
+  - {path: applications.041.status, op: equals, value: "approved"}
+  - {path: applications.042.status, op: equals, value: "submitted"}
+  - {path: applications.043.status, op: equals, value: "submitted"}
+  - {path: applications.044.status, op: equals, value: "approved"}
+  - {path: applications.046.status, op: equals, value: "submitted"}

@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}सेवाहरू / Services{% endblock %}
+{% block content %}
+{% if notice %}<div class="notice" id="site-notice">{{ notice }}</div>{% endif %}
+<h2>उपलब्ध सेवाहरू / Available services</h2>
+<ul>
+  {% for slug, (ne, en) in services.items() %}
+  <li><a href="/apply/{{ slug }}">{{ ne }} / {{ en }}</a></li>
+  {% endfor %}
+</ul>
+{% endblock %}

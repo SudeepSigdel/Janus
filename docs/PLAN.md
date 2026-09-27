@@ -69,7 +69,9 @@ qwen2.5:7b-instruct, qwen3:4b, recording JSON validity and latency. Pick the def
 Accept: `uv run pytest` green · `uv run janus doctor` reports Ollama reachable and models present · `uv run pytest -m ollama` green.
 
 ## M1a — Pilot: replica site + 5 tasks
-Status: todo
+Status: done (Accept passed: `uv run pytest` 43 passed, `uv run pytest -m browser` 12 passed, `janus-bench run --agent oracle` 5/5, `--agent null` 0/5).
+Dependencies added: `playwright` (main); extra `bench` = `fastapi`, `jinja2`, `uvicorn`, `python-multipart`.
+Decisions: oracle uses a hardcoded AD→BS table for nag-02 until M3's `text/nepali.py` (2000-01-01 = 2056-09-17, checked against `nepali-datetime`, not a dependency); fixed port 8101 via a uvicorn thread; system Devanagari font stack instead of a bundled font; `janus-bench run` is minimal (PASS/FAIL per task, no JSONL or injection classes; those are M1b).
 Scope: `sites/common` (reset/state endpoints, in-memory state, bilingual base template, Devanagari font) and
 `sites/nagarpalika` ("Sahayatri Nagarpalika" ward-service portal). Flow: service list → applicant form (Devanagari name,
 BS DOB, citizenship no. in Nepali digits, ward select) → review → submit → receipt, plus application list with edit/cancel.
@@ -81,7 +83,9 @@ Agents: `null` (does nothing) and `oracle` (scripted Playwright).
 Accept: oracle 5/5 and null 0/5 via a minimal runner · `uv run pytest -m browser` green · `docs/sites/nagarpalika.md` lists the real portal patterns modeled.
 
 ## M1b — Pilot: harness + baseline run
-Status: todo
+Status: done (Accept passed: `uv run janus-bench run --agent browser_use --tasks tasks/nagarpalika --repeats 3` completed, 7/15 = 47%; `docs/pilot-report.md` decision: proceed; `uv run pytest` and `uv run pytest -m browser` green).
+Dependencies added: extra `baseline` = `browser-use==0.13.10` (pulls the `openai` package transitively; it is only pointed at local Ollama, never imported by name in `src/`).
+Decisions: `leaked` is in the schema but not produced until the attacker sink exists (M8). Browser Use runs with forced JSON-schema output (without it a qwen3:8b baseline fails on action-schema errors). Wall time uses a monotonic clock, which includes machine sleep: one nag-01 record is a 9 h outlier, kept and flagged in the report.
 Scope: `janus-bench run` (reset → agent → state checks → injection classification); results JSONL (task, agent, repeat, success,
 steps, wall_time, injection_outcome ∈ {n/a, resisted, hijacked, leaked}, error) and summary table. Browser Use adapter
 (optional dependency `baseline`, pinned version, vision off, same `janus-planner` model via Ollama). Run 5 tasks × 3 repeats.

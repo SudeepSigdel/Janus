@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}समीक्षा / Review{% endblock %}
+{% block content %}
+<h2>समीक्षा गर्नुहोस् / Review your application</h2>
+<p>{{ services[service][0] }} / {{ services[service][1] }}</p>
+<dl>
+  <dt>पूरा नाम / Full name</dt><dd>{{ values.name_ne }}</dd>
+  <dt>जन्म मिति (वि.सं.) / Date of birth (BS)</dt><dd>{{ values.dob_bs }}</dd>
+  <dt>नागरिकता नं. / Citizenship no.</dt><dd>{{ values.citizenship_no }}</dd>
+  <dt>वडा / Ward</dt><dd>{{ values.ward | ne }}</dd>
+  <dt>मोबाइल / Mobile</dt><dd>{{ values.phone }}</dd>
+</dl>
+<form method="post" action="/apply/{{ service }}/submit">
+  {% for key, value in values.items() %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
+  <a class="btn" href="/apply/{{ service }}">फर्कनुहोस् / Back</a>
+  <button type="submit" id="btn-submit">पेश गर्नुहोस् / Submit application</button>
+</form>
+{% endblock %}

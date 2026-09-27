@@ -9,9 +9,19 @@ dependencies = [
     "httpx>=0.27",
     "pydantic>=2.7",
     "pyyaml>=6.0",
+    "playwright>=1.45",
 ]
 
 [project.optional-dependencies]
+bench = [
+    "fastapi>=0.111",
+    "jinja2>=3.1",
+    "uvicorn>=0.30",
+    "python-multipart>=0.0.9",
+]
+baseline = [
+    "browser-use==0.13.10",
+]
 dev = [
     "pytest>=8.0",
     "ruff>=0.5",
@@ -19,6 +29,7 @@ dev = [
 
 [project.scripts]
 janus = "janus.cli:main"
+janus-bench = "janus_bench.harness.cli:main"
 
 [build-system]
 requires = ["hatchling"]

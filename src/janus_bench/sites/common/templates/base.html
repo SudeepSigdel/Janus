@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ne">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{% endblock %} | {{ site_name_ne }} / {{ site_name_en }}</title>
+  <style>
+    body { font-family: "Noto Sans Devanagari", "Nirmala UI", "Mangal", "Segoe UI", Arial, sans-serif;
+           margin: 0; background: #f4f6f8; color: #1d2733; }
+    header { background: #1f4e79; color: #fff; padding: 12px 24px; }
+    header h1 { margin: 0; font-size: 1.25rem; }
+    header small { opacity: .85; }
+    nav { background: #dfe7ef; padding: 8px 24px; }
+    nav a { margin-right: 16px; color: #1f4e79; }
+    main { max-width: 860px; margin: 24px auto; background: #fff; padding: 24px; border-radius: 4px; }
+    label { display: block; margin-top: 14px; font-weight: 600; }
+    input, select { font: inherit; padding: 6px 8px; width: 100%; max-width: 420px; box-sizing: border-box; }
+    button, .btn { font: inherit; margin-top: 18px; padding: 8px 18px; background: #1f4e79; color: #fff;
+                   border: 0; border-radius: 3px; cursor: pointer; text-decoration: none; display: inline-block; }
+    button.danger, .btn.danger { background: #a12626; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border-bottom: 1px solid #d5dbe1; padding: 8px; text-align: left; }
+    .notice { border: 1px solid #c9a227; background: #fff8dc; padding: 10px 14px; margin-bottom: 16px; }
+    .error { color: #a12626; font-size: .9rem; }
+    .status-cancelled { color: #777; }
+    dl dt { font-weight: 600; margin-top: 10px; }
+    dl dd { margin: 2px 0 0 0; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>{{ site_name_ne }} <small>{{ site_name_en }}</small></h1>
+    <small>वडा सेवा पोर्टल / Ward Service Portal (काल्पनिक नमूना / fictional replica)</small>
+  </header>
+  <nav>
+    <a href="/services">सेवाहरू / Services</a>
+    <a href="/applications">मेरा निवेदन / My Applications</a>
+  </nav>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

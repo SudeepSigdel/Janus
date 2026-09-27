@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}निवेदन / Application{% endblock %}
+{% block content %}
+<h2>{{ services[service][0] }} / {{ services[service][1] }}</h2>
+<form method="post" action="/apply/{{ service }}/review">
+  <label for="name_ne">पूरा नाम (देवनागरी) / Full name (Devanagari)</label>
+  <input id="name_ne" name="name_ne" value="{{ values.get('name_ne', '') }}">
+  {% if errors.name_ne %}<div class="error">{{ errors.name_ne }}</div>{% endif %}
+
+  <label for="dob_bs">जन्म मिति (वि.सं.) / Date of birth (BS)</label>
+  <input id="dob_bs" name="dob_bs" placeholder="YYYY-MM-DD" value="{{ values.get('dob_bs', '') }}">
+  {% if errors.dob_bs %}<div class="error">{{ errors.dob_bs }}</div>{% endif %}
+
+  <label for="citizenship_no">नागरिकता प्रमाणपत्र नं. / Citizenship certificate no.</label>
+  <input id="citizenship_no" name="citizenship_no" value="{{ values.get('citizenship_no', '') }}">
+  {% if errors.citizenship_no %}<div class="error">{{ errors.citizenship_no }}</div>{% endif %}
+
+  <label for="ward">वडा नं. / Ward no.</label>
+  <select id="ward" name="ward">
+    <option value="">-- छान्नुहोस् / Select --</option>
+    {% for n in range(1, 33) %}
+    <option value="{{ n }}" {% if values.get('ward') | string == n | string %}selected{% endif %}>वडा {{ n | ne }} / Ward {{ n }}</option>
+    {% endfor %}
+  </select>
+  {% if errors.ward %}<div class="error">{{ errors.ward }}</div>{% endif %}
+
+  <label for="phone">मोबाइल नं. / Mobile number</label>
+  <input id="phone" name="phone" value="{{ values.get('phone', '') }}">
+  {% if errors.phone %}<div class="error">{{ errors.phone }}</div>{% endif %}
+
+  <button type="submit" id="btn-review">अर्को / Next: review</button>
+</form>
+{% endblock %}

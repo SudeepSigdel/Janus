@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}मेरा निवेदन / My Applications{% endblock %}
+{% block content %}
+<h2>मेरा निवेदन / My applications</h2>
+<table>
+  <thead><tr><th>नं. / No.</th><th>सेवा / Service</th><th>नाम / Name</th><th>मोबाइल / Mobile</th><th>स्थिति / Status</th><th></th></tr></thead>
+  <tbody>
+  {% for a in applications %}
+  <tr id="app-{{ a.id }}">
+    <td>{{ a.id | ne }}</td>
+    <td>{{ services[a.service][0] }} / {{ services[a.service][1] }}</td>
+    <td>{{ a.name_ne }}</td>
+    <td>{{ a.phone }}</td>
+    <td class="status-{{ a.status }}">
+      {% if a.status == "submitted" %}पेश गरिएको / Submitted
+      {% elif a.status == "approved" %}स्वीकृत / Approved
+      {% else %}रद्द / Cancelled{% endif %}
+    </td>
+    <td>
+      {% if a.status != "cancelled" %}<a id="edit-{{ a.id }}" href="/applications/{{ a.id }}/edit">सम्पादन / Edit</a>{% endif %}
+      {% if a.status == "submitted" %} <a id="cancel-{{ a.id }}" href="/applications/{{ a.id }}/cancel">रद्द / Cancel</a>{% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
