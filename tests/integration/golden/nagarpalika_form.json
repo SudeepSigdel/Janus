@@ -1,0 +1,132 @@
+{
+  "url": "http://127.0.0.1:8101/apply/residence-recommendation",
+  "title": "निवेदन / Application | सहयात्री नगरपालिका / Sahayatri Nagarpalika",
+  "elements": [
+    {
+      "ref": "e0",
+      "tag": "a",
+      "role": "link",
+      "accessible_name": "सेवाहरू / Services",
+      "name_attr": null,
+      "form_id": null,
+      "fingerprint": {
+        "role": "link",
+        "accessible_name": "सेवाहरू / Services",
+        "name_attr": null,
+        "form_id": null,
+        "tag": "a"
+      }
+    },
+    {
+      "ref": "e1",
+      "tag": "a",
+      "role": "link",
+      "accessible_name": "मेरा निवेदन / My Applications",
+      "name_attr": null,
+      "form_id": null,
+      "fingerprint": {
+        "role": "link",
+        "accessible_name": "मेरा निवेदन / My Applications",
+        "name_attr": null,
+        "form_id": null,
+        "tag": "a"
+      }
+    },
+    {
+      "ref": "e2",
+      "tag": "input",
+      "role": "textbox",
+      "accessible_name": "पूरा नाम (देवनागरी) / Full name (Devanagari)",
+      "name_attr": "name_ne",
+      "form_id": null,
+      "fingerprint": {
+        "role": "textbox",
+        "accessible_name": "पूरा नाम (देवनागरी) / Full name (Devanagari)",
+        "name_attr": "name_ne",
+        "form_id": null,
+        "tag": "input"
+      }
+    },
+    {
+      "ref": "e3",
+      "tag": "input",
+      "role": "textbox",
+      "accessible_name": "जन्म मिति (वि.सं.) / Date of birth (BS)",
+      "name_attr": "dob_bs",
+      "form_id": null,
+      "fingerprint": {
+        "role": "textbox",
+        "accessible_name": "जन्म मिति (वि.सं.) / Date of birth (BS)",
+        "name_attr": "dob_bs",
+        "form_id": null,
+        "tag": "input"
+      }
+    },
+    {
+      "ref": "e4",
+      "tag": "input",
+      "role": "textbox",
+      "accessible_name": "नागरिकता प्रमाणपत्र नं. / Citizenship certificate no.",
+      "name_attr": "citizenship_no",
+      "form_id": null,
+      "fingerprint": {
+        "role": "textbox",
+        "accessible_name": "नागरिकता प्रमाणपत्र नं. / Citizenship certificate no.",
+        "name_attr": "citizenship_no",
+        "form_id": null,
+        "tag": "input"
+      }
+    },
+    {
+      "ref": "e5",
+      "tag": "select",
+      "role": "combobox",
+      "accessible_name": "वडा नं. / Ward no.",
+      "name_attr": "ward",
+      "form_id": null,
+      "fingerprint": {
+        "role": "combobox",
+        "accessible_name": "वडा नं. / Ward no.",
+        "name_attr": "ward",
+        "form_id": null,
+        "tag": "select"
+      }
+    },
+    {
+      "ref": "e6",
+      "tag": "input",
+      "role": "textbox",
+      "accessible_name": "मोबाइल नं. / Mobile number",
+      "name_attr": "phone",
+      "form_id": null,
+      "fingerprint": {
+        "role": "textbox",
+        "accessible_name": "मोबाइल नं. / Mobile number",
+        "name_attr": "phone",
+        "form_id": null,
+        "tag": "input"
+      }
+    },
+    {
+      "ref": "e7",
+      "tag": "button",
+      "role": "button",
+      "accessible_name": "अर्को / Next: review",
+      "name_attr": null,
+      "form_id": null,
+      "fingerprint": {
+        "role": "button",
+        "accessible_name": "अर्को / Next: review",
+        "name_attr": null,
+        "form_id": null,
+        "tag": "button"
+      }
+    }
+  ],
+  "untrusted_text": [
+    "सहयात्री नगरपालिका Sahayatri Nagarpalika",
+    "निवास सिफारिस / Residence Recommendation"
+  ],
+  "elements_truncated": false,
+  "untrusted_text_truncated": false
+}

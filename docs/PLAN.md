@@ -97,7 +97,17 @@ records success rate, failure modes, per-step latency, projected full-eval time 
 - otherwise → proceed.
 
 ## M2 — Observer
-Status: todo
+Status: done (Accept passed: `uv run pytest tests/unit/observer` 19 passed, `uv run pytest -m browser -k observer` 5 passed,
+`uv run pytest` 70 passed, `uv run pytest -m browser` 17 passed, `uv run ruff check .` and `ruff format --check .` clean).
+Decisions: caps added to `config.py` (`observer_max_elements=200`, `observer_max_label_chars=80`,
+`observer_max_untrusted_chars=4000`). Interactive elements (links, buttons, form controls) become trusted `Element`s with
+a short capped `accessible_name` (label/aria-label/placeholder/text) and a `Fingerprint` (role, accessible name, name
+attribute, form id, tag); refs are sequential (`e0`, `e1`, …) in DOM order. Everything else visible (headings, notices,
+paragraphs, review `dl`/`dd` values, plain table cells) is `untrusted_text`, one block per element with any interactive
+descendant's text stripped out. `<select>` options are not enumerated as elements (left for M5 grounding). None of the
+pilot templates set a `<form id>`, so `form_id` is `null` throughout M1a's pages — fingerprints still differ on the other
+four fields. Golden snapshots for nagarpalika `/services` (injection notice active) and the application form are pinned
+JSON under `tests/integration/golden/`; they'll need regenerating if those templates change.
 Scope: `PageSnapshot`/`Element` Pydantic models, bounded extraction (element and character caps), stable refs, fingerprints
 (role, accessible name, name attribute, form id, tag); trusted structure kept separate from `untrusted_text`.
 Accept: `uv run pytest tests/unit/observer` and `uv run pytest -m browser -k observer` green · golden snapshots on pilot pages ·
