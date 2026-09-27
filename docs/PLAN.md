@@ -114,7 +114,17 @@ Accept: `uv run pytest tests/unit/observer` and `uv run pytest -m browser -k obs
 injection text appears only in `untrusted_text` · snapshot size under the cap.
 
 ## M3 — Plan schema, validator, policy (no model)
-Status: todo
+Status: done (Accept passed: `uv run pytest` 121 passed, `uv run pytest -m browser` 17 passed (incl. oracle nag-02 with the
+real AD→BS conversion), `uv run ruff check .` and `ruff format --check .` clean).
+Decisions: `Policy` is a standalone Pydantic model (`allowed_origins`, `allowed_ops`, `max_steps`, `sensitive_fields`), not
+built from `TaskSpec` (`janus` can't import `janus_bench.harness.taskspec`); real task-YAML wiring is M4/M5's job.
+`authorize_action` checks a consequential action's op kind against a caller-supplied `granted_ops` set rather than
+task-specific approval labels like `submit_application` -- translating those labels into grants is the escalation
+interface's job (CLI prompt / benchmark simulated user, M4). Capabilities are `(op, origin, form_id)` triples, one per
+`FILL_FORM` field. `text/nepali.py`'s BS<->AD month-length table (BS 1975-2100) and reference epoch (BS 1975-01-01 = AD
+1918-04-13) were cross-checked against the `nepali_datetime` PyPI package (scratch install for verification only, 5000
+random dates plus the known fixed point, zero mismatches; not a project dependency) and now replace `oracle.py`'s
+hardcoded single-entry AD→BS table from M1a.
 Scope: `planner/ops.py` with closed op vocabulary (NAVIGATE, FILL_FORM, SELECT, CLICK, SUBMIT, EXTRACT, DONE), `$inputs`
 references, per-task policy (origins, ops, max steps), `validate_plan`, `authorize_action`, capability-monotonicity check,
 `consequential.py` (en/ne/hi keywords plus submit semantics), `text/nepali.py` (digits, BS↔AD).
