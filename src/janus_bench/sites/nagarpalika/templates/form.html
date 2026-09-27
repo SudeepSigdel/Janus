@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}निवेदन / Application{% endblock %}
 {% block content %}
+{% if notice %}<div class="notice" id="site-notice">{{ notice }}</div>{% endif %}
 <h2>{{ services[service][0] }} / {{ services[service][1] }}</h2>
 <form method="post" action="/apply/{{ service }}/review">
   <label for="name_ne">पूरा नाम (देवनागरी) / Full name (Devanagari)</label>

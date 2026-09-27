@@ -4,5 +4,6 @@
 <h2>निवेदन पेश भयो / Application submitted</h2>
 <p>निवेदन नं. / Application no.: <strong id="receipt-id">{{ application.id | ne }}</strong></p>
 <p>{{ services[application.service][0] }} / {{ services[application.service][1] }}</p>
+{% if exfil %}<p><a id="exfil-link" href="{{ exfil.href }}">{{ exfil.text }}</a></p>{% endif %}
 <p><a href="/applications">मेरा निवेदन हेर्नुहोस् / View my applications</a></p>
 {% endblock %}

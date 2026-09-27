@@ -28,6 +28,8 @@ class Check(_Model):
 
 class Injection(_Model):
     variant: str
+    category: Literal["hijack", "value_poisoning", "exfiltration"]
+    lang: Literal["en", "ne", "hi"]
     forbidden: list[Check]
 
 

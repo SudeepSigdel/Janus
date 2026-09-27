@@ -97,6 +97,11 @@ ROUTINES: dict[str, Callable[[Page, TaskSpec], None]] = {
     "nag-03": _update_phone,
     "nag-04": _cancel,
     "nag-05": _submit_bs,
+    "nag-06": _submit_bs,
+    "nag-07": _submit_bs,
+    "nag-08": _submit_bs,
+    "nag-09": _submit_bs,
+    "nag-10": _cancel,
     "share-01": _apply,
     "share-02": _apply,
     "share-03": _apply,
@@ -107,6 +112,12 @@ ROUTINES: dict[str, Callable[[Page, TaskSpec], None]] = {
     "share-08": _withdraw,
     "share-09": _withdraw,
     "share-10": _apply,
+    "share-11": _apply,
+    "share-12": _apply,
+    "share-13": _apply,
+    "share-14": _apply,
+    "share-15": _apply,
+    "share-16": _edit_kitta,
 }
 
 

@@ -12,7 +12,7 @@ from fastapi.templating import Jinja2Templates
 
 from janus_bench.sites.common.digits import to_ascii_digits, to_ne_digits
 from janus_bench.sites.common.state import StateStore, mount_bench
-from janus_bench.sites.sharesewa.seed import BANKS, ISSUES, seed
+from janus_bench.sites.sharesewa.seed import BANKS, ISSUES, exfil_link_for, notice_for, seed
 
 PORT = 8102
 HERE = Path(__file__).parent
@@ -147,7 +147,8 @@ def create_app() -> FastAPI:
     def issues(request: Request) -> Response:
         if not logged_in():
             return RedirectResponse("/login", status_code=303)
-        return render(request, "issues.html")
+        variant = store.read()["variant"]
+        return render(request, "issues.html", notice=notice_for(variant, "issues"))
 
     @app.get("/apply/{issue}", response_class=HTMLResponse)
     def apply_form(request: Request, issue: str) -> Response:
@@ -155,7 +156,15 @@ def create_app() -> FastAPI:
             return RedirectResponse("/login", status_code=303)
         if issue not in ISSUES:
             raise HTTPException(status_code=404, detail="unknown issue")
-        return render(request, "apply_form.html", issue=issue, values={}, errors={})
+        variant = store.read()["variant"]
+        return render(
+            request,
+            "apply_form.html",
+            issue=issue,
+            values={},
+            errors={},
+            notice=notice_for(variant, "apply_form"),
+        )
 
     @app.post("/apply/{issue}/review", response_class=HTMLResponse)
     def apply_review(
@@ -172,9 +181,20 @@ def create_app() -> FastAPI:
             raise HTTPException(status_code=404, detail="unknown issue")
         raw = {"bank": bank, "kitta": kitta, "crn": crn, "pin": pin}
         clean, errors = validate_apply_form(issue, raw)
+        variant = store.read()["variant"]
         if errors:
-            return render(request, "apply_form.html", 422, issue=issue, values=raw, errors=errors)
-        return render(request, "review.html", issue=issue, values=clean)
+            return render(
+                request,
+                "apply_form.html",
+                422,
+                issue=issue,
+                values=raw,
+                errors=errors,
+                notice=notice_for(variant, "apply_form"),
+            )
+        return render(
+            request, "review.html", issue=issue, values=clean, notice=notice_for(variant, "review")
+        )
 
     @app.post("/apply/{issue}/submit")
     def apply_submit(
@@ -209,14 +229,23 @@ def create_app() -> FastAPI:
     def receipt(request: Request, app_id: str) -> Response:
         if not logged_in():
             return RedirectResponse("/login", status_code=303)
-        return render(request, "receipt.html", application=get_application(app_id))
+        variant = store.read()["variant"]
+        return render(
+            request,
+            "receipt.html",
+            application=get_application(app_id),
+            exfil=exfil_link_for(variant, "receipt"),
+        )
 
     @app.get("/report", response_class=HTMLResponse)
     def report(request: Request) -> Response:
         if not logged_in():
             return RedirectResponse("/login", status_code=303)
         rows = sorted(store.snapshot()["applications"].values(), key=lambda a: a["id"])
-        return render(request, "report.html", applications=rows)
+        variant = store.read()["variant"]
+        return render(
+            request, "report.html", applications=rows, exfil=exfil_link_for(variant, "report")
+        )
 
     @app.get("/applications/{app_id}/edit", response_class=HTMLResponse)
     def edit_form(request: Request, app_id: str) -> Response:

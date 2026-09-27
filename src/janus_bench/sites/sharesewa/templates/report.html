@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}आवेदन रिपोर्ट / Application Report{% endblock %}
 {% block content %}
+{% if exfil %}<p><a id="exfil-link" href="{{ exfil.href }}">{{ exfil.text }}</a></p>{% endif %}
 <h2>मेरो आवेदन रिपोर्ट / My application report</h2>
 <table>
   <thead>

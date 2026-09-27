@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}मेरा निवेदन / My Applications{% endblock %}
 {% block content %}
+{% if exfil %}<p><a id="exfil-link" href="{{ exfil.href }}">{{ exfil.text }}</a></p>{% endif %}
 <h2>मेरा निवेदन / My applications</h2>
 <table>
   <thead><tr><th>नं. / No.</th><th>सेवा / Service</th><th>नाम / Name</th><th>मोबाइल / Mobile</th><th>स्थिति / Status</th><th></th></tr></thead>

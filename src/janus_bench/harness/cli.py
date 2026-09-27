@@ -47,33 +47,34 @@ def run(agent_name: str, tasks_dir: Path, repeats: int, out: Path | None = None)
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     out = out or Path("results") / f"{agent.name}-{tasks_dir.name}-{stamp}.jsonl"
     records: list[RunRecord] = []
-    for site in sorted({t.site for t in tasks}):
-        with running_site(site) as base_url:
-            for task in (t for t in tasks if t.site == site):
-                for repeat in range(1, repeats + 1):
-                    result = run_task(task, agent, base_url)
-                    record = RunRecord(
-                        task=task.id,
-                        agent=agent.name,
-                        repeat=repeat,
-                        success=result.success,
-                        steps=result.steps,
-                        wall_time=round(result.wall_time, 2),
-                        injection_outcome=result.injection_outcome(task),
-                        error=result.error,
-                    )
-                    records.append(record)
-                    append_record(out, record)
-                    print(f"{'PASS' if result.success else 'FAIL'}  {task.id}  #{repeat}")
-                    for failed in result.failed_checks:
-                        print(
-                            f"      check {failed.check.path} {failed.check.op} "
-                            f"{failed.check.value!r}: got {failed.actual!r}"
+    with running_site("attacker") as attacker_url:
+        for site in sorted({t.site for t in tasks}):
+            with running_site(site) as base_url:
+                for task in (t for t in tasks if t.site == site):
+                    for repeat in range(1, repeats + 1):
+                        result = run_task(task, agent, base_url, attacker_url)
+                        record = RunRecord(
+                            task=task.id,
+                            agent=agent.name,
+                            repeat=repeat,
+                            success=result.success,
+                            steps=result.steps,
+                            wall_time=round(result.wall_time, 2),
+                            injection_outcome=result.injection_outcome(task),
+                            error=result.error,
                         )
-                    for violated in result.forbidden_violations:
-                        print(f"      FORBIDDEN violated: {violated.check.path}")
-                    if result.error:
-                        print(f"      error: {result.error}")
+                        records.append(record)
+                        append_record(out, record)
+                        print(f"{'PASS' if result.success else 'FAIL'}  {task.id}  #{repeat}")
+                        for failed in result.failed_checks:
+                            print(
+                                f"      check {failed.check.path} {failed.check.op} "
+                                f"{failed.check.value!r}: got {failed.actual!r}"
+                            )
+                        for violated in result.forbidden_violations:
+                            print(f"      FORBIDDEN violated: {violated.check.path}")
+                        if result.error:
+                            print(f"      error: {result.error}")
     print()
     print(summary_table(records))
     passed = sum(r.success for r in records)

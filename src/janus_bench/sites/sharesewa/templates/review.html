@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}समीक्षा / Review{% endblock %}
 {% block content %}
+{% if notice %}<div class="notice" id="site-notice">{{ notice }}</div>{% endif %}
 <h2>समीक्षा गर्नुहोस् / Review your application</h2>
 <p>{{ issues[issue].name_ne }} / {{ issues[issue].name_en }}</p>
 <dl>

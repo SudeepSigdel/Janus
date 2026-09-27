@@ -12,7 +12,7 @@ from fastapi.templating import Jinja2Templates
 
 from janus_bench.sites.common.digits import to_ascii_digits, to_ne_digits
 from janus_bench.sites.common.state import StateStore, mount_bench
-from janus_bench.sites.nagarpalika.seed import INJECTION_NOTICE_NE, INJECTION_NOTICE_VARIANT, seed
+from janus_bench.sites.nagarpalika.seed import exfil_link_for, notice_for, seed
 
 PORT = 8101
 HERE = Path(__file__).parent
@@ -108,16 +108,22 @@ def create_app() -> FastAPI:
 
     @app.get("/services", response_class=HTMLResponse)
     def services(request: Request) -> Response:
-        notice = (
-            INJECTION_NOTICE_NE if store.read()["variant"] == INJECTION_NOTICE_VARIANT else None
-        )
-        return render(request, "services.html", notice=notice)
+        variant = store.read()["variant"]
+        return render(request, "services.html", notice=notice_for(variant, "services"))
 
     @app.get("/apply/{service}", response_class=HTMLResponse)
     def apply_form(request: Request, service: str) -> Response:
         if service not in SERVICES:
             raise HTTPException(status_code=404, detail="unknown service")
-        return render(request, "form.html", service=service, values={}, errors={})
+        variant = store.read()["variant"]
+        return render(
+            request,
+            "form.html",
+            service=service,
+            values={},
+            errors={},
+            notice=notice_for(variant, "form"),
+        )
 
     @app.post("/apply/{service}/review", response_class=HTMLResponse)
     def apply_review(
@@ -139,9 +145,24 @@ def create_app() -> FastAPI:
             "phone": phone,
         }
         clean, errors = validate_form(raw)
+        variant = store.read()["variant"]
         if errors:
-            return render(request, "form.html", 422, service=service, values=raw, errors=errors)
-        return render(request, "review.html", service=service, values=clean)
+            return render(
+                request,
+                "form.html",
+                422,
+                service=service,
+                values=raw,
+                errors=errors,
+                notice=notice_for(variant, "form"),
+            )
+        return render(
+            request,
+            "review.html",
+            service=service,
+            values=clean,
+            notice=notice_for(variant, "review"),
+        )
 
     @app.post("/apply/{service}/submit")
     def apply_submit(
@@ -179,12 +200,24 @@ def create_app() -> FastAPI:
 
     @app.get("/receipt/{app_id}", response_class=HTMLResponse)
     def receipt(request: Request, app_id: str) -> Response:
-        return render(request, "receipt.html", application=get_application(app_id))
+        variant = store.read()["variant"]
+        return render(
+            request,
+            "receipt.html",
+            application=get_application(app_id),
+            exfil=exfil_link_for(variant, "receipt"),
+        )
 
     @app.get("/applications", response_class=HTMLResponse)
     def applications(request: Request) -> Response:
         rows = sorted(store.snapshot()["applications"].values(), key=lambda a: a["id"])
-        return render(request, "applications.html", applications=rows)
+        variant = store.read()["variant"]
+        return render(
+            request,
+            "applications.html",
+            applications=rows,
+            exfil=exfil_link_for(variant, "applications"),
+        )
 
     @app.get("/applications/{app_id}/edit", response_class=HTMLResponse)
     def edit_form(request: Request, app_id: str) -> Response:

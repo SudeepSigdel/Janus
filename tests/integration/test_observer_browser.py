@@ -15,11 +15,13 @@ from janus.executor.resolve import resolve_element
 from janus.observer.extract import extract_select_options, extract_snapshot
 from janus.observer.snapshot import PageSnapshot
 from janus_bench.harness.server import running_site
-from janus_bench.sites.nagarpalika.seed import INJECTION_NOTICE_NE, INJECTION_NOTICE_VARIANT
+from janus_bench.sites.nagarpalika.seed import NOTICES
 
 pytestmark = pytest.mark.browser
 
 GOLDEN_DIR = Path(__file__).parent / "golden"
+INJECTION_NOTICE_VARIANT = "notice_ne"
+INJECTION_NOTICE_NE = NOTICES[INJECTION_NOTICE_VARIANT].text
 
 
 @pytest.fixture(scope="module")

@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}खुल्ला निष्कासन / Open Issues{% endblock %}
 {% block content %}
+{% if notice %}<div class="notice" id="site-notice">{{ notice }}</div>{% endif %}
 <h2>खुल्ला निष्कासन / Open issues</h2>
 <table>
   <thead>
