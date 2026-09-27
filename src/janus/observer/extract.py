@@ -9,11 +9,17 @@ from __future__ import annotations
 
 from typing import Any
 
-from playwright.sync_api import Page
+from playwright.sync_api import ElementHandle, Page
 
 from janus.config import Settings, get_settings
 from janus.observer.fingerprint import compute_fingerprint
 from janus.observer.snapshot import Element, PageSnapshot
+
+# Kept in sync with the identical literal inside `_JS` below by the golden-snapshot
+# tests (any drift changes what `extract_snapshot` returns). Exported so M4's executor
+# can re-select an element by its position in this same DOM-order, visibility-filtered
+# list for act-time fingerprint re-resolution (security invariant 5).
+INTERACTIVE_SELECTOR = 'a[href], button, input:not([type="hidden"]), select, textarea, [role]'
 
 # Interactive elements become trusted, short-labelled Elements. Everything else
 # visible (headings, paragraphs, notices, table cells, review values) is untrusted
@@ -164,3 +170,40 @@ def extract_snapshot(page: Page, settings: Settings | None = None) -> PageSnapsh
         elements_truncated=elements_truncated,
         untrusted_text_truncated=untrusted_text_truncated,
     )
+
+
+def extract_raw_elements(page: Page) -> list[dict[str, Any]]:
+    """Uncapped element descriptors, in the same DOM order used to assign refs.
+
+    Used for act-time re-resolution (executor/resolve.py): recomputing fingerprints
+    fresh, right before acting, without the element/label caps that only apply to
+    what the planner is allowed to see.
+    """
+    return page.evaluate(_JS)["elements"]
+
+
+_IS_VISIBLE_JS = """
+function isVisible(el) {
+  const style = window.getComputedStyle(el);
+  return style.display !== 'none' && style.visibility !== 'hidden';
+}
+"""
+
+_HANDLE_AT_INDEX_JS = f"""
+(args) => {{
+  {_IS_VISIBLE_JS}
+  const [selector, index] = args;
+  const list = Array.from(document.querySelectorAll(selector)).filter(isVisible);
+  return list[index] ?? null;
+}}
+"""
+
+
+def handle_at_index(page: Page, index: int) -> ElementHandle | None:
+    """The live element at `index` in the same ordering `extract_raw_elements` uses.
+
+    None if `index` is out of range (the page has fewer matching elements now than
+    when it was last observed).
+    """
+    handle = page.evaluate_handle(_HANDLE_AT_INDEX_JS, [INTERACTIVE_SELECTOR, index])
+    return handle.as_element()

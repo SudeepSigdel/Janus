@@ -132,9 +132,33 @@ Accept: `uv run pytest` green with adversarial tests: off-allowlist NAVIGATE, un
 literal where a sensitive field needs `$inputs`, unknown op or extra field, attempt to downgrade a consequential action.
 
 ## M4 — Executor, egress guard, verifier
-Status: todo
-Scope: Playwright executor for validated actions only; fingerprint re-resolution right before each action; route-level egress
-allowlist; escalation interface (CLI prompt and benchmark simulated user); verifier postconditions per op.
+Status: done (Accept passed: `uv run pytest -m browser` 24 passed, incl. 4 hand-written pilot-task plans (nag-01..04) with
+no model, a DOM-mutation-blocks-the-step case, and an attacker-origin-blocked case with a positive control proving the
+fixture would otherwise receive the request; `uv run pytest` 137 passed; `uv run ruff check .` and `ruff format --check .` clean).
+Decisions: act-time re-resolution (`executor/resolve.py::resolve_element`) recomputes fingerprints fresh from the live DOM
+(`observer/extract.py::extract_raw_elements`, uncapped) rather than trusting the ref's stale index -- it checks the
+original position first, then falls back to a full scan, and raises (blocking the step) only if the fingerprint is
+genuinely gone. `executor/egress.py::install_egress_guard` is a `page.route("**/*", ...)` backstop for every request the
+page itself makes, separate from and in addition to `validate_plan`'s existing static NAVIGATE-origin check (M3).
+Escalation (`executor/escalation.py`) grants at op-kind granularity only: a task's approval label's prefix before `:`
+maps to a fixed set of `OpKind`s (`submit_application` -> `{SUBMIT}`, `cancel_application` -> `{CLICK, SUBMIT}`, since the
+cancel flow is a link click to a confirm page followed by a form submit, and both trip the consequential keyword match).
+The `:045`-style target suffix is parsed but **not enforced** -- `Policy`'s capability model is (op, origin, form_id), and
+nagarpalika's forms set no form_id, so nothing downstream can currently distinguish "cancel 045" from "cancel 046";
+tests assert against `/__bench/state` to catch a wrong-target cancel, but `authorize_action` itself would not. Documented
+here as a known gap for LIMITATIONS.md (M11), not fixed now (would mean changing M3's already-tested `Policy`/
+`authorize_action` signatures). `verifier/verify.py` checks two things: per-step value round-trip for FILL_FORM/SELECT
+(catches a field that silently didn't take a value), and `classify_run`, which lets a blocked or failed step override
+whatever a claimed DONE status says -- never trusting the claim alone. No `src/janus/agent.py` yet: the hand-written
+per-page validate -> authorize -> execute -> verify loop lives only in `tests/integration/test_executor_browser.py`
+(`_run_leg`); `cli.py`'s `run` command and the real orchestrator loop with LLM planning and bounded replan stay M5's job,
+per the existing "run arrives in M5" note in `cli.py`. The attacker-origin test uses a throwaway `http.server` listener
+started inline in the test (port 8199, matching the port PLAN.md reserves for M8's real attacker site) rather than a
+`sites/attacker` package, since M8 owns building the actual sink; M4 only needed proof that requests never reach it.
+Scope: `executor/resolve.py` (fingerprint re-resolution), `executor/executor.py` (`execute_step`, one op at a time),
+`executor/egress.py` (route-level allowlist), `executor/escalation.py` (CLI prompt + benchmark simulated user),
+`verifier/verify.py` (per-step postconditions, run classification). `observer/extract.py` gained `INTERACTIVE_SELECTOR`,
+`extract_raw_elements`, and `handle_at_index` (small, additive; `extract_snapshot` itself is unchanged).
 Accept: `uv run pytest -m browser` green · hand-written plans solve pilot tasks 1–4 with no model · a DOM mutation between
 observe and act is blocked · a request to the attacker origin is blocked.
 
