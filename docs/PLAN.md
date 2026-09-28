@@ -553,12 +553,13 @@ Goal: raise Janus's dev success without raising injection success or false block
   evaluation; zero budget (local machine: 8 GB VRAM, 16 GB RAM, plus free Kaggle/Colab GPUs);
   replica sites only.
 - Standard dev evaluation (available from P1 onward):
-  `uv run janus-bench run --agent janus --split splits/v1.yaml --set dev --repeats 3 --trace --out results/<exp-id>.jsonl`
-  then `uv run janus-bench analyze --split splits/v1.yaml --set dev --records results/<exp-id>.jsonl`
-  (prints the EXPERIMENTS.md row). About 20 minutes per run at P0 latency.
+  `uv run janus-bench run --agent janus --tasks tasks --split splits/v1.yaml --set dev --repeats 3 --trace --out results/<exp-id>.jsonl`
+  then `uv run janus-bench analyze --tasks tasks --split splits/v1.yaml --set dev --records results/<exp-id>.jsonl`
+  (prints the EXPERIMENTS.md row; `--tasks tasks` is required by the CLI even with `--split`).
+  About 20 minutes per run at P0 latency.
 
-Current best: **E0**: 30/87 = 34.5% dev (nag 27/42, share 3/45), ASR 0/27 real (3/27 as scored
-by the buggy classifier), false-block 6/60 clean runs = 10%.
+Current best: **E1**: 36/87 = 41.4% dev (nag 30/42, share 6/45), ASR 0/27, false-block 0/60 clean
+runs (P2's retry-ceiling fix; was E0's 30/87 = 34.5%, false-block 6/60 = 10%).
 
 ## P0 — Diagnose (split, traced dev run, error analysis)
 Status: done (2026-09-28). `splits/v1.yaml` written; Janus dev run 29×3 traced (diagnosis-only
@@ -672,7 +673,24 @@ EXPERIMENTS.md filled from `analyze`; `uv run pytest` green, including the new t
 `unexercised` tests.
 
 ## P2 — Retry-ceiling false block
-Status: todo
+Status: done (Accept passed: unit tests for the nag-13 and share-12 chains green,
+existing invariant-2 tests unchanged and green (`uv run pytest` 253 passed);
+`uv run pytest -m browser` 123 passed; `uv run pytest -m ollama` 4 passed;
+`uv run ruff check .` and `ruff format --check .` clean; dev eval logged as E1 below --
+36/87 = 41.4% dev (nag 30/42, share 6/45) vs. E0's 30/87 = 34.5% (Δ +6, above the >3-run
+noise bar), ASR 0/27 unchanged, false-block 0/60 (was 6/60 = 10%) -- kept).
+Decision taken: kept the recommended rule (lock the ceiling from a rejected attempt unless it's
+itself an allowlist/op-policy violation) rather than dropping the per-retry ceiling entirely --
+smaller change, and it keeps the only remaining form of invariant 2 enforced within a page's own
+retries. `docs/ARCHITECTURE.md` invariant 2 updated to describe the carve-out.
+nag-13 went 0/3 -> 3/3 exactly as hypothesized. nag-04/19/share-11/12 reached their next failure
+rather than passing outright, also as predicted: share-11 now 3/3 (the ceiling was its only
+problem), but nag-03/04/17/19 and most of ShareSewa's remaining failures are the
+already-documented row-disambiguation gap (M4/M5/M6) and the ShareSewa capability-collapse gap
+(M10/M11) -- separate, not this milestone's target (P5 and P3/P4/P7 respectively).
+`docs/PLAN.md`'s own "Standard dev evaluation" command in the Phase rules above was missing the
+CLI's required `--tasks tasks` flag (even with `--split` given) -- fixed there; not a P2 code
+change, just a doc bug hit while running this milestone's own eval.
 Hypothesis: `commit_plan` locks invariant 2's retry ceiling from the first **rejected** attempt.
 When that attempt was rejected for an off-allowlist NAVIGATE, the ceiling contains only the bad
 capability, and every legitimate correction is refused. This caused all 12 false blocks in P0.

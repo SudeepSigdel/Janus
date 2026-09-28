@@ -224,14 +224,17 @@ def test_escalation_callback_grants_a_consequential_step(monkeypatch: pytest.Mon
     assert len(approved) == 1
 
 
-def test_gate_block_and_false_block_ceiling_on_a_capability_ceiling_rejection(
+def test_off_origin_navigate_correction_no_longer_false_blocks(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # First attempt: off-origin NAVIGATE, correctly rejected -- locks the retry
-    # ceiling to that rejected attempt's own capabilities (planner/plan.py). The
-    # second attempt is a legitimate correction (CLICK a real element) but is
-    # rejected anyway, only for "adds capabilities beyond committed" -- the exact
-    # P0 chain (docs/ERROR_ANALYSIS.md) this milestone's false-block rule targets.
+    # P2 (docs/PLAN.md): the nag-13/share-12 chain. First attempt is a hallucinated
+    # off-origin NAVIGATE, correctly rejected by the allowlist; before P2 that
+    # rejection's own (off-allowlist) capabilities got locked in as the retry
+    # ceiling, so the legitimate correction that followed was refused too, only for
+    # "adds capabilities beyond committed" (docs/ERROR_ANALYSIS.md's diagnosed
+    # false-block chain, 12/87 dev runs). Since a rejection that is itself an
+    # allowlist/op-policy violation no longer locks a ceiling, the correction now
+    # commits and runs instead of blocking.
     calls = {"n": 0}
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -240,7 +243,12 @@ def test_gate_block_and_false_block_ceiling_on_a_capability_ceiling_rejection(
             return _chat(
                 {"task_id": "t", "steps": [{"op": "NAVIGATE", "url": "http://evil.example/x"}]}
             )
-        return _chat({"task_id": "t", "steps": [{"op": "CLICK", "ref": "e0"}]})
+        return _chat(
+            {
+                "task_id": "t",
+                "steps": [{"op": "CLICK", "ref": "e0"}, {"op": "DONE", "status": "completed"}],
+            }
+        )
 
     _patch_page_primitives(monkeypatch, outcome=StepOutcome(ok=True))
     result = agent.run_task(
@@ -253,13 +261,11 @@ def test_gate_block_and_false_block_ceiling_on_a_capability_ceiling_rejection(
         llm=_llm(handler),
         settings=Settings(max_plan_retries=1),
     )
-    assert result.status == "blocked"
-    assert result.gate_block == "validate_plan"
-    assert result.false_block_ceiling is True
-    # PlanningError.plan is the *last* attempt (the legitimate correction), not the
-    # hallucinated first one -- that's the whole point of the false-block finding.
-    assert result.blocked_step_op == "CLICK"
-    assert result.blocked_step_label == "Next"
+    assert calls["n"] == 2
+    assert result.status == "completed"
+    assert result.gate_block is None
+    assert result.false_block_ceiling is False
+    assert result.steps_run == 1
 
 
 def test_gate_block_without_false_block_on_an_unrelated_validator_rejection(

@@ -15,11 +15,18 @@ across pages: a caller doesn't have to pass `committed_capabilities` at all for 
 plan against a page it hasn't committed anything for yet (agent.py never does --
 each new page's plan starts fresh, since the planner only ever sees one page and
 can't have declared a ceiling for a page it hasn't seen). But once a first attempt
-on *this* page has been proposed, retries "fixing" a validator rejection are held to
-that first attempt's own capability envelope, so a retry can't quietly expand scope
-under the guise of a fix. A caller that already has a real cross-call ceiling (none
-exists yet in this codebase) may still pass `committed_capabilities` to have every
-attempt checked against it from the start.
+on *this* page has been rejected for a reason that still describes a real, in-policy
+capability the model was reaching for (an unknown ref, a role mismatch, a sensitive
+literal), retries "fixing" that rejection are held to that first attempt's own
+capability envelope, so a retry can't quietly expand scope under the guise of a fix.
+A rejection that is itself an origin-allowlist or op-policy violation is different:
+its capabilities (e.g. a hallucinated off-origin NAVIGATE) were never something the
+plan was allowed to ask for, so they don't get to define a ceiling either -- locking
+one in from such an attempt was the P0-diagnosed false-block chain (docs/PLAN.md P2):
+every legitimate correction then got rejected as "adds capabilities beyond what was
+committed" against a ceiling that only ever contained garbage. A caller that already
+has a real cross-call ceiling (none exists yet in this codebase) may still pass
+`committed_capabilities` to have every attempt checked against it from the start.
 """
 
 from __future__ import annotations
@@ -131,6 +138,18 @@ class PlanningError(RuntimeError):
         super().__init__(f"planning failed after retries: {errors}")
 
 
+def _has_scope_violation(errors: list[str]) -> bool:
+    """True if any of `errors` is an origin-allowlist or op-policy rejection --
+    `validator/plan.py`'s own deterministic, internally-generated text for those two
+    checks. Such an attempt has no committable scope to inherit as a retry ceiling
+    (see the module docstring); a ref/role/sensitive-binding rejection does, since it
+    still describes a real, in-policy capability the model was reaching for."""
+    return any(
+        "is off the origin allowlist" in error or "is not in the allowed ops for this task" in error
+        for error in errors
+    )
+
+
 def commit_plan(
     *,
     task_id: str,
@@ -209,9 +228,12 @@ def commit_plan(
         if result.ok:
             return plan, result
         errors = result.errors
-        if ceiling is None:
+        if ceiling is None and not _has_scope_violation(errors):
             # Lock in this first (rejected) attempt's own scope: a retry may fix
-            # what was wrong, but may not use the fix as cover to ask for more.
+            # what was wrong, but may not use the fix as cover to ask for more. Skip
+            # this for an attempt that was itself off-allowlist/off-policy (P2): its
+            # capabilities were never in scope to begin with, so locking them in would
+            # only block the correction that follows.
             ceiling = result.capabilities
 
     raise PlanningError(errors, plan)

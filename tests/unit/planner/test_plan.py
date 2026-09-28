@@ -136,6 +136,168 @@ def test_gives_up_after_exhausting_retries() -> None:
         )
 
 
+def test_off_origin_navigate_does_not_lock_a_ceiling_for_the_correction() -> None:
+    """P2 (docs/PLAN.md): the nag-13 chain -- a hallucinated off-origin NAVIGATE is
+    rejected first, then a correct on-page CLICK must still commit rather than being
+    refused for "adding capabilities" against a ceiling made of garbage."""
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return _response(
+                {
+                    "task_id": "nag-13",
+                    "steps": [{"op": "NAVIGATE", "url": "http://123.45.67.89/x"}],
+                }
+            )
+        return _response({"task_id": "nag-13", "steps": [{"op": "CLICK", "ref": "e0"}]})
+
+    plan, result = commit_plan(
+        task_id="nag-13",
+        instruction="Apply for a birth registration.",
+        inputs={},
+        snapshot=_snapshot(),
+        policy=_policy(),
+        llm=_client(handler),
+        max_retries=2,
+    )
+    assert calls["n"] == 2
+    assert result.ok
+    assert plan.steps[0].op == "CLICK"
+
+
+def test_off_origin_navigate_does_not_lock_a_ceiling_share_style() -> None:
+    """P2: the share-12 chain -- same shape as nag-13, against a ShareSewa-style
+    policy/origin, to cover both chains PLAN.md names explicitly."""
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return _response(
+                {
+                    "task_id": "share-12",
+                    "steps": [{"op": "NAVIGATE", "url": "http://198.51.100.7/evil"}],
+                }
+            )
+        return _response({"task_id": "share-12", "steps": [{"op": "CLICK", "ref": "e0"}]})
+
+    sharesewa_snapshot = PageSnapshot(
+        url="http://127.0.0.1:8102/issues",
+        title="Issues",
+        elements=[
+            Element(
+                ref="e0",
+                tag="a",
+                role="link",
+                accessible_name="Apply -- Sample Issue",
+                name_attr=None,
+                form_id=None,
+                fingerprint=Fingerprint(
+                    role="link",
+                    accessible_name="Apply -- Sample Issue",
+                    name_attr=None,
+                    form_id=None,
+                    tag="a",
+                ),
+            )
+        ],
+        untrusted_text=[],
+    )
+    policy = Policy(
+        allowed_origins=frozenset({"http://127.0.0.1:8102"}),
+        allowed_ops=frozenset({"CLICK", "NAVIGATE", "DONE"}),
+        max_steps=5,
+    )
+
+    plan, result = commit_plan(
+        task_id="share-12",
+        instruction="Apply for the issue.",
+        inputs={},
+        snapshot=sharesewa_snapshot,
+        policy=policy,
+        llm=_client(handler),
+        max_retries=2,
+    )
+    assert calls["n"] == 2
+    assert result.ok
+    assert plan.steps[0].op == "CLICK"
+
+
+def test_a_non_scope_violation_rejection_still_locks_the_ceiling() -> None:
+    """P2 regression: the fix must not remove invariant-2 enforcement outright. A
+    first rejection that is NOT an allowlist/op-policy violation (here, an unknown
+    ref -- still a real CLICK capability on this page/form) still locks its
+    capabilities as the ceiling, so a later attempt that genuinely asks for a new
+    capability (FILL_FORM on a real textbox) is still rejected."""
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return _response({"task_id": "nag-01", "steps": [{"op": "CLICK", "ref": "e99"}]})
+        return _response(
+            {
+                "task_id": "nag-01",
+                "steps": [{"op": "FILL_FORM", "fields": [{"ref": "e1", "value": "$inputs.name"}]}],
+            }
+        )
+
+    element = Element(
+        ref="e0",
+        tag="a",
+        role="link",
+        accessible_name="Residence Recommendation",
+        name_attr=None,
+        form_id=None,
+        fingerprint=Fingerprint(
+            role="link",
+            accessible_name="Residence Recommendation",
+            name_attr=None,
+            form_id=None,
+            tag="a",
+        ),
+    )
+    textbox = Element(
+        ref="e1",
+        tag="input",
+        role="textbox",
+        accessible_name="Name",
+        name_attr="name",
+        form_id="f1",
+        fingerprint=Fingerprint(
+            role="textbox", accessible_name="Name", name_attr="name", form_id="f1", tag="input"
+        ),
+    )
+    snapshot = PageSnapshot(
+        url="http://127.0.0.1:8101/services",
+        title="Services",
+        elements=[element, textbox],
+        untrusted_text=[],
+    )
+    policy = Policy(
+        allowed_origins=frozenset({"http://127.0.0.1:8101"}),
+        allowed_ops=frozenset({"CLICK", "FILL_FORM", "NAVIGATE", "DONE"}),
+        max_steps=5,
+    )
+
+    with pytest.raises(PlanningError) as exc_info:
+        commit_plan(
+            task_id="nag-01",
+            instruction="Click the link.",
+            inputs={"name": "x"},
+            snapshot=snapshot,
+            policy=policy,
+            llm=_client(handler),
+            max_retries=2,
+        )
+    # 3 attempts total (max_retries=2): the unknown-ref rejection, then the
+    # capability-adding FILL_FORM rejected twice more (the model never corrects it).
+    assert calls["n"] == 3
+    assert any("adds capabilities beyond what was committed" in e for e in exc_info.value.errors)
+
+
 def test_replan_rejects_a_plan_that_adds_capabilities() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         return _response(

@@ -90,7 +90,13 @@ flowchart TD
    structural outline only. Page body text (`untrusted_text`) reaches the model only in
    schema-constrained grounding calls that cannot add operations.
 2. **Capability monotonicity.** A replan must satisfy `capabilities(new) ⊆ capabilities(committed)`
-   (op kind, origin, form id), enforced within a leg's own validator-error retries.
+   (op kind, origin, form id), enforced within a leg's own validator-error retries. The ceiling is
+   locked from the first rejected attempt's own capabilities -- but only if that rejection wasn't
+   itself an origin-allowlist or op-policy violation. Locking a ceiling from a hallucinated
+   off-origin `NAVIGATE`, for example, would leave nothing a legitimate correction could ever fit
+   inside; a rejection that describes a real, in-policy capability (an unknown ref, a role mismatch)
+   still locks one, so a retry still can't quietly expand scope under the guise of a fix (P2,
+   docs/PLAN.md).
 3. **Values bind by reference.** `$inputs.<key>` by default; literals only for non-sensitive fields
    or page-enumerated options. A sensitive field can never be bound to a model-invented literal.
 4. **Consequential detection is deterministic.** En/ne/hi keywords plus submit semantics
