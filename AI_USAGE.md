@@ -53,3 +53,7 @@ re-validated by deterministic code, or both, before anything downstream acts on 
   touches a live page.
 
 No other module calls `LLMClient`.
+
+See `docs/ARCHITECTURE.md` for how these call sites fit into the full observe -> plan -> ground ->
+validate -> authorize -> execute -> verify loop, and `docs/LIMITATIONS.md` for where model output
+still slips past every gate above (value poisoning inside an already-approved field fill).

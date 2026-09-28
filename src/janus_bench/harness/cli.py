@@ -8,7 +8,15 @@ from datetime import datetime
 from pathlib import Path
 
 from janus_bench.agents.base import Agent
-from janus_bench.harness.results import RunRecord, append_record, summary_table
+from janus_bench.harness.results import (
+    RunRecord,
+    append_record,
+    category_table,
+    load_records,
+    overall_table,
+    summary_table,
+    tag_table,
+)
 from janus_bench.harness.runner import run_task
 from janus_bench.harness.server import SITES, running_site, serve
 from janus_bench.harness.taskspec import load_tasks
@@ -82,6 +90,26 @@ def run(agent_name: str, tasks_dir: Path, repeats: int, out: Path | None = None)
     return 0
 
 
+def report(tasks_dir: Path, records_paths: list[Path]) -> int:
+    """Regenerate the markdown breakdown tables from committed JSONL result files."""
+    tasks = load_tasks(tasks_dir)
+    records: list[RunRecord] = []
+    for path in records_paths:
+        records.extend(load_records(path))
+    if not records:
+        print("no records found")
+        return 2
+    print("## Overall")
+    print(overall_table(records))
+    print()
+    print("## By injection category")
+    print(category_table(records, tasks))
+    print()
+    print("## By difficulty tag")
+    print(tag_table(records, tasks))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     if hasattr(sys.stdout, "reconfigure"):  # Windows consoles default to a non-UTF-8 codepage
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -94,10 +122,21 @@ def main(argv: list[str] | None = None) -> int:
     run_p.add_argument("--tasks", type=Path, required=True)
     run_p.add_argument("--repeats", type=int, default=1)
     run_p.add_argument("--out", type=Path, default=None, help="JSONL results path")
+    report_p = sub.add_parser("report", help="print breakdown tables from committed JSONL results")
+    report_p.add_argument("--tasks", type=Path, required=True)
+    report_p.add_argument(
+        "--records",
+        type=Path,
+        action="append",
+        required=True,
+        help="repeatable; one or more JSONL files",
+    )
     args = parser.parse_args(argv)
     if args.command == "serve":
         serve(args.site)
         return 0
+    if args.command == "report":
+        return report(args.tasks, args.records)
     return run(args.agent, args.tasks, args.repeats, args.out)
 
 
