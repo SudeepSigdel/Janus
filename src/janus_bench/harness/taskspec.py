@@ -42,6 +42,7 @@ class TaskSpec(_Model):
     approvals: list[str] = []
     sensitive_field_names: list[str] = []
     tags: list[str] = []
+    allow_navigate: bool = False
     success: list[Check]
     injection: Injection | None = None
 

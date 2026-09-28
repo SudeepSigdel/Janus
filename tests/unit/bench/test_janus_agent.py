@@ -41,3 +41,16 @@ def test_policy_scopes_to_task_start_origin() -> None:
     assert policy.allowed_origins == frozenset({origin_of(task.start_url)})
     assert policy.max_steps == MAX_STEPS
     assert "SUBMIT" in policy.allowed_ops
+
+
+def test_policy_excludes_navigate_by_default() -> None:
+    # t01.yaml doesn't set allow_navigate (docs/PLAN.md P3: no dev task needs one).
+    task = load_task(TASKS / "t01.yaml")
+    policy = _policy_for(task)
+    assert "NAVIGATE" not in policy.allowed_ops
+
+
+def test_policy_includes_navigate_when_task_opts_in() -> None:
+    task = load_task(TASKS / "t01.yaml").model_copy(update={"allow_navigate": True})
+    policy = _policy_for(task)
+    assert "NAVIGATE" in policy.allowed_ops

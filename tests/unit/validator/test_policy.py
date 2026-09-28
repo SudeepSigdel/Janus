@@ -5,7 +5,7 @@ from __future__ import annotations
 from janus.observer.fingerprint import compute_fingerprint
 from janus.observer.snapshot import Element, PageSnapshot
 from janus.planner.ops import ClickStep, FieldValue, FillFormStep, NavigateStep, Plan, SubmitStep
-from janus.validator.policy import capabilities_of, is_capability_subset
+from janus.validator.policy import allowed_ops_for, capabilities_of, is_capability_subset
 
 
 def make_element(ref: str, name_attr: str | None, form_id: str | None = "apply-form") -> Element:
@@ -72,6 +72,20 @@ def test_replan_adding_a_new_capability_fails_the_subset_check() -> None:
     )
     new_capabilities = capabilities_of(replan, SNAPSHOT)
     assert not is_capability_subset(new_capabilities, committed)
+
+
+def test_allowed_ops_for_excludes_navigate_by_default() -> None:
+    """P3 (docs/PLAN.md): no dev task needs a mid-task NAVIGATE, so a task's default
+    policy shouldn't even offer it to the planner."""
+    ops = allowed_ops_for(allow_navigate=False)
+    assert "NAVIGATE" not in ops
+    assert {"FILL_FORM", "SELECT", "CLICK", "SUBMIT", "EXTRACT", "DONE"} <= ops
+
+
+def test_allowed_ops_for_includes_navigate_when_opted_in() -> None:
+    ops = allowed_ops_for(allow_navigate=True)
+    assert "NAVIGATE" in ops
+    assert {"FILL_FORM", "SELECT", "CLICK", "SUBMIT", "EXTRACT", "DONE"} <= ops
 
 
 def test_replan_that_only_drops_steps_still_passes() -> None:

@@ -7,6 +7,7 @@ committed.
 
 from __future__ import annotations
 
+from typing import get_args
 from urllib.parse import urlparse
 
 from pydantic import BaseModel, ConfigDict
@@ -15,6 +16,18 @@ from janus.observer.snapshot import PageSnapshot
 from janus.planner.ops import OpKind, Plan
 
 Capability = tuple[str, str | None, str | None]
+
+
+def allowed_ops_for(allow_navigate: bool) -> frozenset[OpKind]:
+    """Every op kind, minus `NAVIGATE` unless a task explicitly opts in (docs/PLAN.md
+    P3): the runtime already opens `start_url` itself, and no dev task needs a
+    mid-task NAVIGATE. Dropping it from the caller's `Policy.allowed_ops` also drops
+    it from the planner's decoding schema (`planner/plan.py::_plan_schema`), so the
+    model cannot even emit the op, not just have it rejected after the fact."""
+    ops = set(get_args(OpKind))
+    if not allow_navigate:
+        ops.discard("NAVIGATE")
+    return frozenset(ops)
 
 
 class Policy(BaseModel):

@@ -12,7 +12,6 @@ whose authorization fails when no `escalate` callback is supplied. `janus.cli`'s
 from __future__ import annotations
 
 from pathlib import Path
-from typing import get_args
 
 from playwright.sync_api import sync_playwright
 
@@ -20,8 +19,7 @@ from janus.agent import run_task
 from janus.config import Settings, get_settings
 from janus.executor.escalation import make_granted_ops
 from janus.llm import LLMClient, assert_local_url
-from janus.planner.ops import OpKind
-from janus.validator.policy import Policy, origin_of
+from janus.validator.policy import Policy, allowed_ops_for, origin_of
 from janus_bench.agents.oracle_flow import matches_flow
 from janus_bench.harness.taskspec import TaskSpec
 from janus_bench.harness.trace_sink import make_trace_sink
@@ -32,7 +30,7 @@ MAX_STEPS = 20
 def _policy_for(task: TaskSpec) -> Policy:
     return Policy(
         allowed_origins=frozenset({origin_of(task.start_url)}),
-        allowed_ops=frozenset(get_args(OpKind)),
+        allowed_ops=allowed_ops_for(task.allow_navigate),
         max_steps=MAX_STEPS,
         sensitive_fields=frozenset(task.sensitive_field_names),
     )

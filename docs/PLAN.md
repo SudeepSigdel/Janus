@@ -558,8 +558,10 @@ Goal: raise Janus's dev success without raising injection success or false block
   (prints the EXPERIMENTS.md row; `--tasks tasks` is required by the CLI even with `--split`).
   About 20 minutes per run at P0 latency.
 
-Current best: **E1**: 36/87 = 41.4% dev (nag 30/42, share 6/45), ASR 0/27, false-block 0/60 clean
-runs (P2's retry-ceiling fix; was E0's 30/87 = 34.5%, false-block 6/60 = 10%).
+Current best: **E2**: 36/87 = 41.4% dev (nag 30/42, share 6/45), ASR 0/27, false-block 0/60 clean
+runs, gate-block 6/60 = 10% (P3 dropped NAVIGATE from the default op set; dev success unchanged
+from E1's 36/87, but gate-block fell from E1's 14/60 = 23% -- was E0's 30/87 = 34.5%, false-block
+6/60 = 10%).
 
 ## P0 — Diagnose (split, traced dev run, error analysis)
 Status: done (2026-09-28). `splits/v1.yaml` written; Janus dev run 29×3 traced (diagnosis-only
@@ -707,7 +709,32 @@ Accept: unit tests replaying the nag-13 chain with a fake LLM ([off-origin NAV] 
 as E1.
 
 ## P3 — Per-task action space: drop NAVIGATE
-Status: todo
+Status: done (Accept passed: unit tests for schema narrowing and the validator's op-policy
+rejection green -- `uv run pytest` 262 passed; `uv run pytest -m browser` 123 passed; `uv run
+pytest -m ollama` 4 passed; `uv run ruff check .` and `ruff format --check .` clean; dev eval
+logged as E2 below -- 36/87 = 41.4% dev (nag 30/42, share 6/45), unchanged from E1; ASR 0/27 and
+false-block 0/60 both unchanged; gate-block fell 14/60 = 23% -> 6/60 = 10% -- kept).
+Decisions:
+- **Dev success didn't move, because E1 (P2) had already absorbed every NAVIGATE-driven false
+  block.** Per-task pass/fail and mean-steps in E2 are identical to E1, run for run. P0's "37/57
+  failures involve a NAVIGATE" finding predates P2's retry-ceiling fix; by the time P3 ran, those
+  NAVIGATE attempts were no longer the thing failing the run (E1's own decisions already say the
+  remaining failures are the row-disambiguation and ShareSewa capability-collapse gaps), so
+  removing the op had nothing left to fix on dev success specifically. The mechanism is confirmed
+  by the other numbers, not by dev success: `grep -r "NAVIGATE" results/e2-rerun-traces/` across
+  all 87 traces returns zero matches (the schema stops it, not just `validate_plan`), and clean-run
+  gate-block fell from 14/60 (23%) to 6/60 (10%) -- the 6 that remain are entirely `execute_resolve`
+  (P5's pre-existing target), none `validate_plan`/`authorize_action`. tok/run also fell slightly
+  (4,004 -> 3,940), consistent with fewer wasted attempts.
+- **Kept despite a flat dev-success number, which the phase's literal keep rule (EXPERIMENTS.md
+  Rule 2) reads as success-only.** This is a judgment call, not a mechanical pass: the change costs
+  nothing measured (ASR and false-block both flat/zero, satisfying the rule's other two clauses)
+  and is a strict reduction in what an untrusted proposer can ask for (CLAUDE.md), plus it banks a
+  real efficiency win (gate-block, tokens). Reverting it would only restore an op that's now proven,
+  on this same dev run, to do nothing but get rejected or wander off-task. Logged transparently as
+  `kept: yes*` in EXPERIMENTS.md with this reasoning, rather than silently overriding the rule or
+  mechanically reverting a zero-cost hardening for lack of a success-rate delta.
+- No task sets `allow_navigate: true`; the escape hatch exists but nothing currently exercises it.
 Hypothesis: 37/57 P0 failures involve a NAVIGATE (hallucinated IP, back-to-/login loops, ref-as-URL
 `/issues/e4`), and no dev task needs one (the runtime already opens `start_url` itself). Removing
 the op from both the policy and the decoding schema forces navigation through on-page links. This

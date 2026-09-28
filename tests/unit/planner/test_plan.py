@@ -10,7 +10,7 @@ import pytest
 
 from janus.llm import LLMClient
 from janus.observer.snapshot import Element, Fingerprint, PageSnapshot
-from janus.planner.plan import PlanningError, commit_plan
+from janus.planner.plan import PlanningError, _plan_schema, commit_plan
 from janus.validator.policy import Policy
 
 
@@ -52,6 +52,28 @@ def _response(content: dict) -> httpx.Response:
     return httpx.Response(200, json={"choices": [{"message": {"content": json.dumps(content)}}]})
 
 
+def test_plan_schema_omits_navigate_when_not_allowed() -> None:
+    """P3 (docs/PLAN.md): constrained decoding -- NAVIGATE must be unreachable in the
+    schema sent to the model, not just rejected after the fact."""
+    schema = _plan_schema(_policy(allowed_ops=frozenset({"CLICK", "DONE"})))
+    steps_items = schema["properties"]["steps"]["items"]
+    assert "NAVIGATE" not in steps_items["discriminator"]["mapping"]
+    assert "NavigateStep" not in schema["$defs"]
+    assert all(ref["$ref"] != "#/$defs/NavigateStep" for ref in steps_items["oneOf"])
+
+
+def test_plan_schema_includes_navigate_when_allowed() -> None:
+    schema = _plan_schema(_policy(allowed_ops=frozenset({"CLICK", "NAVIGATE", "DONE"})))
+    steps_items = schema["properties"]["steps"]["items"]
+    assert "NAVIGATE" in steps_items["discriminator"]["mapping"]
+    assert "NavigateStep" in schema["$defs"]
+
+
+def test_plan_schema_drops_field_value_def_when_fill_form_not_allowed() -> None:
+    schema = _plan_schema(_policy(allowed_ops=frozenset({"CLICK", "DONE"})))
+    assert "FieldValue" not in schema["$defs"]
+
+
 def test_outline_never_includes_untrusted_text() -> None:
     seen_bodies: list[dict] = []
 
@@ -71,6 +93,26 @@ def test_outline_never_includes_untrusted_text() -> None:
     for body in seen_bodies:
         for message in body["messages"]:
             assert "SECRET" not in message["content"]
+
+
+def test_commit_plan_sends_the_op_restricted_schema_to_the_model() -> None:
+    seen_bodies: list[dict] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen_bodies.append(json.loads(request.content))
+        return _response({"task_id": "nag-01", "steps": [{"op": "CLICK", "ref": "e0"}]})
+
+    commit_plan(
+        task_id="nag-01",
+        instruction="Click the link.",
+        inputs={},
+        snapshot=_snapshot(),
+        policy=_policy(allowed_ops=frozenset({"CLICK", "DONE"})),
+        llm=_client(handler),
+        max_retries=2,
+    )
+    sent_schema = seen_bodies[0]["response_format"]["json_schema"]["schema"]
+    assert "NAVIGATE" not in sent_schema["properties"]["steps"]["items"]["discriminator"]["mapping"]
 
 
 def test_input_values_are_never_shown_to_the_model_only_keys() -> None:

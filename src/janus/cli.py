@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
-from typing import get_args
 
 from playwright.sync_api import sync_playwright
 
@@ -13,9 +12,8 @@ from janus.agent import run_task
 from janus.config import get_settings
 from janus.executor.escalation import cli_escalation, make_granted_ops
 from janus.llm import LLMClient, LLMError
-from janus.planner.ops import OpKind
 from janus.task import load_task_file
-from janus.validator.policy import Policy, origin_of
+from janus.validator.policy import Policy, allowed_ops_for, origin_of
 
 
 def has_model(installed: list[str], wanted: str) -> bool:
@@ -50,7 +48,7 @@ def run(task_path: Path) -> int:
     llm = LLMClient(settings)
     policy = Policy(
         allowed_origins=frozenset({origin_of(task.start_url)}),
-        allowed_ops=frozenset(get_args(OpKind)),
+        allowed_ops=allowed_ops_for(task.allow_navigate),
         max_steps=20,
         sensitive_fields=frozenset(task.sensitive_field_names),
     )

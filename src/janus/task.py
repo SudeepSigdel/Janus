@@ -33,6 +33,7 @@ class TaskFile(BaseModel):
     inputs: dict[str, str] = {}
     approvals: list[str] = []
     sensitive_field_names: list[str] = []
+    allow_navigate: bool = False
 
 
 def load_task_file(path: Path) -> TaskFile:

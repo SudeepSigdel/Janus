@@ -78,6 +78,18 @@ def test_on_allowlist_navigate_is_accepted() -> None:
     assert result.ok
 
 
+def test_navigate_rejected_when_not_in_allowed_ops() -> None:
+    """P3 (docs/PLAN.md): a task's default policy excludes NAVIGATE. Even an
+    otherwise-legitimate, on-origin NAVIGATE must still be rejected by the
+    deterministic op-policy check -- constrained decoding (planner/plan.py's schema)
+    is a belt, this is the suspenders."""
+    policy = POLICY.model_copy(update={"allowed_ops": POLICY.allowed_ops - {"NAVIGATE"}})
+    plan = Plan(task_id="t", steps=[NavigateStep(url="http://127.0.0.1:8101/services")])
+    result = validate_plan(plan, policy, SNAPSHOT, inputs={})
+    assert not result.ok
+    assert any("not in the allowed ops" in e for e in result.errors)
+
+
 def test_unknown_element_ref_is_rejected() -> None:
     plan = Plan(task_id="t", steps=[ClickStep(ref="e99")])
     result = validate_plan(plan, POLICY, SNAPSHOT, inputs={})

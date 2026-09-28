@@ -86,8 +86,13 @@ def _outline(snapshot: PageSnapshot) -> list[dict[str, str | None]]:
     return [{"ref": e.ref, "role": e.role, "label": e.accessible_name} for e in snapshot.elements]
 
 
-def _plan_schema() -> dict:
-    """`Plan.model_json_schema()`, with `op` forced `required` on every step type.
+def _plan_schema(policy: Policy) -> dict:
+    """`Plan.model_json_schema()`, with `op` forced `required` on every step type and
+    the step union narrowed to `policy.allowed_ops` (docs/PLAN.md P3): this is
+    constrained decoding over the action space, not just post-hoc rejection -- a
+    disallowed op (e.g. NAVIGATE, when the task doesn't set `allow_navigate`) isn't a
+    shape the model can even emit, since it's removed from the discriminator mapping,
+    the `oneOf` list, and `$defs` entirely.
 
     Pydantic's schema generation drops a field from `required` once it has a default
     (every step's `op: Literal[...] = "..."` has one, for callers that construct
@@ -99,9 +104,21 @@ def _plan_schema() -> dict:
     needs `op` required; `ops.py`'s Python-side default is untouched.
     """
     schema = Plan.model_json_schema()
-    for definition in schema.get("$defs", {}).values():
+    defs = schema.get("$defs", {})
+    for definition in defs.values():
         if "op" in definition.get("properties", {}) and "op" not in definition.get("required", []):
             definition.setdefault("required", []).append("op")
+
+    steps_items = schema["properties"]["steps"]["items"]
+    full_mapping = steps_items["discriminator"]["mapping"]
+    mapping = {op: ref for op, ref in full_mapping.items() if op in policy.allowed_ops}
+    steps_items["discriminator"]["mapping"] = mapping
+    steps_items["oneOf"] = [{"$ref": ref} for ref in mapping.values()]
+
+    kept = {ref.rsplit("/", 1)[-1] for ref in mapping.values()}
+    if "FillFormStep" in kept:
+        kept.add("FieldValue")
+    schema["$defs"] = {name: definition for name, definition in defs.items() if name in kept}
     return schema
 
 
@@ -180,7 +197,7 @@ def commit_plan(
     (docs/PLAN.md P1), never consulted by any gate. With `trace=None` this function's
     behavior is unchanged from before the parameter existed.
     """
-    schema = _plan_schema()
+    schema = _plan_schema(policy)
     messages: list[dict[str, str]] = [
         {"role": "system", "content": _SYSTEM_PROMPT},
         {

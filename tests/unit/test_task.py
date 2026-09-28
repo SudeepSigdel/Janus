@@ -43,6 +43,7 @@ def test_load_task_file_defaults_missing_optional_fields(tmp_path: Path) -> None
     assert task.inputs == {}
     assert task.approvals == []
     assert task.sensitive_field_names == []
+    assert task.allow_navigate is False
 
 
 def test_load_task_file_reads_sensitive_field_names() -> None:
