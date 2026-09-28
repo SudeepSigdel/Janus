@@ -28,12 +28,13 @@ class CheckResult:
     check: Check
     ok: bool
     actual: Any
+    missing: bool = False
 
 
 def evaluate(check: Check, state: dict[str, Any]) -> CheckResult:
     actual = resolve(state, check.path)
     if actual is _MISSING:
-        return CheckResult(check, False, "<missing>")
+        return CheckResult(check, False, "<missing>", missing=True)
     if check.op == "equals":
         ok = actual == check.value
     elif check.op == "contains":

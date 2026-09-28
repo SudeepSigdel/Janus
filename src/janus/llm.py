@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import ipaddress
 import json
+import time
 from typing import Any
 from urllib.parse import urlparse
 
@@ -50,17 +51,27 @@ class LLMClient:
             timeout=self.settings.request_timeout_s,
             transport=transport,
         )
+        # Cumulative usage/latency across every call this client has made (docs/PLAN.md
+        # P1: "LLM usage/latency from LLMClient"). A caller reads these off after a run;
+        # nothing here changes control flow, so it's safe with or without tracing.
+        self.chat_calls = 0
+        self.prompt_tokens = 0
+        self.completion_tokens = 0
+        self.elapsed_s = 0.0
 
     def close(self) -> None:
         self._http.close()
 
     def _request(self, method: str, path: str, payload: dict[str, Any] | None) -> dict[str, Any]:
+        started = time.monotonic()
         try:
             resp = self._http.request(method, path, json=payload)
             resp.raise_for_status()
             data = resp.json()
         except (httpx.HTTPError, ValueError) as exc:
             raise LLMError(f"{path} failed: {exc}") from exc
+        finally:
+            self.elapsed_s += time.monotonic() - started
         if not isinstance(data, dict):
             raise LLMError(f"{path} returned non-object JSON")
         return data
@@ -90,6 +101,10 @@ class LLMClient:
                 },
             },
         )
+        self.chat_calls += 1
+        usage = data.get("usage") or {}
+        self.prompt_tokens += int(usage.get("prompt_tokens") or 0)
+        self.completion_tokens += int(usage.get("completion_tokens") or 0)
         try:
             return json.loads(data["choices"][0]["message"]["content"])
         except (KeyError, IndexError, TypeError, json.JSONDecodeError) as exc:

@@ -8,6 +8,7 @@ from datetime import datetime
 from pathlib import Path
 
 from janus_bench.agents.base import Agent
+from janus_bench.harness import metrics
 from janus_bench.harness.results import (
     RunRecord,
     append_record,
@@ -19,12 +20,14 @@ from janus_bench.harness.results import (
 )
 from janus_bench.harness.runner import run_task
 from janus_bench.harness.server import SITES, running_site, serve
-from janus_bench.harness.taskspec import load_tasks
+from janus_bench.harness.split import ids_for, load_split
+from janus_bench.harness.taskspec import TaskSpec, load_tasks
 
 AVAILABLE_AGENTS = ("null", "oracle", "browser_use", "janus")
+CHECKPOINTS = ("CP1", "CP2", "CP3")
 
 
-def make_agent(name: str) -> Agent:
+def make_agent(name: str, trace_dir: Path | None = None) -> Agent:
     if name == "null":
         from janus_bench.agents.null import NullAgent
 
@@ -40,20 +43,51 @@ def make_agent(name: str) -> Agent:
     if name == "janus":
         from janus_bench.agents.janus_agent import JanusAgent
 
-        return JanusAgent()
+        return JanusAgent(trace_dir=trace_dir)
     raise SystemExit(
         f"agent '{name}' is not available yet (available: {', '.join(AVAILABLE_AGENTS)})"
     )
 
 
-def run(agent_name: str, tasks_dir: Path, repeats: int, out: Path | None = None) -> int:
-    agent = make_agent(agent_name)
+def _select_tasks(
+    tasks_dir: Path, split: Path | None, set_: str | None, checkpoint: str | None
+) -> list[TaskSpec]:
     tasks = load_tasks(tasks_dir)
+    if split is None:
+        if set_ is not None:
+            raise SystemExit("--set requires --split")
+        return tasks
+    if set_ is None:
+        raise SystemExit("--set is required with --split")
+    if set_ == "test" and checkpoint is None:
+        raise SystemExit(
+            "--set test requires --checkpoint <CPn> (docs/PLAN.md: test runs only at "
+            "milestone checkpoints, deliberately and labelled)"
+        )
+    wanted = ids_for(load_split(split), set_)
+    return [t for t in tasks if t.id in wanted]
+
+
+def run(
+    agent_name: str,
+    tasks_dir: Path,
+    repeats: int,
+    out: Path | None = None,
+    split: Path | None = None,
+    set_: str | None = None,
+    checkpoint: str | None = None,
+    trace: bool = False,
+) -> int:
+    tasks = _select_tasks(tasks_dir, split, set_, checkpoint)
     if not tasks:
         print(f"no tasks found in {tasks_dir}")
         return 2
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    out = out or Path("results") / f"{agent.name}-{tasks_dir.name}-{stamp}.jsonl"
+    out = out or Path("results") / f"{agent_name}-{tasks_dir.name}-{stamp}.jsonl"
+    trace_dir = out.parent / f"{out.stem}-traces" if trace else None
+    if trace and agent_name != "janus":
+        print(f"note: --trace has no effect for agent '{agent_name}' (janus-only)")
+    agent = make_agent(agent_name, trace_dir=trace_dir)
     records: list[RunRecord] = []
     with running_site("attacker") as attacker_url:
         for site in sorted({t.site for t in tasks}):
@@ -70,6 +104,13 @@ def run(agent_name: str, tasks_dir: Path, repeats: int, out: Path | None = None)
                             wall_time=round(result.wall_time, 2),
                             injection_outcome=result.injection_outcome(task),
                             error=result.error,
+                            status=result.status,
+                            chat_calls=result.chat_calls,
+                            prompt_tokens=result.prompt_tokens,
+                            completion_tokens=result.completion_tokens,
+                            llm_time=result.llm_time,
+                            gate_block=result.gate_block,
+                            false_block=result.false_block,
                         )
                         records.append(record)
                         append_record(out, record)
@@ -110,6 +151,29 @@ def report(tasks_dir: Path, records_paths: list[Path]) -> int:
     return 0
 
 
+def analyze(
+    tasks_dir: Path, records_paths: list[Path], split: Path | None = None, set_: str | None = None
+) -> int:
+    """Print the docs/EXPERIMENTS.md metrics row for one or more committed JSONL
+    results files, optionally narrowed to a split's dev/test set."""
+    tasks = load_tasks(tasks_dir)
+    records: list[RunRecord] = []
+    for path in records_paths:
+        records.extend(load_records(path))
+    if split is not None:
+        if set_ is None:
+            raise SystemExit("--set is required with --split")
+        wanted = ids_for(load_split(split), set_)
+        tasks = [t for t in tasks if t.id in wanted]
+        records = [r for r in records if r.task in wanted]
+    if not records:
+        print("no records found")
+        return 2
+    trace_dirs = [p.parent / f"{p.stem}-traces" for p in records_paths]
+    print(metrics.experiment_row_markdown(records, tasks, trace_dirs))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     if hasattr(sys.stdout, "reconfigure"):  # Windows consoles default to a non-UTF-8 codepage
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -122,6 +186,17 @@ def main(argv: list[str] | None = None) -> int:
     run_p.add_argument("--tasks", type=Path, required=True)
     run_p.add_argument("--repeats", type=int, default=1)
     run_p.add_argument("--out", type=Path, default=None, help="JSONL results path")
+    run_p.add_argument("--split", type=Path, default=None, help="a splits/*.yaml file")
+    run_p.add_argument("--set", dest="set_", choices=("dev", "test"), default=None)
+    run_p.add_argument(
+        "--checkpoint",
+        choices=CHECKPOINTS,
+        default=None,
+        help="required with --set test, so a test run is deliberate and labelled",
+    )
+    run_p.add_argument(
+        "--trace", action="store_true", help="capture per-run JSON traces (janus agent only)"
+    )
     report_p = sub.add_parser("report", help="print breakdown tables from committed JSONL results")
     report_p.add_argument("--tasks", type=Path, required=True)
     report_p.add_argument(
@@ -131,13 +206,35 @@ def main(argv: list[str] | None = None) -> int:
         required=True,
         help="repeatable; one or more JSONL files",
     )
+    analyze_p = sub.add_parser("analyze", help="print the EXPERIMENTS.md metrics row")
+    analyze_p.add_argument("--tasks", type=Path, default=Path("tasks"))
+    analyze_p.add_argument(
+        "--records",
+        type=Path,
+        action="append",
+        required=True,
+        help="repeatable; one or more JSONL files",
+    )
+    analyze_p.add_argument("--split", type=Path, default=None)
+    analyze_p.add_argument("--set", dest="set_", choices=("dev", "test"), default=None)
     args = parser.parse_args(argv)
     if args.command == "serve":
         serve(args.site)
         return 0
     if args.command == "report":
         return report(args.tasks, args.records)
-    return run(args.agent, args.tasks, args.repeats, args.out)
+    if args.command == "analyze":
+        return analyze(args.tasks, args.records, args.split, args.set_)
+    return run(
+        args.agent,
+        args.tasks,
+        args.repeats,
+        args.out,
+        args.split,
+        args.set_,
+        args.checkpoint,
+        args.trace,
+    )
 
 
 if __name__ == "__main__":

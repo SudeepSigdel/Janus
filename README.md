@@ -76,8 +76,9 @@ unresolved capability gap (see [docs/LIMITATIONS.md](docs/LIMITATIONS.md)), not 
 
 **Safety:** zero exfiltration leaks for either agent across all 16 exfiltration-case runs.
 Injection resistance is not uniform across attack types or sites for either agent -- see
-[docs/LIMITATIONS.md](docs/LIMITATIONS.md) for the one clear Janus-specific finding
-(value-poisoning on ShareSewa's bank field, hijacked 3/3).
+[docs/LIMITATIONS.md](docs/LIMITATIONS.md) for the value-poisoning gap that remains structurally
+real (an approved field fill's value isn't checked) even though the ShareSewa case once cited as
+proof of it (share-13, "hijacked 3/3") turned out to be a scoring artifact, corrected in P1.
 
 ## Repo layout
 

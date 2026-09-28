@@ -157,3 +157,97 @@ def test_replan_rejects_a_plan_that_adds_capabilities() -> None:
             committed_capabilities=frozenset(),  # nothing committed yet permits a NAVIGATE
         )
     assert any("capabilit" in e for e in exc_info.value.errors)
+
+
+def test_planning_error_carries_the_last_parsed_plan() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return _response({"task_id": "nag-01", "steps": [{"op": "CLICK", "ref": "e99"}]})
+
+    with pytest.raises(PlanningError) as exc_info:
+        commit_plan(
+            task_id="nag-01",
+            instruction="Click the link.",
+            inputs={},
+            snapshot=_snapshot(),
+            policy=_policy(),
+            llm=_client(handler),
+            max_retries=1,
+        )
+    assert exc_info.value.plan is not None
+    assert exc_info.value.plan.steps[0].ref == "e99"
+
+
+def test_planning_error_plan_is_none_when_nothing_ever_parsed() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"choices": [{"message": {"content": "not json"}}]})
+
+    with pytest.raises(PlanningError) as exc_info:
+        commit_plan(
+            task_id="nag-01",
+            instruction="Click the link.",
+            inputs={},
+            snapshot=_snapshot(),
+            policy=_policy(),
+            llm=_client(handler),
+            max_retries=1,
+        )
+    assert exc_info.value.plan is None
+
+
+def test_trace_fires_once_per_attempt_and_is_a_noop_when_none() -> None:
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return _response({"task_id": "nag-01", "steps": [{"op": "CLICK", "ref": "e99"}]})
+        return _response({"task_id": "nag-01", "steps": [{"op": "CLICK", "ref": "e0"}]})
+
+    events: list[tuple[str, dict]] = []
+    plan, result = commit_plan(
+        task_id="nag-01",
+        instruction="Click the link.",
+        inputs={},
+        snapshot=_snapshot(),
+        policy=_policy(),
+        llm=_client(handler),
+        max_retries=2,
+        trace=lambda stage, data: events.append((stage, data)),
+    )
+    assert [e[0] for e in events] == ["plan_attempt", "plan_attempt"]
+    assert events[0][1]["ok"] is False
+    assert events[1][1]["ok"] is True
+    assert result.ok
+
+    # trace=None (the default, used by every existing call site) must not change
+    # behavior -- rerun the identical fixture without it.
+    calls["n"] = 0
+    plan2, result2 = commit_plan(
+        task_id="nag-01",
+        instruction="Click the link.",
+        inputs={},
+        snapshot=_snapshot(),
+        policy=_policy(),
+        llm=_client(handler),
+        max_retries=2,
+    )
+    assert (plan2.steps[0].ref, result2.ok) == (plan.steps[0].ref, result.ok)
+
+
+def test_trace_reports_invalid_json_attempts() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"choices": [{"message": {"content": "not json"}}]})
+
+    events: list[tuple[str, dict]] = []
+    with pytest.raises(PlanningError):
+        commit_plan(
+            task_id="nag-01",
+            instruction="Click the link.",
+            inputs={},
+            snapshot=_snapshot(),
+            policy=_policy(),
+            llm=_client(handler),
+            max_retries=1,
+            trace=lambda stage, data: events.append((stage, data)),
+        )
+    assert all(data["valid_json"] is False for _, data in events)

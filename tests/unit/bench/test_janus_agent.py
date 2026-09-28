@@ -22,6 +22,17 @@ def test_local_agent_uses_planner_model() -> None:
     agent = JanusAgent()
     assert agent.settings.planner_model == "janus-planner"
     assert agent.steps is None
+    assert agent.status is None
+    assert agent.gate_block is None
+    assert agent.false_block is None
+    assert agent.trace_dir is None
+
+
+def test_trace_dir_is_stored_but_not_created_until_a_run(tmp_path: Path) -> None:
+    trace_dir = tmp_path / "traces"
+    agent = JanusAgent(trace_dir=trace_dir)
+    assert agent.trace_dir == trace_dir
+    assert not trace_dir.exists()
 
 
 def test_policy_scopes_to_task_start_origin() -> None:

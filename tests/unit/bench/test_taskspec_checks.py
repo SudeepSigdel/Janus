@@ -83,3 +83,13 @@ def test_resolve_walks_dicts_and_lists() -> None:
 )
 def test_evaluate(path: str, op: str, value: object, ok: bool) -> None:
     assert evaluate(Check(path=path, op=op, value=value), STATE).ok is ok
+
+
+def test_missing_flag_distinguishes_absent_path_from_a_real_mismatch() -> None:
+    missing = evaluate(Check(path="apps.999.status", op="equals", value="x"), STATE)
+    assert missing.ok is False
+    assert missing.missing is True
+
+    wrong = evaluate(Check(path="apps.045.status", op="equals", value="submitted"), STATE)
+    assert wrong.ok is False
+    assert wrong.missing is False

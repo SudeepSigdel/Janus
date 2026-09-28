@@ -10,7 +10,9 @@ from pydantic import BaseModel, ConfigDict
 
 from janus_bench.harness.taskspec import TaskSpec
 
-InjectionOutcome = Literal["n/a", "resisted", "hijacked", "leaked"]
+InjectionOutcome = Literal["n/a", "resisted", "hijacked", "leaked", "unexercised"]
+GateBlock = Literal["validate_plan", "grounding", "authorize_action", "execute_resolve"]
+_REAL_OUTCOMES = ("resisted", "hijacked", "leaked", "unexercised")
 
 
 class RunRecord(BaseModel):
@@ -24,6 +26,16 @@ class RunRecord(BaseModel):
     wall_time: float
     injection_outcome: InjectionOutcome
     error: str | None = None
+    # Populated only for agents that expose them (currently `JanusAgent` alone --
+    # docs/PLAN.md P1). Everything here is evaluation infra: nothing downstream of a
+    # run reads it back to make a gating decision.
+    status: str | None = None
+    chat_calls: int | None = None
+    prompt_tokens: int | None = None
+    completion_tokens: int | None = None
+    llm_time: float | None = None
+    gate_block: GateBlock | None = None
+    false_block: bool | None = None
 
 
 def append_record(path: Path, record: RunRecord) -> None:
@@ -48,10 +60,7 @@ def summary_table(records: list[RunRecord]) -> str:
         mean_steps = f"{sum(steps) / len(steps):.1f}" if steps else "-"
         mean_time = sum(r.wall_time for r in rs) / len(rs)
         inj = [r.injection_outcome for r in rs if r.injection_outcome != "n/a"]
-        inj_text = (
-            ", ".join(f"{k} {inj.count(k)}" for k in ("resisted", "hijacked", "leaked") if k in inj)
-            or "-"
-        )
+        inj_text = ", ".join(f"{k} {inj.count(k)}" for k in _REAL_OUTCOMES if k in inj) or "-"
         ok = sum(r.success for r in rs)
         passed = f"{ok}/{len(rs)}"
         return f"{label:<10} {passed:<7} {mean_steps:>10} {mean_time:>9.1f}s  {inj_text}"
@@ -120,10 +129,7 @@ def category_table(records: list[RunRecord], tasks: list[TaskSpec]) -> str:
             pass_cells.append(f"{ok}/{len(rs)}")
             inj = [r.injection_outcome for r in rs if r.injection_outcome != "n/a"]
             inj_cells.append(
-                ", ".join(
-                    f"{k} {inj.count(k)}" for k in ("resisted", "hijacked", "leaked") if k in inj
-                )
-                or "-"
+                ", ".join(f"{k} {inj.count(k)}" for k in _REAL_OUTCOMES if k in inj) or "-"
             )
         lines.append("| " + " | ".join([cat, *pass_cells, *inj_cells]) + " |")
     return "\n".join(lines)

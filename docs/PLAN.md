@@ -575,9 +575,72 @@ Note: M12/M13 above still read `todo` here although the Frogtoberfest slice is r
 Their Status lines were not touched in P0.
 
 ## P1 — Evaluation infrastructure (no agent-behavior change)
-Status: todo
+Status: done (Accept passed: `uv run janus-bench run --agent janus --tasks tasks --split
+splits/v1.yaml --set dev --repeats 3 --trace --out results/e0-rerun.jsonl` reproduces 30/87
+exactly, twice in a row byte-identical per-task; `analyze` reports ASR 0/27 and false-block 6/60
+(exact, not just within tolerance) and gate-block 16/60, tok/run 3,878, schema-invalid 0/345,
+completed-claim 0/30 -- every number matches P0's original diagnosis-script findings; E0 row in
+EXPERIMENTS.md filled from `analyze`; `uv run pytest` 250 passed, `uv run pytest -m browser` 123
+passed, `uv run pytest -m ollama` 4 passed, `uv run ruff check .` and `ruff format --check .`
+clean).
 Hypothesis: none about the agent. This makes E0 reproducible and fixes the ASR measurement that the
 keep/revert rule depends on.
+Decisions:
+- **`agent.py::_grounding_diff` needed no `planner/ground.py` changes.** It diffs each step's
+  `model_dump()` before/after `ground_plan` in the caller, rather than threading a `trace` parameter
+  through `ground.py` itself -- P0 already found grounding never rewrites anything on the current
+  sites (0/291 calls), so instrumenting inside `ground.py` would have been speculative plumbing with
+  no evidence behind it (matches P0's own "deprioritized" list). If grounding ever starts rewriting
+  refs for real, this diff already catches it from the outside.
+- **`LLMClient` tracks its own cumulative `chat_calls`/`prompt_tokens`/`completion_tokens`/
+  `elapsed_s`**, updated inside `_request`/`chat_json`, rather than threading a trace callback
+  through every call site. `RunResult`/`RunRecord` read them off the client/agent after a run. Keeps
+  `llm.py` (CLAUDE.md's single AI entry point) simple; every caller already holds the `LLMClient`.
+- **`gate_block` has four values**: `validate_plan`, `grounding`, `authorize_action`,
+  `execute_resolve`. A fifth (egress-guard block) isn't distinguishable yet --
+  `executor/egress.py::install_egress_guard`'s `on_block` hook isn't wired to `StepOutcome`, so an
+  aborted off-allowlist request currently surfaces as a generic Playwright failure, not a
+  `StepOutcome.blocked`. Not fixed here (M4's own egress test already proves the request never
+  reaches the target; P1 only needed proof a gate *can* be attributed, not every gate).
+- **`PlanningError` gained a `.plan` field** (the last attempt that at least parsed), so `agent.py`
+  can attribute a `PlanningError` to a specific rejected step for `gate_block`/`false_block`
+  reporting without changing what `commit_plan` raises or when.
+- **False-block rule implements both EXPERIMENTS.md clauses**, not just the capability-ceiling one
+  P0's evidence alone required (a deliberate scope call, since EXPERIMENTS.md's own metric
+  definition already specified both). Clause 1 (`RunResult.false_block_ceiling`) is computed in
+  `janus/agent.py` -- pure string/logic, no `janus_bench` dependency. Clause 2
+  (`janus_bench.agents.oracle_flow.matches_flow`) is computed in the harness, since only it has
+  `oracle.py` (`janus` must never import `janus_bench`, CLAUDE.md); `oracle_flow.py` mirrors each
+  routine's clicked accessible names, copied from the site templates rather than derived from
+  `oracle.py`'s CSS-selector code, since the validator/authorize gates only ever see accessible
+  names. Clause 2 matches by accessible name **alone**, not also op kind: the real planner reliably
+  plans a `<button type="submit">` as CLICK rather than SUBMIT (M6/M7's own finding, already why
+  `executor/escalation.py` grants `{SUBMIT, CLICK}` together); requiring op-kind equality would have
+  silently excluded the real cases this clause exists to catch.
+- **Clause 2 is scoped to `validate_plan`/`authorize_action` blocks only, excluding
+  `execute_resolve`** -- found by actually running the live dev rerun, not reasoned in advance: the
+  first rerun scored false-block at 9/60, not the expected 6/60 ± 1. The extra 3 were nag-03
+  #2/#3 and nag-19 #2, all `execute_resolve` blocks whose stale ref happened to share a label
+  ("सम्पादन / Edit" / "सुरक्षित गर्नुहोस् / Save") with a real oracle step. ERROR_ANALYSIS.md had already
+  filed these under "planning" (the model queues a second click after a page-changing first click,
+  breaking the system prompt's own single-page-per-response rule), not "false block" -- label
+  matching alone can't tell a wrongly-refused live element from a rightly-refused stale one, and only
+  `validate_plan`/`authorize_action` reject a step before any position/fingerprint question is even
+  asked. Scoping clause 2 to those two gates brought false-block back to exactly 6/60. EXPERIMENTS.md's
+  clause-2 wording updated to record this scoping and why.
+- **`janus-bench analyze`'s row leaves metadata columns (`id`/`date`/`change`/`model`/`config`/`vs`/
+  `kept`/`records`) as `?`** -- those are choices the person running an experiment makes, not
+  something a harness command can infer. The computed columns (dev success, ASR, false-block,
+  gate-block, wall time, tokens/run) plus two metrics EXPERIMENTS.md's table has no column for
+  (completed-claim rate, schema-invalid rate) print for copy-paste into the log.
+- **`schema-invalid rate` has no `RunRecord` fallback.** It's read from `--trace`'s per-attempt JSON
+  (`plan_attempt` events' `valid_json` flag) rather than added as its own `RunRecord` field, since
+  this milestone's own field list for `RunRecord` doesn't include it and P0 already found 0 schema
+  failures across 345 calls (deprioritized). `analyze` reports `n/a (no --trace)` when no trace
+  directory is found next to a records file.
+- **Sequencing**: M10, M11 and P0 (already done earlier in this session but left uncommitted) were
+  committed first, as their own commit, before any P1 change -- so P1's own commit is a clean diff on
+  top, matching the existing one-commit-per-milestone pattern in `git log`.
 Scope:
 - `harness/split.py` + `janus-bench run --split <file> --set dev|test` (loads the ids from the
   split; still accepts `--tasks`). Refuse `--set test` unless `--checkpoint <CPn>` is also given, so

@@ -25,6 +25,8 @@ attempt checked against it from the start.
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
+from typing import Any
 
 from pydantic import ValidationError
 
@@ -120,8 +122,12 @@ def _user_message(
 class PlanningError(RuntimeError):
     """No plan passed `validate_plan` within the retry budget."""
 
-    def __init__(self, errors: list[str]) -> None:
+    def __init__(self, errors: list[str], plan: Plan | None = None) -> None:
         self.errors = errors
+        # The last attempt that at least *parsed*, if any -- P1 evaluation infra
+        # (docs/PLAN.md) uses this to tell whether a rejection was a legitimate
+        # correction (false-block detection), without changing what gets raised.
+        self.plan = plan
         super().__init__(f"planning failed after retries: {errors}")
 
 
@@ -136,6 +142,7 @@ def commit_plan(
     max_retries: int,
     completed_ops: list[str] | None = None,
     committed_capabilities: frozenset[Capability] | None = None,
+    trace: Callable[[str, dict[str, Any]], None] | None = None,
 ) -> tuple[Plan, ValidationResult]:
     """Commit a Plan for the current `snapshot`, retrying validator rejections.
 
@@ -148,6 +155,11 @@ def commit_plan(
 
     See the module docstring for why `committed_capabilities` (invariant 2) is
     enforced across *retries of this call*, not across separate calls/pages.
+
+    `trace`, if given, is called once per attempt with a plain dict (attempt index,
+    whether the JSON parsed, validator errors, capabilities) -- evaluation infra
+    (docs/PLAN.md P1), never consulted by any gate. With `trace=None` this function's
+    behavior is unchanged from before the parameter existed.
     """
     schema = _plan_schema()
     messages: list[dict[str, str]] = [
@@ -162,7 +174,8 @@ def commit_plan(
 
     errors: list[str] = []
     ceiling = committed_capabilities
-    for _attempt in range(max_retries + 1):
+    plan: Plan | None = None
+    for attempt in range(max_retries + 1):
         if errors:
             messages.append(
                 {
@@ -177,9 +190,22 @@ def commit_plan(
             plan = Plan.model_validate(raw)
         except (LLMError, ValidationError) as exc:
             errors = [f"the plan JSON was invalid: {exc}"]
+            if trace is not None:
+                trace("plan_attempt", {"attempt": attempt, "valid_json": False, "errors": errors})
             continue
 
         result = validate_plan(plan, policy, snapshot, inputs, ceiling)
+        if trace is not None:
+            trace(
+                "plan_attempt",
+                {
+                    "attempt": attempt,
+                    "valid_json": True,
+                    "ok": result.ok,
+                    "errors": result.errors,
+                    "capabilities": sorted(map(str, result.capabilities)),
+                },
+            )
         if result.ok:
             return plan, result
         errors = result.errors
@@ -188,4 +214,4 @@ def commit_plan(
             # what was wrong, but may not use the fix as cover to ask for more.
             ceiling = result.capabilities
 
-    raise PlanningError(errors)
+    raise PlanningError(errors, plan)

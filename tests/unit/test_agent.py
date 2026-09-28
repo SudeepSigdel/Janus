@@ -7,11 +7,13 @@ this is a unit test with no browser.
 
 from __future__ import annotations
 
+import itertools
 import json
 
 import httpx
 import pytest
 
+import janus.llm as llm_module
 from janus import agent
 from janus.config import Settings
 from janus.executor.executor import StepOutcome
@@ -220,3 +222,200 @@ def test_escalation_callback_grants_a_consequential_step(monkeypatch: pytest.Mon
     )
     assert result.status == "completed"
     assert len(approved) == 1
+
+
+def test_gate_block_and_false_block_ceiling_on_a_capability_ceiling_rejection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # First attempt: off-origin NAVIGATE, correctly rejected -- locks the retry
+    # ceiling to that rejected attempt's own capabilities (planner/plan.py). The
+    # second attempt is a legitimate correction (CLICK a real element) but is
+    # rejected anyway, only for "adds capabilities beyond committed" -- the exact
+    # P0 chain (docs/ERROR_ANALYSIS.md) this milestone's false-block rule targets.
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return _chat(
+                {"task_id": "t", "steps": [{"op": "NAVIGATE", "url": "http://evil.example/x"}]}
+            )
+        return _chat({"task_id": "t", "steps": [{"op": "CLICK", "ref": "e0"}]})
+
+    _patch_page_primitives(monkeypatch, outcome=StepOutcome(ok=True))
+    result = agent.run_task(
+        _FakePage(),
+        task_id="t",
+        instruction="Click next.",
+        start_url="http://127.0.0.1:8101/services",
+        inputs={},
+        policy=_policy(allowed_ops=frozenset({"CLICK", "NAVIGATE", "DONE"})),
+        llm=_llm(handler),
+        settings=Settings(max_plan_retries=1),
+    )
+    assert result.status == "blocked"
+    assert result.gate_block == "validate_plan"
+    assert result.false_block_ceiling is True
+    # PlanningError.plan is the *last* attempt (the legitimate correction), not the
+    # hallucinated first one -- that's the whole point of the false-block finding.
+    assert result.blocked_step_op == "CLICK"
+    assert result.blocked_step_label == "Next"
+
+
+def test_gate_block_without_false_block_on_an_unrelated_validator_rejection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Every attempt targets an op the task's policy never allows at all -- a real
+    # rejection, not a capability-ceiling artifact.
+    def handler(request: httpx.Request) -> httpx.Response:
+        return _chat({"task_id": "t", "steps": [{"op": "CLICK", "ref": "e0"}]})
+
+    _patch_page_primitives(monkeypatch, outcome=StepOutcome(ok=True))
+    result = agent.run_task(
+        _FakePage(),
+        task_id="t",
+        instruction="Click next.",
+        start_url="http://127.0.0.1:8101/services",
+        inputs={},
+        policy=_policy(allowed_ops=frozenset({"DONE"})),  # CLICK isn't allowed
+        llm=_llm(handler),
+        settings=Settings(max_plan_retries=1),
+    )
+    assert result.status == "blocked"
+    assert result.gate_block == "validate_plan"
+    assert result.false_block_ceiling is False
+
+
+def test_gate_block_is_authorize_action_when_escalation_denies(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return _chat({"task_id": "t", "steps": [{"op": "CLICK", "ref": "e0"}]})
+
+    snapshot = _element_snapshot(tag="button", role="button", name="Submit application")
+    monkeypatch.setattr(agent, "install_egress_guard", lambda page, origins: None)
+    monkeypatch.setattr(agent, "extract_snapshot", lambda page, settings: snapshot)
+    monkeypatch.setattr(
+        agent, "execute_step", lambda page, step, snapshot, inputs: StepOutcome(ok=True)
+    )
+
+    result = agent.run_task(
+        _FakePage(),
+        task_id="t",
+        instruction="Submit it.",
+        start_url="http://127.0.0.1:8101/services",
+        inputs={},
+        policy=_policy(),
+        llm=_llm(handler),
+        settings=Settings(),
+    )
+    assert result.gate_block == "authorize_action"
+    assert result.false_block_ceiling is False
+    assert result.blocked_step_label == "Submit application"
+
+
+def test_gate_block_is_execute_resolve_on_a_stale_ref(monkeypatch: pytest.MonkeyPatch) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return _chat({"task_id": "t", "steps": [{"op": "CLICK", "ref": "e0"}]})
+
+    _patch_page_primitives(monkeypatch, outcome=StepOutcome(ok=False, blocked=True, reason="gone"))
+    result = agent.run_task(
+        _FakePage(),
+        task_id="t",
+        instruction="Click next.",
+        start_url="http://127.0.0.1:8101/services",
+        inputs={},
+        policy=_policy(),
+        llm=_llm(handler),
+        settings=Settings(),
+    )
+    assert result.gate_block == "execute_resolve"
+    assert result.blocked_step_label == "Next"
+
+
+def test_chat_calls_and_tokens_are_read_off_the_llm_client(monkeypatch: pytest.MonkeyPatch) -> None:
+    # A request against an in-memory MockTransport can finish inside one clock
+    # tick, making `llm_time > 0` flaky on some platforms; control the clock.
+    ticks = itertools.count(step=0.5)
+    monkeypatch.setattr(llm_module.time, "monotonic", lambda: next(ticks))
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {
+                        "message": {
+                            "content": json.dumps(
+                                {"task_id": "t", "steps": [{"op": "DONE", "status": "completed"}]}
+                            )
+                        }
+                    }
+                ],
+                "usage": {"prompt_tokens": 50, "completion_tokens": 5},
+            },
+        )
+
+    _patch_page_primitives(monkeypatch, outcome=StepOutcome(ok=True))
+    result = agent.run_task(
+        _FakePage(),
+        task_id="t",
+        instruction="Click next.",
+        start_url="http://127.0.0.1:8101/services",
+        inputs={},
+        policy=_policy(),
+        llm=_llm(handler),
+        settings=Settings(),
+    )
+    assert result.chat_calls == 1
+    assert result.prompt_tokens == 50
+    assert result.completion_tokens == 5
+    assert result.llm_time > 0
+
+
+def test_trace_is_a_noop_when_none_and_run_is_byte_identical(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return _chat(
+            {
+                "task_id": "t",
+                "steps": [{"op": "CLICK", "ref": "e0"}, {"op": "DONE", "status": "completed"}],
+            }
+        )
+
+    _patch_page_primitives(monkeypatch, outcome=StepOutcome(ok=True))
+    without_trace = agent.run_task(
+        _FakePage(),
+        task_id="t",
+        instruction="Click next.",
+        start_url="http://127.0.0.1:8101/services",
+        inputs={},
+        policy=_policy(),
+        llm=_llm(handler),
+        settings=Settings(),
+    )
+
+    events: list[tuple[str, dict]] = []
+    with_trace = agent.run_task(
+        _FakePage(),
+        task_id="t",
+        instruction="Click next.",
+        start_url="http://127.0.0.1:8101/services",
+        inputs={},
+        policy=_policy(),
+        llm=_llm(handler),
+        settings=Settings(),
+        trace=lambda stage, data: events.append((stage, data)),
+    )
+    assert without_trace.status == with_trace.status
+    assert without_trace.steps_run == with_trace.steps_run
+    assert without_trace.replans == with_trace.replans
+    assert [e[0] for e in events] == [
+        "snapshot",
+        "plan_attempt",
+        "authorize",
+        "execute",
+        "verify",
+        "run_result",
+    ]
