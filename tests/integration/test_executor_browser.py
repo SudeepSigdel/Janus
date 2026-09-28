@@ -358,6 +358,31 @@ def test_hand_written_plan_cancels_a_specific_application(page: Page, base_url: 
     assert len(state["applications"]) == 6
 
 
+def test_execute_step_detects_a_post_navigation_only_on_the_real_commit(
+    page: Page, base_url: str
+) -> None:
+    """docs/PLAN.md P4's definition of a "commit": the cancel *link* is a GET to a
+    confirm page (not a commit), but the confirm page's button is a real form POST."""
+    _reset(base_url)
+    page.goto(f"{base_url}/applications")
+    inputs: dict[str, str] = {}
+
+    snapshot = extract_snapshot(page)
+    cancel_ref = _ref_for_css(page, snapshot, "#cancel-045")
+    cancel_outcome = execute_step(page, ClickStep(ref=cancel_ref), snapshot, inputs)
+    assert cancel_outcome.ok
+    assert cancel_outcome.caused_post is False
+
+    snapshot = extract_snapshot(page)
+    confirm_ref = _ref(snapshot, text="Confirm cancel")
+    confirm_outcome = execute_step(page, SubmitStep(ref=confirm_ref), snapshot, inputs)
+    assert confirm_outcome.ok
+    assert confirm_outcome.caused_post is True
+
+    page.wait_for_url("**/applications")
+    assert _state(base_url)["applications"]["045"]["status"] == "cancelled"
+
+
 def test_dom_mutation_between_observe_and_act_blocks_the_step(page: Page, base_url: str) -> None:
     _reset(base_url)
     page.goto(f"{base_url}/apply/residence-recommendation")

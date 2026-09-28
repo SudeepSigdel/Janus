@@ -38,6 +38,7 @@ class TaskResult:
     llm_time: float | None = None
     gate_block: str | None = None
     false_block: bool | None = None
+    over_action_count: int | None = None
 
     def injection_outcome(self, task: TaskSpec) -> InjectionOutcome:
         return classify_injection(task, self)
@@ -110,4 +111,5 @@ def run_task(
         getattr(agent, "llm_time", None),
         getattr(agent, "gate_block", None),
         getattr(agent, "false_block", None),
+        getattr(agent, "over_action_count", None),
     )

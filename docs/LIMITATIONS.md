@@ -41,7 +41,7 @@ doesn't transfer as-is. nag-14 (same service, DOB given in AD) passed 3/3. Not i
 noting it; a candidate first step is capturing the actual validator rejection reason for a nag-13
 run rather than re-guessing from the M10 JSONL.
 
-### The model rarely self-reports DONE
+### The model rarely self-reports DONE (now scoped to no-approval tasks only)
 
 After a successful SUBMIT, the receipt page has no task-relevant elements left, but the planner
 never sees page body text (invariant 1) and so has no confirmation to read -- only the page title
@@ -49,9 +49,17 @@ and a compact `completed_ops` list. Several rounds of prompt tuning (M5) reduced
 eliminate this; the model would rather click a leftover nav link than commit to `DONE`. The
 real-world action still happens correctly (state checks pass, and `classify_run` never trusts a
 claimed status over a failed/blocked step either way), but `janus run`'s own exit code (0 only on
-`status == "completed"`) will under-report success on an otherwise-successful run. This is a
-capability limit of the page-at-a-time, body-text-hidden design (the tradeoff invariant 1 makes
-deliberately), not a bug to patch locally.
+`status == "completed"`) would under-report success on an otherwise-successful run.
+
+**P4 closes this for every task that declares an approval** (`submit_application`,
+`cancel_application`, `apply_issue`, `withdraw_application`): `agent.py::run_task` now ends the run
+`completed` deterministically the moment the step that consumes the task's last declared approval
+(a consequential action that caused a real form POST) verifies, without ever needing the model to
+emit `DONE`. The gap is still real for tasks with no declared approvals at all (edits: phone-number
+update, kitta "Save") -- those still rely on the model's own DONE claim, which it still rarely
+gives, so their exit code can still under-report a successful edit. This is a narrower, correctly
+scoped instance of the same page-at-a-time, body-text-hidden design tradeoff (invariant 1), not a
+bug to patch locally.
 
 ## Security
 
@@ -82,16 +90,34 @@ fields a task author forgets to mark) or (b) a new validator check that diffs a 
 value against page-provided legitimate options when the field is being filled from ungrounded
 model output rather than a direct `$inputs` reference -- out of scope for this milestone.
 
-### Escalation grants at op-kind granularity only, not target granularity
+### Escalation grants are now per-use, still not per-target
 
 `executor/escalation.py`'s approval labels (e.g. `cancel_application`) map to a set of `OpKind`s
 (e.g. `{CLICK, SUBMIT}`), not to *which* element or record the op targets. A task's `:045`-style
 approval suffix (intended to mean "only cancel application 045") is parsed but not enforced --
 `Policy`'s capability model is `(op, origin, form_id)`, and neither site's forms set a `form_id`, so
 nothing downstream can currently distinguish "cancel 045" from "cancel 046" at the authorization
-layer. Tests catch a wrong-target cancel via the resulting `/__bench/state`, but `authorize_action`
-itself would approve it. Flagged at M4, not fixed since (would mean changing the already-tested
-`Policy`/`authorize_action` signatures, which is bigger than a one-milestone change).
+layer. Flagged at M4.
+
+**P4 narrows this gap but does not close it.** Before P4, a granted op kind stayed granted for the
+*whole run*: once CLICK+SUBMIT were authorized for `cancel_application:045`, nothing stopped the
+same run from later cancelling a *different* application too (this is exactly what happened in an
+M10 dev trace, nag-19 #1: a correct cancel of 042 was followed by a second, unrequested cancel).
+P4 makes a grant **per-use**: each declared approval is consumed by exactly one *commit* (a
+consequential step that causes a real POST navigation), and the moment the last approval is
+consumed, every remaining grant is revoked -- `authorize_action` denies any further consequential
+step for the rest of the run. This closes the "second, unrequested action" failure mode entirely
+(measured by the new `over_action_count` -- consequential steps authorized after exhaustion --
+which must read 0, and does on every dev run so far).
+
+What P4 does **not** fix: the *one* commit an approval grants is still authorized at op-kind
+granularity only, never by target. `authorize_action` would equally authorize a plan whose single
+CLICK+SUBMIT commit cancels 046 instead of the approved 045 -- the `:045` suffix is still parsed
+and unused. A wrong-target *first and only* action is still caught only by the resulting
+`/__bench/state` check in tests, not by `authorize_action` itself. Fixing that still needs `Policy`'s
+capability model to grow a target dimension (`form_id` is the existing but unused hook, and neither
+site's forms set one) -- unchanged from the M4 assessment that this is bigger than a one-milestone
+change.
 
 ### Baseline has no escalation step at all
 

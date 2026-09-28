@@ -64,6 +64,10 @@ class RunResult:
     prompt_tokens: int = 0
     completion_tokens: int = 0
     llm_time: float = 0.0
+    # docs/PLAN.md P4: a consequential step authorized and executed after this
+    # run's declared approvals were already exhausted -- should always be 0
+    # (authorize_action denies it once the grant is revoked); measured, not assumed.
+    over_action_count: int = 0
 
 
 def _normalize_inputs(inputs: dict[str, str]) -> dict[str, str]:
@@ -126,13 +130,23 @@ def run_task(
     llm: LLMClient,
     settings: Settings,
     granted_ops: frozenset[OpKind] = frozenset(),
+    approval_count: int = 0,
     escalate: Callable[[Step, str], bool] | None = None,
     trace: Callable[[str, dict[str, Any]], None] | None = None,
 ) -> RunResult:
     """`trace`, if given, is called with (stage, data) at each pipeline stage
     (docs/PLAN.md P1: "trace capture as a runtime feature"). It never influences any
     gate's decision; with `trace=None` this function's behavior is unchanged from
-    before the parameter existed."""
+    before the parameter existed.
+
+    `approval_count` (docs/PLAN.md P4) is the number of declared approvals this run
+    was given (typically `len(task.approvals)`); each is consumed by one *commit* --
+    a consequential step that causes a main-frame POST navigation. When the last one
+    is consumed and the step verifies, the run ends `completed` immediately instead
+    of waiting for the model to self-report DONE, and every remaining grant is
+    revoked so a later consequential step is denied. `approval_count=0` (the
+    default, and every task with no approvals) leaves this milestone's logic
+    entirely inactive -- behavior is unchanged from before P4."""
     install_egress_guard(page, policy.allowed_origins)
     page.goto(start_url)
 
@@ -150,6 +164,8 @@ def run_task(
     blocked_step_op: OpKind | None = None
     blocked_step_label: str | None = None
     false_block_ceiling = False
+    remaining_approvals = approval_count
+    over_action_count = 0
 
     for leg in range(settings.max_replan_attempts + 1):
         replans = leg
@@ -251,6 +267,12 @@ def run_task(
                 blocked_step_label = _step_label(step, snapshot)
                 break
 
+            # Safety net (docs/PLAN.md P4): this step was authorized even though this
+            # run's declared approvals were already exhausted. Should never happen --
+            # exhaustion clears `granted` below -- but it's measured, not assumed.
+            if decision.consequential and approval_count > 0 and remaining_approvals == 0:
+                over_action_count += 1
+
             outcome = execute_step(page, step, snapshot, inputs)
             outcomes.append(outcome)
             steps_run += 1
@@ -278,6 +300,24 @@ def run_task(
             if trace is not None:
                 trace("verify", {"op": step.op, "ok": check.ok, "reason": check.reason})
 
+            # A commit (docs/PLAN.md P4): a consequential step whose click caused a
+            # real POST navigation. Consumes one declared approval; the last one
+            # ends the run `completed` right here and revokes every remaining
+            # grant, so a later consequential step is denied rather than merely
+            # never attempted.
+            if (
+                decision.consequential
+                and outcome.caused_post
+                and check.ok
+                and remaining_approvals > 0
+            ):
+                remaining_approvals -= 1
+                if remaining_approvals == 0:
+                    granted.clear()
+                    claimed = "completed"
+                    done = True
+                    break
+
         if done or blocked:
             break
 
@@ -296,6 +336,7 @@ def run_task(
         prompt_tokens=llm.prompt_tokens,
         completion_tokens=llm.completion_tokens,
         llm_time=llm.elapsed_s,
+        over_action_count=over_action_count,
     )
     if trace is not None:
         trace(
@@ -309,6 +350,7 @@ def run_task(
                 "prompt_tokens": result.prompt_tokens,
                 "completion_tokens": result.completion_tokens,
                 "llm_time": result.llm_time,
+                "over_action_count": result.over_action_count,
             },
         )
     return result

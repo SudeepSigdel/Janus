@@ -111,6 +111,7 @@ def run(
                             llm_time=result.llm_time,
                             gate_block=result.gate_block,
                             false_block=result.false_block,
+                            over_action_count=result.over_action_count,
                         )
                         records.append(record)
                         append_record(out, record)

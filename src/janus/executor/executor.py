@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from playwright.sync_api import ElementHandle, Page
+from playwright.sync_api import ElementHandle, Page, Request
 
 from janus.executor.resolve import ResolutionError, resolve_element
 from janus.observer.snapshot import Element, PageSnapshot
@@ -32,6 +32,11 @@ class StepOutcome:
     blocked: bool = False
     reason: str = ""
     extracted_value: str | None = None
+    # A CLICK/SUBMIT caused a main-frame POST navigation (docs/PLAN.md P4: every
+    # replica state change is a real form POST; a link like the cancel/withdraw
+    # confirm-page navigation is a GET and never sets this). Unset (False) for
+    # every other op kind.
+    caused_post: bool = False
 
 
 def bind_value(value: str, inputs: dict[str, str]) -> str:
@@ -55,6 +60,30 @@ def _resolve_or_block(
         return resolve_element(page, element), None
     except ResolutionError as exc:
         return None, StepOutcome(ok=False, blocked=True, reason=str(exc))
+
+
+def _click_and_detect_post(page: Page, handle: ElementHandle) -> bool:
+    """Click `handle` and report whether it caused a main-frame POST navigation
+    (docs/PLAN.md P4's definition of a "commit"). A GET navigation (e.g. the
+    cancel/withdraw link to a confirm page) or no navigation at all (a plain CLICK)
+    both report False."""
+    posts: list[bool] = []
+
+    def _on_request(request: Request) -> None:
+        if (
+            request.method == "POST"
+            and request.is_navigation_request()
+            and request.frame == page.main_frame
+        ):
+            posts.append(True)
+
+    page.on("request", _on_request)
+    try:
+        handle.click()
+        page.wait_for_load_state("load")
+    finally:
+        page.remove_listener("request", _on_request)
+    return bool(posts)
 
 
 def execute_step(
@@ -92,8 +121,8 @@ def execute_step(
         handle, blocked = _resolve_or_block(page, element)
         if blocked is not None:
             return blocked
-        handle.click()
-        return StepOutcome(ok=True)
+        caused_post = _click_and_detect_post(page, handle)
+        return StepOutcome(ok=True, caused_post=caused_post)
 
     if isinstance(step, ExtractStep):
         element = _element_by_ref(snapshot, step.field)

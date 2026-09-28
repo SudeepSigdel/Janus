@@ -379,6 +379,151 @@ def test_chat_calls_and_tokens_are_read_off_the_llm_client(monkeypatch: pytest.M
     assert result.llm_time > 0
 
 
+def test_approval_consumed_by_a_commit_ends_the_run_completed_with_no_done_step(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # docs/PLAN.md P4: a single-step plan, no DONE step at all -- the deterministic
+    # stop must end the run `completed` on its own once the one declared approval
+    # is consumed by a commit (consequential + caused_post).
+    def handler(request: httpx.Request) -> httpx.Response:
+        return _chat({"task_id": "t", "steps": [{"op": "CLICK", "ref": "e0"}]})
+
+    snapshot = _element_snapshot(tag="button", role="button", name="Confirm cancel")
+    monkeypatch.setattr(agent, "install_egress_guard", lambda page, origins: None)
+    monkeypatch.setattr(agent, "extract_snapshot", lambda page, settings: snapshot)
+    monkeypatch.setattr(
+        agent,
+        "execute_step",
+        lambda page, step, snapshot, inputs: StepOutcome(ok=True, caused_post=True),
+    )
+    monkeypatch.setattr(agent, "verify_step", lambda page, step, snapshot, inputs: StepCheck(True))
+
+    result = agent.run_task(
+        _FakePage(),
+        task_id="t",
+        instruction="Cancel application 042.",
+        start_url="http://127.0.0.1:8101/services",
+        inputs={},
+        policy=_policy(),
+        llm=_llm(handler),
+        settings=Settings(),
+        granted_ops=frozenset({"CLICK", "SUBMIT"}),
+        approval_count=1,
+    )
+    assert result.status == "completed"
+    assert result.steps_run == 1
+    assert result.replans == 0
+    assert result.over_action_count == 0
+
+
+def test_a_second_commit_after_approvals_exhausted_is_denied(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # First leg: one commit consumes the only declared approval and ends the run.
+    # This proves a queued second consequential step in the *same* plan never even
+    # runs (the loop breaks immediately) -- the complementary browser-level test
+    # proves a second commit attempted in a later leg is denied by authorize_action
+    # once `granted` is empty.
+    def handler(request: httpx.Request) -> httpx.Response:
+        return _chat(
+            {
+                "task_id": "t",
+                "steps": [{"op": "CLICK", "ref": "e0"}, {"op": "CLICK", "ref": "e0"}],
+            }
+        )
+
+    snapshot = _element_snapshot(tag="button", role="button", name="Confirm cancel")
+    monkeypatch.setattr(agent, "install_egress_guard", lambda page, origins: None)
+    monkeypatch.setattr(agent, "extract_snapshot", lambda page, settings: snapshot)
+    monkeypatch.setattr(
+        agent,
+        "execute_step",
+        lambda page, step, snapshot, inputs: StepOutcome(ok=True, caused_post=True),
+    )
+    monkeypatch.setattr(agent, "verify_step", lambda page, step, snapshot, inputs: StepCheck(True))
+
+    result = agent.run_task(
+        _FakePage(),
+        task_id="t",
+        instruction="Cancel application 042.",
+        start_url="http://127.0.0.1:8101/services",
+        inputs={},
+        policy=_policy(),
+        llm=_llm(handler),
+        settings=Settings(),
+        granted_ops=frozenset({"CLICK", "SUBMIT"}),
+        approval_count=1,
+    )
+    assert result.status == "completed"
+    assert result.steps_run == 1  # the second CLICK in the plan never ran
+    assert result.over_action_count == 0
+
+
+def test_a_click_that_does_not_cause_a_post_does_not_consume_an_approval(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The cancel *link* (a GET to a confirm page) is not a commit -- it must not
+    # end the run or consume the declared approval on its own.
+    def handler(request: httpx.Request) -> httpx.Response:
+        return _chat({"task_id": "t", "steps": [{"op": "CLICK", "ref": "e0"}]})
+
+    snapshot = _element_snapshot(tag="a", role="link", name="Cancel")
+    monkeypatch.setattr(agent, "install_egress_guard", lambda page, origins: None)
+    monkeypatch.setattr(agent, "extract_snapshot", lambda page, settings: snapshot)
+    monkeypatch.setattr(
+        agent,
+        "execute_step",
+        lambda page, step, snapshot, inputs: StepOutcome(ok=True, caused_post=False),
+    )
+    monkeypatch.setattr(agent, "verify_step", lambda page, step, snapshot, inputs: StepCheck(True))
+
+    result = agent.run_task(
+        _FakePage(),
+        task_id="t",
+        instruction="Cancel application 042.",
+        start_url="http://127.0.0.1:8101/services",
+        inputs={},
+        policy=_policy(),
+        llm=_llm(handler),
+        settings=Settings(max_replan_attempts=0),
+        granted_ops=frozenset({"CLICK", "SUBMIT"}),
+        approval_count=1,
+    )
+    assert result.status == "partial"  # never claimed DONE, and the run wasn't ended for it
+
+
+def test_no_declared_approvals_keeps_current_done_self_report_behavior(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # approval_count=0 (the default, and every edit task): a commit-shaped step
+    # (consequential, caused_post) must not trigger the new deterministic-stop
+    # logic at all -- the run still needs a model-claimed DONE.
+    def handler(request: httpx.Request) -> httpx.Response:
+        return _chat({"task_id": "t", "steps": [{"op": "CLICK", "ref": "e0"}]})
+
+    snapshot = _element_snapshot(tag="button", role="button", name="Save")
+    monkeypatch.setattr(agent, "install_egress_guard", lambda page, origins: None)
+    monkeypatch.setattr(agent, "extract_snapshot", lambda page, settings: snapshot)
+    monkeypatch.setattr(
+        agent,
+        "execute_step",
+        lambda page, step, snapshot, inputs: StepOutcome(ok=True, caused_post=True),
+    )
+    monkeypatch.setattr(agent, "verify_step", lambda page, step, snapshot, inputs: StepCheck(True))
+
+    result = agent.run_task(
+        _FakePage(),
+        task_id="t",
+        instruction="Save it.",
+        start_url="http://127.0.0.1:8101/services",
+        inputs={},
+        policy=_policy(),
+        llm=_llm(handler),
+        settings=Settings(max_replan_attempts=0),
+    )
+    assert result.status == "partial"  # no DONE step, approval_count=0: unchanged from before P4
+
+
 def test_trace_is_a_noop_when_none_and_run_is_byte_identical(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

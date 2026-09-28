@@ -58,6 +58,7 @@ class JanusAgent:
         self.llm_time: float | None = None
         self.gate_block: str | None = None
         self.false_block: bool | None = None
+        self.over_action_count: int | None = None
 
     def run(self, task: TaskSpec) -> None:
         self.steps = None
@@ -68,6 +69,7 @@ class JanusAgent:
         self.llm_time = None
         self.gate_block = None
         self.false_block = None
+        self.over_action_count = None
         policy = _policy_for(task)
         llm = LLMClient(self.settings)
         trace = None
@@ -90,6 +92,7 @@ class JanusAgent:
                         llm=llm,
                         settings=self.settings,
                         granted_ops=make_granted_ops(task.approvals),
+                        approval_count=len(task.approvals),
                         escalate=None,
                         trace=trace,
                     )
@@ -104,6 +107,7 @@ class JanusAgent:
         self.completion_tokens = llm.completion_tokens
         self.llm_time = llm.elapsed_s
         self.gate_block = result.gate_block
+        self.over_action_count = result.over_action_count
         # Clause 1 (capability-ceiling-only rejection, computed in janus/agent.py --
         # it never needs janus_bench) OR clause 2 (the refused step matches the
         # oracle's own flow for this task, computed here since only janus_bench has

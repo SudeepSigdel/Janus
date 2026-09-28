@@ -68,6 +68,14 @@ def tokens_per_run(records: list[RunRecord]) -> float | None:
     return sum((r.prompt_tokens or 0) + (r.completion_tokens or 0) for r in have) / len(have)
 
 
+def over_action_total(records: list[RunRecord]) -> int:
+    """Consequential steps authorized/executed after a run's declared approvals
+    were already exhausted (docs/PLAN.md P4) -- should always be 0; a nonzero
+    total is a regression in `authorize_action`'s approval-consumption enforcement,
+    not a rate to weigh against anything."""
+    return sum(r.over_action_count or 0 for r in records)
+
+
 def completed_claim_rate(records: list[RunRecord]) -> tuple[int, int]:
     """Successful runs where the agent itself reported `status=completed` /
     successful runs -- tracks the DONE self-report gap; never affects `success`."""
@@ -113,6 +121,7 @@ def experiment_row_markdown(
     gb_ok, gb_n = gate_block_rate(records)
     tokens = tokens_per_run(records)
     claim_ok, claim_n = completed_claim_rate(records)
+    over_action = over_action_total(records)
     schema = schema_invalid_rate(trace_dirs or [])
 
     overall_ok, overall_n = success["overall"]
@@ -124,5 +133,8 @@ def experiment_row_markdown(
         f"{mean_wall_time(records):.1f} | {tokens_text} | ? | ? |"
     )
     schema_text = f"{schema[0]}/{schema[1]}" if schema is not None else "n/a (no --trace)"
-    extra = f"completed-claim: {claim_ok}/{claim_n}; schema-invalid: {schema_text}"
+    extra = (
+        f"completed-claim: {claim_ok}/{claim_n}; schema-invalid: {schema_text}; "
+        f"over-action: {over_action}"
+    )
     return f"{row}\n\n({extra})"

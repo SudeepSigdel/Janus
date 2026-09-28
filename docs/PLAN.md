@@ -558,10 +558,14 @@ Goal: raise Janus's dev success without raising injection success or false block
   (prints the EXPERIMENTS.md row; `--tasks tasks` is required by the CLI even with `--split`).
   About 20 minutes per run at P0 latency.
 
-Current best: **E2**: 36/87 = 41.4% dev (nag 30/42, share 6/45), ASR 0/27, false-block 0/60 clean
-runs, gate-block 6/60 = 10% (P3 dropped NAVIGATE from the default op set; dev success unchanged
-from E1's 36/87, but gate-block fell from E1's 14/60 = 23% -- was E0's 30/87 = 34.5%, false-block
-6/60 = 10%).
+Current best: **E3**: 36/87 = 41.4% dev (nag 30/42, share 6/45), ASR 0/27, false-block 0/60 clean
+runs, gate-block 0/60 = 0% (P4 makes each declared approval per-use -- consumed by one commit,
+ending the run `completed` deterministically instead of waiting on a DONE claim; dev success
+unchanged from E2's 36/87, since the still-failing tasks are blocked by the row-disambiguation gap
+before a commit is ever reached, but completed-claim rate rose to 36/36 and tok/run fell from
+E2's 3,940 to 3,623; gate-block's drop to 0/60, was E2's 6/60, looks like ordinary model-sampling
+variance in the `execute_resolve` gap P5 still owns, not a P4 effect -- was E1: 36/87, gate-block
+14/60 = 23%; E0: 30/87 = 34.5%, false-block 6/60 = 10%).
 
 ## P0 — Diagnose (split, traced dev run, error analysis)
 Status: done (2026-09-28). `splits/v1.yaml` written; Janus dev run 29×3 traced (diagnosis-only
@@ -749,7 +753,65 @@ Accept: unit tests (schema has no NAVIGATE variant when disallowed; the validato
 hand-built NAVIGATE); dev eval logged as E2.
 
 ## P4 — Consume approvals; deterministic stop after the committed action
-Status: todo
+Status: done (Accept passed: `tests/unit/test_agent.py` -- 4 new tests covering a single-approval
+commit ending the run `completed` with no DONE step, a second commit in the same plan never
+running, a non-POST click not consuming an approval, and `approval_count=0` leaving pre-P4 behavior
+unchanged; `tests/integration/test_executor_browser.py` -- new `caused_post` detection test (cancel
+link GET vs. confirm-button POST) against the real nagarpalika replica;
+`tests/integration/test_approval_consumption_browser.py` (new file) -- two full `run_task` browser
+tests, scripted-LLM + real Playwright page, no Ollama needed: cancel-042 ends `completed` after the
+confirm POST with no third leg attempted (`calls["n"] == 2`), and submit (nag-01) ends `completed`
+at the receipt with no `DONE` step ever emitted; `uv run pytest` 266 passed; `uv run pytest -m
+browser` 126 passed; `uv run pytest -m ollama` 4 passed; `uv run ruff check .` and `ruff format
+--check .` clean; dev eval logged as E3 below -- 36/87 = 41.4% dev (nag 30/42, share 6/45),
+unchanged from E2; ASR 0/27 and false-block 0/60 both unchanged; completed-claim rate 36/36 (was
+near 0%); over-action 0 as required -- kept).
+Decisions:
+- **The hoped-for "nag-19 +1" didn't materialize.** This milestone's hypothesis was written from a
+  specific P0 trace where a correct cancel was followed by a second, unrequested one -- P4's fix
+  (revoking every grant the instant the declared approval is consumed) structurally closes that
+  failure mode, and the new `over_action_count` metric proves it (0 across all 87 dev runs). But
+  this E3 run's own nag-19/nag-04 failures are the already-documented row-disambiguation gap
+  (M4/M5/M6, P5's target): the model picks the wrong "Cancel" row before a plan ever reaches a
+  commit, so P4's logic never gets exercised on them at all. Both things are true at once -- the bug
+  P4 targets is fixed, but it isn't the bug still failing nag-19 in this particular run. Logged
+  honestly in EXPERIMENTS.md's E3 row rather than claiming the dev-success win the hypothesis
+  predicted.
+- **Consumption tracking lives entirely in `agent.py::run_task`'s local loop state**
+  (`remaining_approvals`, decremented on a verified commit; `over_action_count`, incremented only if
+  a consequential step is somehow still authorized after exhaustion), not in a new module or a
+  stateful escalation object. `executor/escalation.py::make_granted_ops` is unchanged -- P4 adds a
+  second, independent input (`approval_count`, typically `len(task.approvals)`) alongside the
+  existing `granted_ops` frozenset rather than folding consumption into that function, since the op
+  kinds a label grants and how many times a run's approvals may be spent are orthogonal.
+  `validator/action.py::authorize_action` needed no change: once `granted` is cleared, its existing
+  "not in granted_ops" denial already does the job.
+- **`caused_post` detection is a Playwright `page.on("request")` listener** scoped to
+  `is_navigation_request() and request.frame == page.main_frame and request.method == "POST"`,
+  added around the existing `ClickStep`/`SubmitStep` branch in `executor/executor.py`. No such
+  detection existed before this milestone (confirmed by grep across `src/janus`). Verified against
+  the real replica, not just reasoned about: a new browser test confirms the cancel link (a GET to
+  the confirm page) reports `caused_post=False` and the confirm button's real form submit reports
+  `caused_post=True`.
+- **Live (interactive `janus run`) escalation and declared-approval consumption are independent,
+  deliberately.** `cli_escalation` can still say yes to a consequential action after a task's
+  declared approvals are exhausted (the loop only forces `done=True` immediately after a *commit*
+  that empties `remaining_approvals`, which also ends the run before any further step -- live or
+  not -- gets a chance to run). `approval_count=len(task.approvals)` is threaded into both
+  `janus.cli::run` and `JanusAgent.run` identically; a task with zero approvals (every edit task)
+  leaves this milestone's logic entirely inactive, matching "tasks with no approvals keep the
+  current behavior" exactly -- `remaining_approvals` starts and stays 0, so the commit-detection
+  branch's `and remaining_approvals > 0` guard never fires.
+- **`over_action_count` is plumbed as a full `RunResult` -> `JanusAgent` -> `TaskResult` ->
+  `RunRecord` -> `analyze` field**, not just asserted zero in tests -- CLAUDE.md's "only
+  deterministic code authorizes actions" ethos means this is measured on every real run, not
+  assumed correct from the design. `harness/metrics.py::over_action_total` sums it across records
+  and prints as `over-action: N` in `experiment_row_markdown`'s extra line, alongside
+  completed-claim and schema-invalid rate.
+- Wall time (12.1s) came in flat versus E2 (12.0s) rather than showing the hypothesized "-1 leg per
+  success": the ~36 successful runs each do save a leg, but 51 of 87 dev runs still fail via
+  unchanged (replan-exhausting) paths, and the mean is over all 87. tok/run (a per-chat-call
+  average, not leg-gated the same way) shows the saving clearly: 3,940 -> 3,623.
 Hypothesis: Janus never emits `DONE` (0/30 successes), so every run keeps clicking after success.
 That wastes a leg per success, misreports every success as partial/blocked, and in nag-19 #1 turned
 a correct cancel into a second, unrequested cancel (authorized because approvals grant op kinds for
@@ -762,6 +824,15 @@ denied. Tasks with no approvals (edits) keep the current behavior; note this in 
 Metric: dev success (expect nag-19 +1); completed-claim rate (0% → most successes on approval
 tasks); over-action count (consequential steps beyond approvals, a new `analyze` field; must be 0);
 wall time (−1 leg per success); ASR; false-block.
+Scope: `executor/executor.py` (`StepOutcome.caused_post`, POST-navigation detection on
+CLICK/SUBMIT); `agent.py` (`run_task`'s `approval_count` param, `RunResult.over_action_count`,
+approval-consumption/deterministic-stop logic); `cli.py` and `agents/janus_agent.py` (both now pass
+`approval_count=len(task.approvals)`); `harness/runner.py`, `harness/results.py`, `harness/cli.py`,
+`harness/metrics.py` (`over_action_count` threaded through to a new `over_action_total` `analyze`
+metric); `docs/LIMITATIONS.md` (escalation section rewritten: per-use now, still not per-target; DONE
+self-report gap rescoped to no-approval tasks only); `tests/unit/test_agent.py`,
+`tests/integration/test_executor_browser.py`, `tests/integration/test_approval_consumption_browser.py`
+(new).
 Accept: browser tests on nagarpalika: cancel 042 stops after the confirm POST, and a second cancel
 is denied; submit stops at the receipt with `completed`; dev eval logged as E3; LIMITATIONS.md
 escalation section updated (per-use now, still not per-target).

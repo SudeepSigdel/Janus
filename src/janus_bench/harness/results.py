@@ -36,6 +36,7 @@ class RunRecord(BaseModel):
     llm_time: float | None = None
     gate_block: GateBlock | None = None
     false_block: bool | None = None
+    over_action_count: int | None = None
 
 
 def append_record(path: Path, record: RunRecord) -> None:

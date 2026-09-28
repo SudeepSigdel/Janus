@@ -69,6 +69,7 @@ def run(task_path: Path) -> int:
                     llm=llm,
                     settings=settings,
                     granted_ops=granted_ops,
+                    approval_count=len(task.approvals),
                     escalate=cli_escalation,
                 )
             finally:
