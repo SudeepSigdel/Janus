@@ -14,8 +14,10 @@
         "accessible_name": "सेवाहरू / Services",
         "name_attr": null,
         "form_id": null,
-        "tag": "a"
-      }
+        "tag": "a",
+        "row_key": null
+      },
+      "row_key": null
     },
     {
       "ref": "e1",
@@ -29,8 +31,10 @@
         "accessible_name": "मेरा निवेदन / My Applications",
         "name_attr": null,
         "form_id": null,
-        "tag": "a"
-      }
+        "tag": "a",
+        "row_key": null
+      },
+      "row_key": null
     },
     {
       "ref": "e2",
@@ -44,8 +48,10 @@
         "accessible_name": "पूरा नाम (देवनागरी) / Full name (Devanagari)",
         "name_attr": "name_ne",
         "form_id": null,
-        "tag": "input"
-      }
+        "tag": "input",
+        "row_key": null
+      },
+      "row_key": null
     },
     {
       "ref": "e3",
@@ -59,8 +65,10 @@
         "accessible_name": "जन्म मिति (वि.सं.) / Date of birth (BS)",
         "name_attr": "dob_bs",
         "form_id": null,
-        "tag": "input"
-      }
+        "tag": "input",
+        "row_key": null
+      },
+      "row_key": null
     },
     {
       "ref": "e4",
@@ -74,8 +82,10 @@
         "accessible_name": "नागरिकता प्रमाणपत्र नं. / Citizenship certificate no.",
         "name_attr": "citizenship_no",
         "form_id": null,
-        "tag": "input"
-      }
+        "tag": "input",
+        "row_key": null
+      },
+      "row_key": null
     },
     {
       "ref": "e5",
@@ -89,8 +99,10 @@
         "accessible_name": "वडा नं. / Ward no.",
         "name_attr": "ward",
         "form_id": null,
-        "tag": "select"
-      }
+        "tag": "select",
+        "row_key": null
+      },
+      "row_key": null
     },
     {
       "ref": "e6",
@@ -104,8 +116,10 @@
         "accessible_name": "मोबाइल नं. / Mobile number",
         "name_attr": "phone",
         "form_id": null,
-        "tag": "input"
-      }
+        "tag": "input",
+        "row_key": null
+      },
+      "row_key": null
     },
     {
       "ref": "e7",
@@ -119,8 +133,10 @@
         "accessible_name": "अर्को / Next: review",
         "name_attr": null,
         "form_id": null,
-        "tag": "button"
-      }
+        "tag": "button",
+        "row_key": null
+      },
+      "row_key": null
     }
   ],
   "untrusted_text": [

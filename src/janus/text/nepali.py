@@ -10,6 +10,7 @@ hardcoded date.
 
 from __future__ import annotations
 
+import re
 from datetime import date, timedelta
 
 _NE_DIGITS = "०१२३४५६७८९"
@@ -28,6 +29,26 @@ def to_ascii_digits(value: object) -> str:
 def normalize_text(value: str) -> str:
     """Casefold (for Latin script) and collapse whitespace, for keyword matching."""
     return " ".join(value.split()).casefold()
+
+
+# docs/PLAN.md P5: a table row's first-cell text is admitted as a `row_key` only if
+# it is *entirely* digits (ASCII or Devanagari) and hyphens, at most 12 characters --
+# no letter of any script ever matches. This is deliberately a closed character
+# class, not a length/shape heuristic: a page-authored cell reaching the planner at
+# all is a relaxation of invariant 1 (docs/ARCHITECTURE.md), and the only thing that
+# keeps it safe is that nothing resembling an instruction can be expressed in it.
+_ROW_KEY = re.compile(r"^[0-9०-९-]{1,12}$")
+
+
+def normalize_row_key(text: str | None) -> str | None:
+    """A row-id shape, normalized to ASCII digits -- or `None` if `text` is missing
+    or doesn't strictly match (including any text with a letter in it)."""
+    if text is None:
+        return None
+    stripped = text.strip()
+    if not _ROW_KEY.match(stripped):
+        return None
+    return to_ascii_digits(stripped)
 
 
 class BSDateError(ValueError):

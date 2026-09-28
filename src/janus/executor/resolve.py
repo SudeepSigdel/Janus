@@ -16,6 +16,7 @@ from playwright.sync_api import ElementHandle, Page
 from janus.observer.extract import extract_raw_elements, handle_at_index
 from janus.observer.fingerprint import compute_fingerprint
 from janus.observer.snapshot import Element, Fingerprint
+from janus.text.nepali import normalize_row_key
 
 _REF_INDEX = re.compile(r"^e(\d+)$")
 
@@ -36,6 +37,7 @@ def _fingerprint_of(raw: dict[str, object]) -> Fingerprint:
         name_attr=raw["name_attr"],  # type: ignore[arg-type]
         form_id=raw["form_id"],  # type: ignore[arg-type]
         tag=raw["tag"],  # type: ignore[arg-type]
+        row_key=normalize_row_key(raw.get("row_cell")),  # type: ignore[arg-type]
     )
 
 

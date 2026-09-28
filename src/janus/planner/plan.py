@@ -51,6 +51,10 @@ _SYSTEM_PROMPT = (
     "Rules:\n"
     "- Use element refs exactly as given in the outline; never invent a ref, and "
     "never target an element that isn't listed.\n"
+    '- Some elements have a "row" value: the id of the record their table row '
+    "belongs to. When the task names a specific id (an application number, for "
+    'example), only act on the element whose "row" matches it -- never guess among '
+    "elements that share the same label.\n"
     "- A CLICK/SUBMIT/NAVIGATE step can change the page. Never plan a step after one "
     "of those in the same response -- the elements you'd target next don't exist "
     "yet, since they belong to whatever page comes after. Stop the plan there; "
@@ -82,8 +86,20 @@ _SYSTEM_PROMPT = (
 
 
 def _outline(snapshot: PageSnapshot) -> list[dict[str, str | None]]:
-    """The trusted structural outline the planner is allowed to see (invariant 1)."""
-    return [{"ref": e.ref, "role": e.role, "label": e.accessible_name} for e in snapshot.elements]
+    """The trusted structural outline the planner is allowed to see (invariant 1).
+
+    `row` (docs/PLAN.md P5) is included only for an element inside a table row whose
+    first cell is a bare id (digits/hyphens only, `text/nepali.py::normalize_row_key`)
+    -- omitted entirely for the overwhelming majority of elements that aren't in one,
+    so it doesn't bloat every outline entry.
+    """
+    outline: list[dict[str, str | None]] = []
+    for e in snapshot.elements:
+        entry: dict[str, str | None] = {"ref": e.ref, "role": e.role, "label": e.accessible_name}
+        if e.row_key is not None:
+            entry["row"] = e.row_key
+        outline.append(entry)
+    return outline
 
 
 def _plan_schema(policy: Policy) -> dict:

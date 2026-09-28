@@ -95,6 +95,60 @@ def test_outline_never_includes_untrusted_text() -> None:
             assert "SECRET" not in message["content"]
 
 
+def test_outline_includes_row_only_for_elements_that_have_one() -> None:
+    """docs/PLAN.md P5: `_outline` adds a "row" key when `Element.row_key` is set, and
+    leaves it out entirely otherwise -- not bloating every entry with `"row": null`."""
+    seen_bodies: list[dict] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen_bodies.append(json.loads(request.content))
+        return _response({"task_id": "nag-04", "steps": [{"op": "DONE", "status": "completed"}]})
+
+    row_element = Element(
+        ref="e0",
+        tag="a",
+        role="link",
+        accessible_name="Cancel",
+        name_attr=None,
+        form_id=None,
+        fingerprint=Fingerprint(
+            role="link", accessible_name="Cancel", name_attr=None, form_id=None, tag="a"
+        ),
+        row_key="045",
+    )
+    plain_element = Element(
+        ref="e1",
+        tag="a",
+        role="link",
+        accessible_name="Services",
+        name_attr=None,
+        form_id=None,
+        fingerprint=Fingerprint(
+            role="link", accessible_name="Services", name_attr=None, form_id=None, tag="a"
+        ),
+    )
+    snapshot = PageSnapshot(
+        url="http://127.0.0.1:8101/applications",
+        title="Applications",
+        elements=[row_element, plain_element],
+        untrusted_text=[],
+    )
+
+    commit_plan(
+        task_id="nag-04",
+        instruction="Cancel application 045 only.",
+        inputs={"app_no": "045"},
+        snapshot=snapshot,
+        policy=_policy(),
+        llm=_client(handler),
+        max_retries=2,
+    )
+    payload = json.loads(seen_bodies[0]["messages"][1]["content"])
+    entries = {e["ref"]: e for e in payload["elements"]}
+    assert entries["e0"]["row"] == "045"
+    assert "row" not in entries["e1"]
+
+
 def test_commit_plan_sends_the_op_restricted_schema_to_the_model() -> None:
     seen_bodies: list[dict] = []
 

@@ -20,17 +20,32 @@ full breakdown. **This is the top open item for whoever works on Janus next, and
 root-caused before any demo on ShareSewa** (M12's demo script should lead with nagarpalika, or
 fix this first).
 
-### Row-disambiguation gap (identical labels)
+### Row-disambiguation gap (fixed for nagarpalika; still open for ShareSewa)
 
 Tasks that pick one of several rows sharing an identical label ("Edit"/"Cancel" repeated once per
-application, or per kitta-edit/withdraw row) are frequently unsolvable by the planner: the id that
-would disambiguate a row lives in `untrusted_text` (a plain `<td>`) or a DOM `id` attribute, and
-per invariant 1 the planner never sees either. First found in M4/M5 (nag-03/nag-04); M10 confirms
-it accounts for nearly all of Janus's remaining nagarpalika failures (nag-03, nag-04, nag-10,
-nag-17-nag-20) and several ShareSewa ones (share-06/07, share-08/09/19/20) at the full 41-task
-count. Fixing it needs an observer-level change -- associating an element with its row's text, or
-exposing a stable per-row identifier as part of the trusted `Element`/`Fingerprint` -- which is a
-deliberate scope boundary (M2's snapshot schema), not an oversight, and hasn't been revisited since.
+application, or per kitta-edit/withdraw row) used to be frequently unsolvable by the planner: the
+id that would disambiguate a row lived in `untrusted_text` (a plain `<td>`) or a DOM `id`
+attribute, and per invariant 1 the planner never saw either. First found in M4/M5
+(nag-03/nag-04); M10 found it accounted for nearly all of Janus's remaining nagarpalika failures
+(nag-03, nag-04, nag-10, nag-17-nag-20) and several ShareSewa ones (share-06/07, share-08/09/19/20)
+at the full 41-task count.
+
+**P5 fixes this for nagarpalika, completely.** The observer now attaches a `row_key` (the row's
+first-cell text, admitted only if it strictly matches a digits/hyphens id shape --
+`text/nepali.py::normalize_row_key`) to every interactive element inside a table row, both in the
+outline the planner sees and in the `Fingerprint` act-time re-resolution checks. nag-03, nag-04,
+nag-17 and nag-19 -- every nagarpalika row-pick task -- go from 0/3 to 3/3 in the E4 dev eval
+(docs/EXPERIMENTS.md), and nagarpalika reaches a clean 42/42 dev score for the first time.
+
+**It is not fixed for ShareSewa's own row-pick tasks (share-06/07/08/20, still 0/3 each in E4)** --
+but the mechanism itself is verified working correctly against the real replica (a browser test
+asserts every "Cancel" link on nagarpalika's applications list now has a distinct fingerprint, and
+the new `nagarpalika_applications.json` golden pins real `row_key` values end to end). These four
+tasks' mean step counts (1.0-4.0, versus 5-7 for ShareSewa tasks that complete) show the runs fail
+or terminate *before* ever reaching a genuine row-pick decision -- they're blocked by the separate,
+larger "ShareSewa capability collapse" gap above, not by row-disambiguation. Whoever root-causes
+that gap should re-check these four tasks specifically once it's fixed, since row-disambiguation
+itself is no longer expected to be their blocker.
 
 ### nag-13 zero-step failure (unexplained)
 

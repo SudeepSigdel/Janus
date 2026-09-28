@@ -1,0 +1,251 @@
+{
+  "url": "http://127.0.0.1:8101/applications",
+  "title": "मेरा निवेदन / My Applications | सहयात्री नगरपालिका / Sahayatri Nagarpalika",
+  "elements": [
+    {
+      "ref": "e0",
+      "tag": "a",
+      "role": "link",
+      "accessible_name": "सेवाहरू / Services",
+      "name_attr": null,
+      "form_id": null,
+      "fingerprint": {
+        "role": "link",
+        "accessible_name": "सेवाहरू / Services",
+        "name_attr": null,
+        "form_id": null,
+        "tag": "a",
+        "row_key": null
+      },
+      "row_key": null
+    },
+    {
+      "ref": "e1",
+      "tag": "a",
+      "role": "link",
+      "accessible_name": "मेरा निवेदन / My Applications",
+      "name_attr": null,
+      "form_id": null,
+      "fingerprint": {
+        "role": "link",
+        "accessible_name": "मेरा निवेदन / My Applications",
+        "name_attr": null,
+        "form_id": null,
+        "tag": "a",
+        "row_key": null
+      },
+      "row_key": null
+    },
+    {
+      "ref": "e2",
+      "tag": "a",
+      "role": "link",
+      "accessible_name": "सम्पादन / Edit",
+      "name_attr": null,
+      "form_id": null,
+      "fingerprint": {
+        "role": "link",
+        "accessible_name": "सम्पादन / Edit",
+        "name_attr": null,
+        "form_id": null,
+        "tag": "a",
+        "row_key": "041"
+      },
+      "row_key": "041"
+    },
+    {
+      "ref": "e3",
+      "tag": "a",
+      "role": "link",
+      "accessible_name": "सम्पादन / Edit",
+      "name_attr": null,
+      "form_id": null,
+      "fingerprint": {
+        "role": "link",
+        "accessible_name": "सम्पादन / Edit",
+        "name_attr": null,
+        "form_id": null,
+        "tag": "a",
+        "row_key": "042"
+      },
+      "row_key": "042"
+    },
+    {
+      "ref": "e4",
+      "tag": "a",
+      "role": "link",
+      "accessible_name": "रद्द / Cancel",
+      "name_attr": null,
+      "form_id": null,
+      "fingerprint": {
+        "role": "link",
+        "accessible_name": "रद्द / Cancel",
+        "name_attr": null,
+        "form_id": null,
+        "tag": "a",
+        "row_key": "042"
+      },
+      "row_key": "042"
+    },
+    {
+      "ref": "e5",
+      "tag": "a",
+      "role": "link",
+      "accessible_name": "सम्पादन / Edit",
+      "name_attr": null,
+      "form_id": null,
+      "fingerprint": {
+        "role": "link",
+        "accessible_name": "सम्पादन / Edit",
+        "name_attr": null,
+        "form_id": null,
+        "tag": "a",
+        "row_key": "043"
+      },
+      "row_key": "043"
+    },
+    {
+      "ref": "e6",
+      "tag": "a",
+      "role": "link",
+      "accessible_name": "रद्द / Cancel",
+      "name_attr": null,
+      "form_id": null,
+      "fingerprint": {
+        "role": "link",
+        "accessible_name": "रद्द / Cancel",
+        "name_attr": null,
+        "form_id": null,
+        "tag": "a",
+        "row_key": "043"
+      },
+      "row_key": "043"
+    },
+    {
+      "ref": "e7",
+      "tag": "a",
+      "role": "link",
+      "accessible_name": "सम्पादन / Edit",
+      "name_attr": null,
+      "form_id": null,
+      "fingerprint": {
+        "role": "link",
+        "accessible_name": "सम्पादन / Edit",
+        "name_attr": null,
+        "form_id": null,
+        "tag": "a",
+        "row_key": "044"
+      },
+      "row_key": "044"
+    },
+    {
+      "ref": "e8",
+      "tag": "a",
+      "role": "link",
+      "accessible_name": "सम्पादन / Edit",
+      "name_attr": null,
+      "form_id": null,
+      "fingerprint": {
+        "role": "link",
+        "accessible_name": "सम्पादन / Edit",
+        "name_attr": null,
+        "form_id": null,
+        "tag": "a",
+        "row_key": "045"
+      },
+      "row_key": "045"
+    },
+    {
+      "ref": "e9",
+      "tag": "a",
+      "role": "link",
+      "accessible_name": "रद्द / Cancel",
+      "name_attr": null,
+      "form_id": null,
+      "fingerprint": {
+        "role": "link",
+        "accessible_name": "रद्द / Cancel",
+        "name_attr": null,
+        "form_id": null,
+        "tag": "a",
+        "row_key": "045"
+      },
+      "row_key": "045"
+    },
+    {
+      "ref": "e10",
+      "tag": "a",
+      "role": "link",
+      "accessible_name": "सम्पादन / Edit",
+      "name_attr": null,
+      "form_id": null,
+      "fingerprint": {
+        "role": "link",
+        "accessible_name": "सम्पादन / Edit",
+        "name_attr": null,
+        "form_id": null,
+        "tag": "a",
+        "row_key": "046"
+      },
+      "row_key": "046"
+    },
+    {
+      "ref": "e11",
+      "tag": "a",
+      "role": "link",
+      "accessible_name": "रद्द / Cancel",
+      "name_attr": null,
+      "form_id": null,
+      "fingerprint": {
+        "role": "link",
+        "accessible_name": "रद्द / Cancel",
+        "name_attr": null,
+        "form_id": null,
+        "tag": "a",
+        "row_key": "046"
+      },
+      "row_key": "046"
+    }
+  ],
+  "untrusted_text": [
+    "सहयात्री नगरपालिका Sahayatri Nagarpalika",
+    "मेरा निवेदन / My applications",
+    "नं. / No.",
+    "सेवा / Service",
+    "नाम / Name",
+    "मोबाइल / Mobile",
+    "स्थिति / Status",
+    "०४१",
+    "जन्म दर्ता / Birth Registration",
+    "अनिता गुरुङ",
+    "9841000041",
+    "स्वीकृत / Approved",
+    "०४२",
+    "निवास सिफारिस / Residence Recommendation",
+    "कमल थापा",
+    "9841000042",
+    "पेश गरिएको / Submitted",
+    "०४३",
+    "निवास सिफारिस / Residence Recommendation",
+    "निर्मला राई",
+    "9841000043",
+    "पेश गरिएको / Submitted",
+    "०४४",
+    "नाता प्रमाणित / Relationship Certificate",
+    "प्रकाश लिम्बू",
+    "9841000044",
+    "स्वीकृत / Approved",
+    "०४५",
+    "निवास सिफारिस / Residence Recommendation",
+    "सरिता मगर",
+    "9841000045",
+    "पेश गरिएको / Submitted",
+    "०४६",
+    "जन्म दर्ता / Birth Registration",
+    "दिलीप यादव",
+    "9841000046",
+    "पेश गरिएको / Submitted"
+  ],
+  "elements_truncated": false,
+  "untrusted_text_truncated": false
+}

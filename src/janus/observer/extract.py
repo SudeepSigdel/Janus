@@ -14,6 +14,7 @@ from playwright.sync_api import ElementHandle, Page
 from janus.config import Settings, get_settings
 from janus.observer.fingerprint import compute_fingerprint
 from janus.observer.snapshot import Element, PageSnapshot, SelectOption
+from janus.text.nepali import normalize_row_key
 
 # Kept in sync with the identical literal inside `_JS` below by the golden-snapshot
 # tests (any drift changes what `extract_snapshot` returns). Exported so M4's executor
@@ -68,6 +69,17 @@ _JS = r"""
     return '';
   }
 
+  // Raw (unnormalized) text of the enclosing table row's first cell, if any --
+  // docs/PLAN.md P5. Python normalizes/validates this (text/nepali.py::normalize_row_key)
+  // before it becomes a trusted `row_key`; the JS side only locates the cell.
+  function firstCellText(el) {
+    const row = el.closest('tr');
+    if (!row) return null;
+    const cell = row.querySelector('td, th');
+    if (!cell) return null;
+    return cell.textContent.replace(/\s+/g, ' ').trim();
+  }
+
   const interactive = Array.from(document.querySelectorAll(interactiveSelector)).filter(isVisible);
   const elements = interactive.map((el) => {
     const form = el.closest('form');
@@ -77,6 +89,7 @@ _JS = r"""
       accessible_name: labelFor(el),
       name_attr: el.getAttribute('name'),
       form_id: form ? form.getAttribute('id') : null,
+      row_cell: firstCellText(el),
     };
   });
 
@@ -139,12 +152,14 @@ def extract_snapshot(page: Page, settings: Settings | None = None) -> PageSnapsh
         accessible_name = truncate_label(
             raw_el["accessible_name"], settings.observer_max_label_chars
         )
+        row_key = normalize_row_key(raw_el.get("row_cell"))
         fingerprint = compute_fingerprint(
             role=raw_el["role"],
             accessible_name=accessible_name,
             name_attr=raw_el["name_attr"],
             form_id=raw_el["form_id"],
             tag=raw_el["tag"],
+            row_key=row_key,
         )
         elements.append(
             Element(
@@ -155,6 +170,7 @@ def extract_snapshot(page: Page, settings: Settings | None = None) -> PageSnapsh
                 name_attr=raw_el["name_attr"],
                 form_id=raw_el["form_id"],
                 fingerprint=fingerprint,
+                row_key=row_key,
             )
         )
 

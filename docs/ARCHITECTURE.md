@@ -35,11 +35,16 @@ flowchart TD
 ## Stages
 
 - **Observer** (`observer/`) -- extracts a `PageSnapshot`: a bounded list of trusted `Element`s
-  (interactive controls only: role, short accessible name, a `Fingerprint` for later
-  re-resolution) plus `untrusted_text` (everything else visible -- headings, notices, review
-  values). Caps on element count and label/text length (`config.py`) bound what a model call ever
-  sees. `<select>` options are read live and separately, only for a SELECT step's resolved ref
-  (`extract_select_options`), so the bulk of the page never needs enumerating.
+  (interactive controls only: role, short accessible name, an optional `row_key`, a `Fingerprint`
+  for later re-resolution) plus `untrusted_text` (everything else visible -- headings, notices,
+  review values). Caps on element count and label/text length (`config.py`) bound what a model call
+  ever sees. `<select>` options are read live and separately, only for a SELECT step's resolved ref
+  (`extract_select_options`), so the bulk of the page never needs enumerating. `row_key` (P5,
+  docs/PLAN.md) is the one deliberate exception to "the planner never sees page text": an
+  interactive element inside a table row gets a `row_key` when the row's first cell strictly
+  matches a row-id shape (`text/nepali.py::normalize_row_key` -- digits and hyphens only, no
+  letter of any script), normalized to ASCII digits. It's part of the `Fingerprint`, not just the
+  outline, so act-time re-resolution pins the row too.
 
 - **Planner** (`planner/plan.py::commit_plan`) -- the model sees the task instruction, `$inputs`
   key *names* (never values), and the snapshot's trusted structural outline. It **never sees
@@ -88,7 +93,14 @@ flowchart TD
 
 1. **Plan commit before body text.** The planner sees task, trusted `$inputs` names, and a
    structural outline only. Page body text (`untrusted_text`) reaches the model only in
-   schema-constrained grounding calls that cannot add operations.
+   schema-constrained grounding calls that cannot add operations. **One deliberate, narrow
+   relaxation (P5, docs/PLAN.md):** a table row's first-cell text can reach the outline as a
+   `row_key`, but only through `text/nepali.py::normalize_row_key`'s closed character class
+   (ASCII/Devanagari digits and hyphens, <=12 chars) -- a cell containing any letter, in any
+   script, is dropped and never becomes a `row_key`. Nothing resembling an instruction can be
+   expressed in that character class, so this doesn't reopen the channel invariant 1 exists to
+   close; it exists because the row id is the one piece of page-authored context needed to tell
+   apart otherwise-identically-labeled row actions ("Edit"/"Cancel" repeated once per record).
 2. **Capability monotonicity.** A replan must satisfy `capabilities(new) ⊆ capabilities(committed)`
    (op kind, origin, form id), enforced within a leg's own validator-error retries. The ceiling is
    locked from the first rejected attempt's own capabilities -- but only if that rejection wasn't

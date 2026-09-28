@@ -38,6 +38,15 @@ def test_different_tag_changes_fingerprint() -> None:
     assert compute_fingerprint(**BASE) != compute_fingerprint(**other)
 
 
+def test_different_row_key_changes_fingerprint() -> None:
+    other = dict(BASE, row_key="045")
+    assert compute_fingerprint(**BASE) != compute_fingerprint(**other)
+
+
+def test_row_key_defaults_to_none() -> None:
+    assert compute_fingerprint(**BASE).row_key is None
+
+
 def test_fingerprint_is_hashable_and_frozen() -> None:
     fp = compute_fingerprint(**BASE)
     assert {fp, compute_fingerprint(**BASE)} == {fp}

@@ -1,4 +1,5 @@
-"""Deterministic element fingerprints (role, accessible name, name attribute, form id, tag).
+"""Deterministic element fingerprints (role, accessible name, name attribute, form id,
+tag, row key).
 
 Fingerprinting only; re-resolving a fingerprint against a live page is M4's job.
 """
@@ -15,6 +16,7 @@ def compute_fingerprint(
     name_attr: str | None,
     form_id: str | None,
     tag: str,
+    row_key: str | None = None,
 ) -> Fingerprint:
     return Fingerprint(
         role=role,
@@ -22,4 +24,5 @@ def compute_fingerprint(
         name_attr=name_attr,
         form_id=form_id,
         tag=tag,
+        row_key=row_key,
     )

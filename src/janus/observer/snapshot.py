@@ -28,6 +28,13 @@ class Fingerprint(_Model):
     name_attr: str | None
     form_id: str | None
     tag: str
+    # docs/PLAN.md P5: the enclosing table row's first-cell text, if it strictly
+    # matches a row-id shape (digits/hyphens only, `text/nepali.py::normalize_row_key`)
+    # -- None for the overwhelming majority of elements, which aren't in a row at
+    # all. Part of the fingerprint (not just Element) so act-time re-resolution also
+    # pins the row: two otherwise-identical "Cancel" links in different rows now have
+    # genuinely different fingerprints instead of colliding.
+    row_key: str | None = None
 
 
 class Element(_Model):
@@ -40,6 +47,7 @@ class Element(_Model):
     name_attr: str | None
     form_id: str | None
     fingerprint: Fingerprint
+    row_key: str | None = None
 
 
 class SelectOption(_Model):

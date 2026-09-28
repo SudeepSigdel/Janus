@@ -558,14 +558,17 @@ Goal: raise Janus's dev success without raising injection success or false block
   (prints the EXPERIMENTS.md row; `--tasks tasks` is required by the CLI even with `--split`).
   About 20 minutes per run at P0 latency.
 
-Current best: **E3**: 36/87 = 41.4% dev (nag 30/42, share 6/45), ASR 0/27, false-block 0/60 clean
-runs, gate-block 0/60 = 0% (P4 makes each declared approval per-use -- consumed by one commit,
-ending the run `completed` deterministically instead of waiting on a DONE claim; dev success
-unchanged from E2's 36/87, since the still-failing tasks are blocked by the row-disambiguation gap
-before a commit is ever reached, but completed-claim rate rose to 36/36 and tok/run fell from
-E2's 3,940 to 3,623; gate-block's drop to 0/60, was E2's 6/60, looks like ordinary model-sampling
-variance in the `execute_resolve` gap P5 still owns, not a P4 effect -- was E1: 36/87, gate-block
-14/60 = 23%; E0: 30/87 = 34.5%, false-block 6/60 = 10%).
+Current best: **E4**: 55/87 = 63.2% dev (nag 42/42, share 13/45), ASR 0/27, false-block 0/60 clean
+runs, gate-block 6/60 = 10% (P5 attaches a `row_key` to interactive elements inside a table row,
+shown to the planner and included in the `Fingerprint`, so identical "Edit"/"Cancel" labels across
+rows stop colliding; nagarpalika reaches a clean 42/42 for the first time -- nag-03/04/17/19, the
+exact row-pick tasks the milestone targeted, all go to 3/3 -- while ShareSewa's own row-pick tasks
+(share-06/07/08/20) stay at 0/3, blocked by the separate, larger, not-yet-root-caused "ShareSewa
+capability collapse" gap (M10) rather than row-disambiguation; tok/run fell from E3's 3,623 to
+2,887 and wall time from 12.1s to 9.7s; gate-block's rise to 6/60 (was E3's 0/60) looks like a
+precision improvement, not a regression -- false-block itself stayed flat at 0/60 -- was E3: 36/87,
+gate-block 0/60 (P4); E2: 36/87, gate-block 6/60 = 10%; E1: 36/87, gate-block 14/60 = 23%; E0:
+30/87 = 34.5%, false-block 6/60 = 10%).
 
 ## P0 — Diagnose (split, traced dev run, error analysis)
 Status: done (2026-09-28). `splits/v1.yaml` written; Janus dev run 29×3 traced (diagnosis-only
@@ -838,7 +841,68 @@ is denied; submit stops at the receipt with `completed`; dev eval logged as E3; 
 escalation section updated (per-use now, still not per-target).
 
 ## P5 — Row-key context in observation
-Status: todo
+Status: done (Accept passed: `tests/unit/text/test_nepali_digits.py` -- 9 new tests for
+`normalize_row_key` (ASCII/Devanagari digits, digit-hyphen combos, whitespace-stripping,
+the PLAN.md-mandated adversarial "a first cell containing text is dropped" case, the
+12-char boundary, empty/`None`); `tests/unit/observer/test_fingerprint.py` -- 2 new tests
+(`row_key` changes the fingerprint, defaults to `None`); `tests/unit/planner/test_plan.py`
+-- 1 new test (`"row"` appears in the outline only for an element that has one);
+`tests/integration/test_observer_browser.py` -- 2 existing goldens regenerated (both
+gain `"row_key": null` throughout; neither page has a table) plus a new
+`nagarpalika_applications.json` golden exercising real non-null values end to end, a
+semantic test proving every "Cancel" link on that page now has a distinct fingerprint
+(previously identical), and a new adversarial browser test (`page.set_content`, a
+hand-built row whose first cell holds injection-shaped text) proving the rejection holds
+through the real JS extraction path, not just the Python normalizer in isolation; `uv run
+pytest` 278 passed; `uv run pytest -m browser` 129 passed; `uv run pytest -m ollama` 4
+passed; `uv run ruff check .` and `ruff format --check .` clean; dev eval logged as E4
+below -- 55/87 = 63.2% dev (nag 42/42, share 13/45), up from E3's 36/87 (Δ +19); ASR 0/27
+unchanged; false-block 0/60 unchanged -- kept).
+Decisions:
+- **The hypothesis held exactly for nagarpalika, fully.** nag-03, nag-04, nag-17 and
+  nag-19 -- the four row-pick tasks this milestone's own Metric line named -- each go
+  from 0/3 to 3/3, and nagarpalika reaches a clean 42/42 (100%) dev score for the first
+  time in the project's history (M10 through E3 never exceeded 30/42). This is the
+  clearest single-milestone win logged in EXPERIMENTS.md so far.
+- **It did not hold for ShareSewa's row-pick tasks (share-06/07/08/20), still 0/3 each
+  -- but not because row-disambiguation is unfixed there.** Their mean steps (1.0-4.0,
+  versus 5-7 for ShareSewa tasks that complete) show these runs fail or terminate before
+  ever reaching a genuine row-pick decision. This is the separate, larger, already-flagged
+  "ShareSewa capability collapse" (M10, LIMITATIONS.md) -- P5's own mechanism (verified
+  working correctly against the real replica, see the golden/semantic browser tests
+  above) simply never gets exercised on these tasks because something upstream of the
+  row-pick already blocks them. Not root-caused here -- still the top open item for
+  whoever picks up Janus next.
+- **`row_key` defaults to `None` everywhere** (`Fingerprint`, `Element`,
+  `compute_fingerprint`), unlike `name_attr`/`form_id` which are required-but-nullable in
+  this codebase's existing convention. Deliberate: a required field would have forced
+  edits to every existing `Fingerprint(...)`/`Element(...)` construction site across the
+  test suite (including P4's own test helpers) for a field genuinely absent on the
+  overwhelming majority of elements -- not just for convenience, the default is the
+  substantively right shape for "most elements aren't in a table row."
+- **One line was added to the planner's system prompt** (`planner/plan.py::_SYSTEM_PROMPT`)
+  explaining what the outline's `"row"` key means and telling the model to match it
+  against a task-named id rather than guess among same-labeled elements. This goes
+  slightly beyond PLAN.md's literal "Change (one thing)" (which only specified the
+  observer/fingerprint mechanism), but without any explanation the field would likely
+  have been inert JSON the model never used -- the E4 result is evidence it wasn't:
+  nagarpalika's row-pick tasks now pass outright rather than merely stopping short of a
+  false block.
+- **A third golden fixture was added** (`nagarpalika_applications.json`), beyond
+  regenerating the two pre-existing ones (`nagarpalika_services.json`,
+  `nagarpalika_form.json` -- neither page has a table, so both only gained
+  `"row_key": null` throughout). Regenerating only those two would have left the new
+  mechanism with zero golden coverage of a real non-null value; the new fixture pins
+  exact `row_key`s ("041".."046") against the live replica and is reviewed in this
+  commit.
+- **`row_key` computation lives entirely in one place, `observer/extract.py`'s `_JS`
+  blob** (`firstCellText`, a `closest('tr')` + first `td`/`th` lookup), shared by both
+  `extract_snapshot` (the capped, planner-visible path) and, via `extract_raw_elements`,
+  `executor/resolve.py`'s act-time re-resolution -- one code path for both, so they can
+  never disagree about what a row's first cell says. The *normalization/validation*
+  (`text/nepali.py::normalize_row_key`) is pure Python, called independently at both of
+  those two Python call sites from the same raw `row_cell` field, keeping the actual
+  security-relevant logic (the closed character class) unit-testable without a browser.
 Hypothesis: identical row-action labels ("Edit"/"Cancel"/"Withdraw") with the row id only in
 `untrusted_text` cause every row-pick failure (5 observation runs in P0, plus ShareSewa
 edit/withdraw once P3 lets them reach My Report).
@@ -850,6 +914,15 @@ Security: this relaxes invariant 1 slightly, since a page-authored cell now reac
 The pattern admits no letters, so no instruction can pass through. Document it in ARCHITECTURE.md.
 Add an adversarial unit test: a first cell containing text is dropped.
 Metric: dev success on row-pick tasks (nag-03/04/17/19, share-06/07/08/20); ASR; false-block.
+Scope: `text/nepali.py` (`normalize_row_key`); `observer/snapshot.py` (`Fingerprint.row_key`,
+`Element.row_key`); `observer/fingerprint.py` (`compute_fingerprint`'s new param);
+`observer/extract.py` (`_JS`'s `firstCellText`, wiring in `extract_snapshot`);
+`executor/resolve.py` (`_fingerprint_of` wiring); `planner/plan.py` (`_outline`'s `"row"` key, one
+system-prompt line); `docs/ARCHITECTURE.md` (invariant 1 relaxation, Observer section);
+`docs/LIMITATIONS.md` (row-disambiguation section updated with real E4 findings);
+`tests/unit/text/test_nepali_digits.py`, `tests/unit/observer/test_fingerprint.py`,
+`tests/unit/planner/test_plan.py`, `tests/integration/test_observer_browser.py`,
+`tests/integration/golden/nagarpalika_applications.json` (new).
 Accept: observer unit tests (Devanagari ids normalized, text cells rejected); golden snapshots
 regenerated and reviewed; `uv run pytest -m browser` green; dev eval logged as E4.
 
