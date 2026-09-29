@@ -1206,7 +1206,32 @@ Status: deferred. Planned as three sessions:
   keep rule.
 
 ## CP3 — Checkpoint 3 (test split)
-Status: todo (after P11, or at phase end if P11 stays gated). Same procedure as CP1.
+Status: done (Accept passed: `uv run janus-bench run --agent janus --tasks tasks --split
+splits/v1.yaml --set test --checkpoint CP3 --repeats 3 --out results/cp3-test.jsonl` (no `--trace`)
+completed 24/36 = 66.7% (nag 18/18, share 6/18); `analyze --set test` logged in EXPERIMENTS.md's
+Checkpoints table and summarized in `docs/results.md`; `uv run pytest` 284 passed (sanity check;
+no code changed this milestone)).
+Decisions:
+- **P11's gate was checked first and found unmet, so CP3 ran as the phase-end checkpoint in its
+  place**, per this milestone's own scheduling note ("after P11, or at phase end if P11 stays
+  gated"). P11 requires "two consecutive experiments after P9 within noise"; the only post-P9
+  measurements are P9's own four model-candidate rows (E8-E11), which all collapsed outright
+  (0/87, 6/87, 0/87, not run) rather than landing within noise, plus P10's re-check and CP2, both
+  of which made no code change. There is no pair of post-P9 experiments to evaluate against the
+  noise band at all, so the gate is unmet on its own terms -- not a judgment call to defer P11.
+  P11 stays `deferred`; a fine-tuning data pipeline was not planned or implemented this session.
+- **No code changes.** Like CP1/CP2, this is a pure measurement checkpoint -- nothing in `src/`
+  was touched, so the only "test command" this milestone has is the checkpoint run itself.
+- **Test numbers are run-for-run identical to CP1's and CP2's** (24/36, 18/18/100%, 6/18/33.3%,
+  ASR 0/9, false-block 0/27, gate-block 3/27 = 11.1%, over-action 0/24), consistent with nothing
+  having changed across all three checkpoints.
+- **No overfitting signal**, same as CP1/CP2: 0.5pp overall gap vs. E5's N=5 dev (66.2%),
+  nagarpalika exact (100%/100%), sharesewa within 1.4pp (33.3%/34.7%) -- well under the 15pp
+  threshold.
+- **No `--trace`**, per CP1/CP2's own precedent (aggregates only; no test traces produced).
+- **Per-task test outcomes were not recorded or reasoned about anywhere** (EXPERIMENTS.md Rule 4)
+  -- only the aggregate numbers above went into `docs/EXPERIMENTS.md` and `docs/results.md`.
+Same procedure as CP1.
 
 ## Later (not in the Frogtoberfest slice)
 Site 3 (utility or bank transfer), hybrid cloud planner over a privacy-abstracted view, other baselines (Nanobrowser, BrowserOS),

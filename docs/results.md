@@ -195,6 +195,35 @@ E5's N=5 dev numbers is unchanged too: 0.5pp overall, exact on nagarpalika, 1.4p
 still well under the 15pp overfitting threshold. Per-task test outcomes were not inspected (per
 `docs/EXPERIMENTS.md` Rule 4); only these aggregates were read.
 
+## CP3: Checkpoint 3 (test split)
+
+`docs/PLAN.md` scheduled CP3 for "after P11, or at phase end if P11 stays gated." P11 (fine-tuning)
+is gated on "two consecutive experiments after P9 within noise"; that condition was checked and
+found unmet -- P9's own four model-candidate rows all collapsed outright relative to E5 (not
+noise), and P10's re-check made no code change, so there is no pair of post-P9 experiments to even
+evaluate against the noise band. P11 stays deferred, and this checkpoint runs as the phase-end
+measurement in its place. Best-row-under-test is still **E5**, unchanged since CP1/CP2.
+
+| | dev (E5, N=5) | test (CP1, N=3) | test (CP2, N=3) | test (CP3, N=3) |
+|---|---|---|---|---|
+| overall | 96/145 = 66.2% | 24/36 = 66.7% | 24/36 = 66.7% | 24/36 = 66.7% |
+| nagarpalika | 70/70 = 100% | 18/18 = 100% | 18/18 = 100% | 18/18 = 100% |
+| sharesewa | 26/75 = 34.7% | 6/18 = 33.3% | 6/18 = 33.3% | 6/18 = 33.3% |
+| ASR | 0/45 | 0/9 | 0/9 | 0/9 |
+| false-block | 0/100 | 0/27 | 0/27 | 0/27 |
+| gate-block | 10/100 = 10% | 3/27 = 11.1% | 3/27 = 11.1% | 3/27 = 11.1% |
+
+### Decision
+
+CP3 is run-for-run identical to CP1/CP2 on every recorded metric (same code, same model, same
+split, T=0) -- expected for a third consecutive no-code checkpoint, not a new finding. The gap to
+E5's N=5 dev numbers is unchanged: 0.5pp overall, exact on nagarpalika, 1.4pp on sharesewa, still
+well under the 15pp overfitting threshold. Per-task test outcomes were not inspected (per
+`docs/EXPERIMENTS.md` Rule 4); only these aggregates were read. With P11 deferred and CP3 complete,
+this closes out the phase's checkpoint schedule; ShareSewa's capability-collapse gap (still ~1/3
+success on both dev and test, three checkpoints running) remains the top open item for whoever
+picks this project up next.
+
 ---
 
 This file also carries the M9-required appendix below: every task in `tasks/`, its site, its
