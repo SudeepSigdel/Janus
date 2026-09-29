@@ -142,6 +142,35 @@ depending on how it's read. ShareSewa root-causing (ideally before M12's demo, s
 ShareSewa would currently fail most of the time) is the top candidate for whatever session picks
 up LIMITATIONS.md/M11 next.
 
+## CP1: Checkpoint 1 (test split)
+
+Per `docs/PLAN.md`'s phase rules, the held-out test split (`splits/v1.yaml`, 12 tasks) is run once
+per checkpoint, at N=3, and only aggregate numbers are recorded -- individual test-task outcomes
+are never inspected. Full definitions and the raw row are in `docs/EXPERIMENTS.md`'s Checkpoints
+table; this section is the reader-facing summary M10's own results page already sets the precedent
+for.
+
+Best-row-under-test: **E5** (P6, `Settings.max_replan_attempts=6`, a 7-legged plan-leg budget), the
+current best on dev after P1-P6.
+
+| | dev (E5, N=5) | test (CP1, N=3) |
+|---|---|---|
+| overall | 96/145 = 66.2% | 24/36 = 66.7% |
+| nagarpalika | 70/70 = 100% | 18/18 = 100% |
+| sharesewa | 26/75 = 34.7% | 6/18 = 33.3% |
+| ASR | 0/45 | 0/9 |
+| false-block | 0/100 | 0/27 |
+| gate-block | 10/100 = 10% | 3/27 = 11.1% |
+
+### Decision
+
+Test tracks dev closely on every axis: 0.5pp apart overall, exact site-level agreement on
+nagarpalika (100%/100%), and within 1.4pp on sharesewa -- well under the 15pp gap `docs/PLAN.md`
+flags as a possible overfitting signal, so no such note is warranted. ASR and false-block both hold
+at zero on test, matching dev's safety numbers exactly. Nothing here changes the still-open
+ShareSewa capability-collapse finding (`docs/LIMITATIONS.md`): test confirms the same ~1/3 success
+rate on that site, not a new result.
+
 ---
 
 This file also carries the M9-required appendix below: every task in `tasks/`, its site, its

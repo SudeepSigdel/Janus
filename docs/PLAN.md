@@ -973,7 +973,24 @@ Scope: `src/janus/config.py` (`max_replan_attempts` 3 → 6); `docs/EXPERIMENTS.
 Accept: dev eval logged as E5.
 
 ## CP1 — Checkpoint 1 (test split)
-Status: todo (after P1–P6)
+Status: done (Accept passed: `uv run janus-bench run --agent janus --tasks tasks --split
+splits/v1.yaml --set test --checkpoint CP1 --repeats 3 --out results/cp1-test.jsonl` (no `--trace`)
+completed 24/36 = 66.7% (nag 18/18, share 6/18); `analyze --set test` logged in EXPERIMENTS.md's
+Checkpoints table and summarized in `docs/results.md`; `uv run pytest` 278 passed (sanity check;
+no code changed this milestone)).
+Decisions:
+- **No code changes.** CP1 is a pure measurement checkpoint on E5 (P6's kept `max_replan_attempts`
+  change) -- nothing in `src/` was touched, so the only "test command" this milestone has is the
+  checkpoint run itself.
+- **Test tracks dev closely, no overfitting signal.** 66.7% test vs. 66.2% dev (E5, N=5) overall
+  (0.5pp), nagarpalika exact (100%/100%), sharesewa within 1.4pp (33.3%/34.7%). Well under the 15pp
+  threshold PLAN.md sets for an overfitting note, so none is recorded. ASR (0/9) and false-block
+  (0/27) both hold at zero, matching dev exactly.
+- **No `--trace`.** The Checkpoints table only needs success/ASR/false-block, none of which need
+  `--trace`; running without it means no test traces exist to be tempted to open, the simplest way
+  to honor "don't open the test traces."
+- **Per-task test outcomes were not recorded or reasoned about anywhere** (EXPERIMENTS.md Rule 4) --
+  only the aggregate numbers above went into `docs/EXPERIMENTS.md` and `docs/results.md`.
 Run the current best on test once (`--set test --checkpoint CP1`, N=3). Log aggregates only in
 EXPERIMENTS.md's Checkpoints table and in results.md. Don't open the test traces. If test and dev
 diverge by > 15 pp, note possible overfitting to dev before continuing.

@@ -54,4 +54,4 @@ All metrics are over dev runs (task × repeat), N=3 unless the row says otherwis
 
 | checkpoint | date | best row | test success (nag / share) | test ASR | test false-block | records |
 |---|---|---|---|---|---|---|
-| – | – | – | – | – | – | – |
+| CP1 | 2026-09-29 | E5 (P6: `max_replan_attempts=6`, 7 legs) | 24/36 = 66.7% (18/18 / 6/18) | 0/9 | 0/27 | `results/cp1-test.jsonl`, via `janus-bench run --agent janus --tasks tasks --split splits/v1.yaml --set test --checkpoint CP1 --repeats 3 --out results/cp1-test.jsonl` and `analyze --set test`. No `--trace` (aggregates only; no test traces produced). Test tracks dev closely: 66.7% vs. E5's N=5 dev 66.2% (nag 100%/100%, share 33.3%/34.7%), a 0.5pp overall gap -- well under the 15pp overfitting-warning threshold, so no note of concern. ASR and false-block both 0, matching dev. gate-block 3/27 = 11.1%, roughly matching dev's 10%. Per-task test outcomes were not inspected (EXPERIMENTS.md Rule 4); only these aggregates were read. |
