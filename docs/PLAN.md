@@ -996,7 +996,39 @@ EXPERIMENTS.md's Checkpoints table and in results.md. Don't open the test traces
 diverge by > 15 pp, note possible overfitting to dev before continuing.
 
 ## P7 — Prompt: tell the planner which actions are approved
-Status: todo
+Status: done, reverted (Accept passed as "logged": `uv run janus-bench run --agent janus --tasks
+tasks --split splits/v1.yaml --set dev --repeats 3 --trace --out results/e6-dev.jsonl` completed and
+`analyze` logged as E6 in `docs/EXPERIMENTS.md`; the change itself was **not kept** -- see below;
+`uv run pytest` 278 passed, `uv run pytest -m browser` 129 passed (one known-flaky real-model test,
+already documented at M5/P6, failed once and passed clean on an immediate rerun -- not a
+regression), `uv run pytest -m ollama` 4 passed, `uv run ruff check .` and `ruff format --check .`
+clean, all against the reverted (pre-P7) code).
+Decisions:
+- **The change was implemented, measured, and reverted within this same session -- a real "kept:
+  no" outcome, not a skipped experiment.** `approved_actions` (the task's declared approval labels)
+  was added to `commit_plan`'s user message and one system-prompt rule was added telling the model
+  to act on an approved control once it's visible and the page is filled, exactly per this
+  milestone's own "Change (one thing)" line. `docs/EXPERIMENTS.md`'s E6 row has the full mechanism.
+- **ShareSewa collapsed from E5's 26/75 (34.7%) to 0/45 -- not noise, no N=5 rerun needed** (Rule 3's
+  ≤3-run band only applies to ambiguous deltas; a 13-run drop on a 15-task, N=3 site isn't one).
+  nagarpalika was unaffected (42/42, unchanged).
+- **Root cause (from `results/e6-dev-traces/`): the new prompt line made the model plan ShareSewa's
+  *login* form as `SUBMIT`** (previously, reliably, `CLICK` -- M6/M7's own finding, unaffected by any
+  earlier milestone). Since `apply_issue`'s approval grants `{SUBMIT, CLICK}` for the whole run
+  (M4/M7), the login SUBMIT is authorized, causes a real POST, and P4's commit-detection logic
+  (docs/PLAN.md P4) has no way to distinguish "the approved commit" from "any authorized
+  consequential POST" -- it consumes the task's one declared approval and ends the run `completed`
+  after 2 steps, before the real task starts. Tasks with no matching approval instead got blocked
+  outright at the login SUBMIT. This is the same underlying gap LIMITATIONS.md already names for
+  escalation (grants are op-kind-for-the-whole-run, not per-target) surfacing through a new door.
+- **Reverted cleanly, not left half-applied.** `src/janus/planner/plan.py`, `src/janus/agent.py`,
+  `src/janus/cli.py`, `src/janus_bench/agents/janus_agent.py`, and the two test files touched are
+  restored byte-for-byte to pre-P7 `HEAD` (`git diff` against `HEAD` is empty for all of them);
+  `uv run pytest` count (278) matches the pre-P7 baseline exactly.
+- **Not re-attempted with adjusted wording in this same session**, per EXPERIMENTS.md's "one change
+  per experiment" rule -- a narrower prompt rule (e.g. naming the specific page/control rather than
+  "wherever you see it") would be a new, separate experiment (E7+), not a fix folded into E6. Left as
+  an open note for whoever picks this up next, alongside the escalation-granularity gap it exposed.
 Hypothesis: on the ShareSewa review page the model clicks Back instead of Submit (12/15 P0 runs
 that reached review). Nothing in its input says submitting is sanctioned, and the system prompt
 talks about consequential actions only as something detected automatically.
