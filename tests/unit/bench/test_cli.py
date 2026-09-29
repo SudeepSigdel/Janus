@@ -136,8 +136,8 @@ def test_main_dispatches_analyze(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_main_dispatches_run_with_split_flags(monkeypatch: pytest.MonkeyPatch) -> None:
     called: dict[str, object] = {}
 
-    def fake_run(agent, tasks_dir, repeats, out, split, set_, checkpoint, trace):
-        called["args"] = (agent, tasks_dir, repeats, out, split, set_, checkpoint, trace)
+    def fake_run(agent, tasks_dir, repeats, out, split, set_, checkpoint, trace, model):
+        called["args"] = (agent, tasks_dir, repeats, out, split, set_, checkpoint, trace, model)
         return 0
 
     monkeypatch.setattr(cli, "run", fake_run)
@@ -167,4 +167,38 @@ def test_main_dispatches_run_with_split_flags(monkeypatch: pytest.MonkeyPatch) -
         "test",
         "CP1",
         True,
+        None,
     )
+
+
+def test_main_dispatches_run_with_model_flag(monkeypatch: pytest.MonkeyPatch) -> None:
+    called: dict[str, object] = {}
+
+    def fake_run(agent, tasks_dir, repeats, out, split, set_, checkpoint, trace, model):
+        called["args"] = (agent, tasks_dir, repeats, out, split, set_, checkpoint, trace, model)
+        return 0
+
+    monkeypatch.setattr(cli, "run", fake_run)
+    rc = cli.main(["run", "--agent", "janus", "--tasks", "tasks", "--model", "janus-planner-4b"])
+    assert rc == 0
+    assert called["args"] == (
+        "janus",
+        Path("tasks"),
+        1,
+        None,
+        None,
+        None,
+        None,
+        False,
+        "janus-planner-4b",
+    )
+
+
+def test_make_agent_janus_with_model_overrides_planner_model() -> None:
+    agent = cli.make_agent("janus", model="janus-planner-4b")
+    assert agent.settings.planner_model == "janus-planner-4b"
+
+
+def test_make_agent_janus_without_model_keeps_default() -> None:
+    agent = cli.make_agent("janus")
+    assert agent.settings.planner_model == "janus-planner"

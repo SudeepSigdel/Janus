@@ -1093,12 +1093,67 @@ Metric: dev success; tokens/run (cap at 2× E-best); ASR.
 Accept: dev eval logged as E7.
 
 ## P9 — Model selection (8 GB VRAM)
-Status: todo (after the code-level fixes, so the comparison measures models, not bugs)
-Hypothesis: a different model or quantization changes the success/latency trade-off.
+Status: done (Accept passed: all planned rows logged in `docs/EXPERIMENTS.md` (E8-E11); default
+unchanged in `config.py`/`models/janus-planner.Modelfile` since none passed the keep rule;
+`AI_USAGE.md` untouched since the model tag didn't change; `uv run pytest` 284 passed, `uv run
+ruff check .` and `ruff format --check .` clean).
+Decisions:
+- **All three measured candidates collapse relative to the current default, decisively (no N=5
+  rerun needed -- Rule 3's noise band is ≤3 runs, these are 90-96 runs off).** qwen3:4b Q4_K_M
+  (E8): 0/87. qwen3:4b Q8_0 (E9): 6/87. qwen2.5:7b-instruct Q4_K_M (E10): 0/87. All three kept
+  `no` against E5 (96/145 = 66.2%). Same code, same policy/prompt, only the Ollama model tag
+  changed -- this isolates the effect to the model itself, exactly per this milestone's own
+  framing.
+- **Built the wiring the comparison itself needed, not just the Modelfiles**: `janus-bench run`
+  gained `--model <tag>` (`harness/cli.py`), which builds a `Settings(planner_model=...)` override
+  passed into `JanusAgent` (which already accepted a `settings` param, unused by any caller before
+  this). No other agent reads it (a note prints if `--model` is given with a non-`janus` agent,
+  matching the existing `--trace` note). `janus run` (the single-task interactive CLI) deliberately
+  keeps the hardcoded `janus-planner` tag -- this milestone's Accept only needed the harness path.
+  `harness/metrics.py` gained `mean_chat_call_latency` (Σ`llm_time` / Σ`chat_calls`, both existing
+  `RunRecord` fields since P1), appended to `experiment_row_markdown`'s extra line alongside
+  completed-claim/schema-invalid/over-action -- this milestone's own metric list named it and
+  nothing computed it before.
+- **Two distinct, traced failure mechanisms, not one.** qwen3:4b (E8/E9) reproduces E7/P8's
+  already-documented combobox mistake (nagarpalika's ward `<select>` ref planned as `FILL_FORM`
+  instead of `SELECT`) far more often than qwen3:8b does, and P2's retry-ceiling rule then
+  legitimately locks the ceiling from that first bad attempt -- false-block jumped from E5's 0% to
+  25% (E8) / 50% (E9). qwen2.5:7b-instruct (E10) fails differently: it invents semantic element
+  refs (`'name_ne'`, `'ward'`, `'phone'`) instead of copying the outline's real `e0`/`e1`-style
+  refs, so `validate_plan`'s "unknown element ref" check rejects nearly every step before it
+  reaches the page (82% gate-block, the highest of any row logged in this project). Schema-invalid
+  is 0 for all three (513/423/336 valid-JSON plan calls) -- every candidate produces well-formed
+  JSON, none of them plan *correctly* on this task set.
+- **Q8_0 does not buy back qwen3:4b's capability, and costs latency.** E9 vs. E8 at the same
+  parameter count: 6/87 vs. 0/87 (still a collapse) but a *higher* mean chat-call latency (3.03s
+  vs. 1.80s) -- consistent with Q8_0 being memory-bandwidth-bound on this 8 GB card rather than a
+  free precision win, not a case for trading quantization against speed here.
+- **The optional 5th candidate (qwen3:8b Q5_K_M) does not exist in Ollama's library** --
+  `ollama pull qwen3:8b-q5_K_M` and the lowercase `qwen3:8b-q5_k_m` both return
+  `Error: pull model manifest: file does not exist`. Logged as E11 with `records: n/a` rather than
+  silently dropped, so the log shows it was checked, not skipped by oversight. Treated as "doesn't
+  fit" per this milestone's own "if it fits" framing -- no manual GGUF re-quantization attempted,
+  which would be new build tooling this milestone's scope doesn't call for.
+- **Peak VRAM was not automated.** No `RunRecord` field or `analyze` column exists for it, and
+  adding one would be new instrumentation this milestone's own Scope line doesn't list; `nvidia-smi`
+  at session start confirmed the target card (RTX 4060 Laptop, 8188 MiB total, ~6.6 GB free before
+  any model load), which is enough to confirm every candidate fits the ≤8GB constraint without a
+  per-row number.
+Hypothesis: a different model or quantization changes the success/latency trade-off. **Result: it
+does, but only for the worse** -- qwen3:8b Q4_K_M (the current default, `janus-planner`, E5) remains
+uniquely capable of the planning patterns this project's tasks need; every cheaper alternative
+measured trades away far more dev success than it saves in latency or VRAM.
 Candidates (each one EXPERIMENTS row, same code, derived Modelfile with `num_ctx 8192`):
-qwen3:8b Q4_K_M (current), qwen3:4b Q4_K_M, qwen3:4b Q8_0 (quantization trade-off at fixed size),
-qwen2.5:7b-instruct Q4_K_M. Optionally qwen3:8b Q5_K_M, if it fits alongside an 8192 KV cache
-(check `ollama ps`).
+qwen3:8b Q4_K_M (current, reused from E5 rather than rerun, matching M6's own precedent for an
+unchanged baseline), qwen3:4b Q4_K_M (E8), qwen3:4b Q8_0 (E9, quantization trade-off at fixed
+size), qwen2.5:7b-instruct Q4_K_M (E10). Optionally qwen3:8b Q5_K_M (E11) -- not published in
+Ollama's library, not run.
+Scope: `src/janus_bench/harness/cli.py` (`--model` flag on `run`, threaded through `make_agent`);
+`src/janus_bench/harness/metrics.py` (`mean_chat_call_latency`, wired into
+`experiment_row_markdown`); `models/janus-planner-4b.Modelfile`, `models/janus-planner-4b-q8.
+Modelfile`, `models/janus-planner-qwen25-7b.Modelfile` (new); `tests/unit/bench/test_cli.py`
+(`--model` dispatch, `make_agent` override); `tests/unit/bench/test_metrics.py`
+(`mean_chat_call_latency`); `docs/EXPERIMENTS.md` (E8-E11).
 Metric per row: dev success, ASR, false-block, schema-invalid rate, mean chat-call latency, wall
 time, peak VRAM.
 Accept: all rows logged; the default in `config.py`/Modelfile changes only if the keep rule passes;

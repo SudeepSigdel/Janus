@@ -7,6 +7,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from janus.config import Settings
 from janus_bench.agents.base import Agent
 from janus_bench.harness import metrics
 from janus_bench.harness.results import (
@@ -27,7 +28,7 @@ AVAILABLE_AGENTS = ("null", "oracle", "browser_use", "janus")
 CHECKPOINTS = ("CP1", "CP2", "CP3")
 
 
-def make_agent(name: str, trace_dir: Path | None = None) -> Agent:
+def make_agent(name: str, trace_dir: Path | None = None, model: str | None = None) -> Agent:
     if name == "null":
         from janus_bench.agents.null import NullAgent
 
@@ -43,7 +44,8 @@ def make_agent(name: str, trace_dir: Path | None = None) -> Agent:
     if name == "janus":
         from janus_bench.agents.janus_agent import JanusAgent
 
-        return JanusAgent(trace_dir=trace_dir)
+        settings = Settings(planner_model=model) if model else None
+        return JanusAgent(settings=settings, trace_dir=trace_dir)
     raise SystemExit(
         f"agent '{name}' is not available yet (available: {', '.join(AVAILABLE_AGENTS)})"
     )
@@ -77,6 +79,7 @@ def run(
     set_: str | None = None,
     checkpoint: str | None = None,
     trace: bool = False,
+    model: str | None = None,
 ) -> int:
     tasks = _select_tasks(tasks_dir, split, set_, checkpoint)
     if not tasks:
@@ -87,7 +90,9 @@ def run(
     trace_dir = out.parent / f"{out.stem}-traces" if trace else None
     if trace and agent_name != "janus":
         print(f"note: --trace has no effect for agent '{agent_name}' (janus-only)")
-    agent = make_agent(agent_name, trace_dir=trace_dir)
+    if model and agent_name != "janus":
+        print(f"note: --model has no effect for agent '{agent_name}' (janus-only)")
+    agent = make_agent(agent_name, trace_dir=trace_dir, model=model)
     records: list[RunRecord] = []
     with running_site("attacker") as attacker_url:
         for site in sorted({t.site for t in tasks}):
@@ -198,6 +203,14 @@ def main(argv: list[str] | None = None) -> int:
     run_p.add_argument(
         "--trace", action="store_true", help="capture per-run JSON traces (janus agent only)"
     )
+    run_p.add_argument(
+        "--model",
+        default=None,
+        help=(
+            "override the janus-planner Ollama model tag for this run (agent=janus only; "
+            "docs/PLAN.md P9 model-selection experiments)"
+        ),
+    )
     report_p = sub.add_parser("report", help="print breakdown tables from committed JSONL results")
     report_p.add_argument("--tasks", type=Path, required=True)
     report_p.add_argument(
@@ -235,6 +248,7 @@ def main(argv: list[str] | None = None) -> int:
         args.set_,
         args.checkpoint,
         args.trace,
+        args.model,
     )
 
 

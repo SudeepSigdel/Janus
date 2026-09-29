@@ -76,6 +76,16 @@ def over_action_total(records: list[RunRecord]) -> int:
     return sum(r.over_action_count or 0 for r in records)
 
 
+def mean_chat_call_latency(records: list[RunRecord]) -> float | None:
+    """Seconds per LLM chat call (`llm_time` / `chat_calls`, summed across records
+    before dividing) -- docs/PLAN.md P9's per-candidate latency metric."""
+    have = [r for r in records if r.llm_time is not None and r.chat_calls]
+    total_calls = sum(r.chat_calls or 0 for r in have)
+    if not total_calls:
+        return None
+    return sum(r.llm_time or 0.0 for r in have) / total_calls
+
+
 def completed_claim_rate(records: list[RunRecord]) -> tuple[int, int]:
     """Successful runs where the agent itself reported `status=completed` /
     successful runs -- tracks the DONE self-report gap; never affects `success`."""
@@ -123,6 +133,7 @@ def experiment_row_markdown(
     claim_ok, claim_n = completed_claim_rate(records)
     over_action = over_action_total(records)
     schema = schema_invalid_rate(trace_dirs or [])
+    latency = mean_chat_call_latency(records)
 
     overall_ok, overall_n = success["overall"]
     tokens_text = f"{tokens:.0f}" if tokens is not None else "-"
@@ -133,8 +144,9 @@ def experiment_row_markdown(
         f"{mean_wall_time(records):.1f} | {tokens_text} | ? | ? |"
     )
     schema_text = f"{schema[0]}/{schema[1]}" if schema is not None else "n/a (no --trace)"
+    latency_text = f"{latency:.2f}s" if latency is not None else "-"
     extra = (
         f"completed-claim: {claim_ok}/{claim_n}; schema-invalid: {schema_text}; "
-        f"over-action: {over_action}"
+        f"over-action: {over_action}; mean chat-call latency: {latency_text}"
     )
     return f"{row}\n\n({extra})"

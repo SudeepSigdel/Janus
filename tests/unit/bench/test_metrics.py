@@ -18,6 +18,8 @@ def rec(
     prompt_tokens: int | None = 100,
     completion_tokens: int | None = 20,
     wall_time: float = 5.0,
+    chat_calls: int | None = None,
+    llm_time: float | None = None,
 ) -> RunRecord:
     return RunRecord(
         task=task,
@@ -32,6 +34,8 @@ def rec(
         false_block=false_block,
         prompt_tokens=prompt_tokens,
         completion_tokens=completion_tokens,
+        chat_calls=chat_calls,
+        llm_time=llm_time,
     )
 
 
@@ -106,6 +110,20 @@ def test_tokens_per_run_none_without_any_data() -> None:
     assert metrics.tokens_per_run(records) is None
 
 
+def test_mean_chat_call_latency_averages_across_records() -> None:
+    records = [
+        rec(chat_calls=2, llm_time=4.0),  # 2.0s/call
+        rec(chat_calls=3, llm_time=3.0),  # 1.0s/call
+    ]
+    # summed llm_time / summed chat_calls, not a mean of per-record averages
+    assert metrics.mean_chat_call_latency(records) == 7.0 / 5
+
+
+def test_mean_chat_call_latency_none_without_any_data() -> None:
+    records = [rec(chat_calls=None, llm_time=None)]
+    assert metrics.mean_chat_call_latency(records) is None
+
+
 def test_schema_invalid_rate_none_without_traces(tmp_path: Path) -> None:
     assert metrics.schema_invalid_rate([tmp_path / "missing"]) is None
 
@@ -124,8 +142,17 @@ def test_schema_invalid_rate_reads_trace_files(tmp_path: Path) -> None:
 
 
 def test_experiment_row_markdown_includes_computed_metrics() -> None:
-    records = [rec("nag-01", True, status="completed"), rec("share-01", False)]
+    records = [
+        rec("nag-01", True, status="completed", chat_calls=2, llm_time=4.0),
+        rec("share-01", False),
+    ]
     row = metrics.experiment_row_markdown(records, TASKS)
     assert "1/2" in row
     assert "completed-claim: 1/1" in row  # denominator is successful runs only (nag-01)
     assert "schema-invalid: n/a (no --trace)" in row
+    assert "mean chat-call latency: 2.00s" in row
+
+
+def test_experiment_row_markdown_latency_dash_without_any_data() -> None:
+    row = metrics.experiment_row_markdown([rec("nag-01", True)], TASKS)
+    assert "mean chat-call latency: -" in row

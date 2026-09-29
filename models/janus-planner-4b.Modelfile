@@ -1,0 +1,5 @@
+# P9 model-selection candidate: qwen3:4b Q4_K_M. num_ctx is set here because the
+# OpenAI-compatible endpoint ignores it per request (see janus-planner.Modelfile).
+FROM qwen3:4b
+PARAMETER num_ctx 8192
+PARAMETER temperature 0
