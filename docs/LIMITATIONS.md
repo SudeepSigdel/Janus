@@ -29,6 +29,17 @@ mean 6.7s/max 15.6s -> E5 N=5 fail mean 6.6s/max 17.0s), i.e. they still fail fa
 the old 4-leg budget. Whoever root-causes the collapse should look upstream of planning (grounding,
 the login/PIN flow, or something site-specific), not at the leg budget.
 
+**P8 (docs/PLAN.md, EXPERIMENTS.md E7) found strong, if bundled and since-reverted, evidence that
+the apply-flow portion of this collapse is a flow-knowledge gap, not the PIN field or the login
+mechanism.** Adding one worked "login -> list -> form -> review -> submit" example to the planner's
+prompt took all 6 dev ShareSewa apply-only clean tasks (share-01/02/03/05/18/21) -- including
+share-01, stuck since E4 -- to 3/3 each. The change wasn't kept (a *second*, unrelated example
+bundled into the same experiment caused a real nagarpalika regression, and resending both examples
+on every leg blew the token budget), but the apply-flow result itself is real and traced. The
+natural next step is re-running that one example alone as its own experiment (E8), which this
+milestone deliberately left for a follow-up rather than attempting a second bundled change in the
+same session.
+
 ### Row-disambiguation gap (fixed for nagarpalika; still open for ShareSewa)
 
 Tasks that pick one of several rows sharing an identical label ("Edit"/"Cancel" repeated once per

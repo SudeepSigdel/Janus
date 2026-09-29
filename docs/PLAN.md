@@ -1040,7 +1040,47 @@ holds, but verify empirically); tokens/run.
 Accept: dev eval logged as E6.
 
 ## P8 — Few-shot examples from dev
-Status: todo
+Status: done, reverted (Accept passed as "logged": `uv run janus-bench run --agent janus --tasks
+tasks --split splits/v1.yaml --set dev --repeats 3 --trace --out results/e7-dev.jsonl` completed and
+`analyze` logged as E7 in `docs/EXPERIMENTS.md`; the change itself was **not kept** -- see below;
+`uv run pytest` 278 passed, `uv run pytest -m "browser and not ollama"` 127 passed, `uv run pytest -m
+ollama` 4 passed (1 failed with the fewshot change in place, confirmed non-flaky by an immediate
+rerun, then confirmed passing again once reverted -- a real, traced regression, not noise; see
+below), `uv run ruff check .` and `ruff format --check .` clean, all against the reverted (pre-P8)
+code).
+Decisions:
+- **Implemented, measured, and reverted within this same session -- a real "kept: no" outcome.**
+  `src/janus/planner/examples.py` (two hand-authored generic worked examples, "list -> row action ->
+  confirm" and "login -> list -> form -> review -> submit") was spliced into `commit_plan`'s messages
+  right after the system prompt, per this milestone's own "Change (one thing)" line. Full mechanism
+  and numbers are in `docs/EXPERIMENTS.md`'s E7 row.
+- **Disqualified on all three Keep-rule axes at once**: dev success fell (57/87 -> 48/87 at N=3, well
+  past the noise band -- no N=5 rerun needed), false-block rose (0/60 -> 12/60), and tokens/run blew
+  past this milestone's own 2x-E-best cap (9,547 vs. 6,510) -- every `commit_plan` call is a fresh
+  conversation (M5), so both examples are resent on *every leg*, not once per run.
+- **The hypothesis was right for exactly the flow the second example targeted, and wrong elsewhere,
+  at the same time.** All 6 dev ShareSewa apply-only clean tasks (share-01/02/03/05/18/21) went from
+  the long-standing "capability collapse" (LIMITATIONS.md) to 3/3 each -- real evidence for the
+  hypothesis. But nagarpalika's shared ward-`<select>` form (`form.html`, used by every submit-shaped
+  task) newly and often fails: traces show the model's first attempt there now frequently puts the
+  combobox's ref in `FILL_FORM` (a mistake it had essentially stopped making by E4/E5), and P2's
+  retry-ceiling rule then legitimately locks the ceiling from that bad first attempt (a role mismatch
+  is not a scope violation, so it sets the ceiling by design, P2) -- the model's own correction is
+  then refused as "adds capabilities beyond what was committed." 8 of 14 nagarpalika dev tasks hit
+  this (all `mean_steps=1.0`, all 3/3 fail); nag-13/16 hit the same first-attempt mistake but
+  sometimes recover within the same leg, consistent with ordinary model variance rather than a
+  second bug. Not root-caused further (why this specific page's first attempt is biased is a
+  plausible but unverified guess, not confirmed).
+- **Reverted cleanly, not left half-applied.** `src/janus/planner/plan.py` and
+  `tests/unit/planner/test_plan.py` restored byte-for-byte (`git status` empty against pre-P8
+  `HEAD`); the two new files this milestone added (`src/janus/planner/examples.py`,
+  `tests/unit/planner/test_examples.py`) deleted rather than left dead in the tree. `uv run pytest`
+  count (278) matches the pre-P8 baseline exactly.
+- **Not re-attempted split into two single-example experiments in this same session**, per
+  EXPERIMENTS.md's "one change per experiment" rule and CLAUDE.md's "one milestone per session" --
+  the two mechanisms above are cleanly separable by site, so a follow-up (ShareSewa's example alone,
+  and separately the row/confirm example alone) is a real, promising next step, left open for
+  whoever picks this up next.
 Hypothesis: the remaining planning errors are flow-knowledge errors (where the edit action lives,
 what a review page is for) that one worked example per flow type fixes.
 Change (one thing): 2 short worked examples (one "list → row action → confirm", one "login → list →
