@@ -23,7 +23,7 @@ class Settings(BaseModel):
     # Plan-commit retries (validator errors fed back to the model) and mid-run
     # replans (a page transition needs a fresh plan against a new snapshot).
     max_plan_retries: int = 2
-    max_replan_attempts: int = 3
+    max_replan_attempts: int = 6
     # Grounding (planner/ground.py): a bge-m3 cosine-similarity match below this is
     # not trusted; grounding falls through to the constrained-LLM tier instead.
     grounding_similarity_threshold: float = 0.75

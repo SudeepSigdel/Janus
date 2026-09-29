@@ -20,6 +20,15 @@ full breakdown. **This is the top open item for whoever works on Janus next, and
 root-caused before any demo on ShareSewa** (M12's demo script should lead with nagarpalika, or
 fix this first).
 
+**P6 rules out leg-budget exhaustion as the cause, for seven of ShareSewa's eight failing dev
+tasks.** Raising `Settings.max_replan_attempts` 3 -> 6 (4 plan legs -> 7, docs/EXPERIMENTS.md E5)
+fixed exactly one dev task, share-03 (a genuine budget case: every E4 run hit `steps=7,
+status=partial`, and it now completes at `steps=11` in 4/5 N=5 repeats). share-05/06/07/08/12/15/
+16/18/20 are unaffected -- their failing-run mean wall time and step count barely moved (E4 fail
+mean 6.7s/max 15.6s -> E5 N=5 fail mean 6.6s/max 17.0s), i.e. they still fail fast, well under even
+the old 4-leg budget. Whoever root-causes the collapse should look upstream of planning (grounding,
+the login/PIN flow, or something site-specific), not at the leg budget.
+
 ### Row-disambiguation gap (fixed for nagarpalika; still open for ShareSewa)
 
 Tasks that pick one of several rows sharing an identical label ("Edit"/"Cancel" repeated once per

@@ -558,17 +558,18 @@ Goal: raise Janus's dev success without raising injection success or false block
   (prints the EXPERIMENTS.md row; `--tasks tasks` is required by the CLI even with `--split`).
   About 20 minutes per run at P0 latency.
 
-Current best: **E4**: 55/87 = 63.2% dev (nag 42/42, share 13/45), ASR 0/27, false-block 0/60 clean
-runs, gate-block 6/60 = 10% (P5 attaches a `row_key` to interactive elements inside a table row,
-shown to the planner and included in the `Fingerprint`, so identical "Edit"/"Cancel" labels across
-rows stop colliding; nagarpalika reaches a clean 42/42 for the first time -- nag-03/04/17/19, the
-exact row-pick tasks the milestone targeted, all go to 3/3 -- while ShareSewa's own row-pick tasks
-(share-06/07/08/20) stay at 0/3, blocked by the separate, larger, not-yet-root-caused "ShareSewa
-capability collapse" gap (M10) rather than row-disambiguation; tok/run fell from E3's 3,623 to
-2,887 and wall time from 12.1s to 9.7s; gate-block's rise to 6/60 (was E3's 0/60) looks like a
-precision improvement, not a regression -- false-block itself stayed flat at 0/60 -- was E3: 36/87,
-gate-block 0/60 (P4); E2: 36/87, gate-block 6/60 = 10%; E1: 36/87, gate-block 14/60 = 23%; E0:
-30/87 = 34.5%, false-block 6/60 = 10%).
+Current best: **E5**: 96/145 = 66.2% dev at N=5 (nag 70/70, share 26/75), ASR 0/45, false-block
+0/100 clean runs, gate-block 10/100 = 10% (P6 raises `Settings.max_replan_attempts` 3 -> 6, the
+plan-leg budget from 4 to 7; a real per-repeat trace confirms share-03 was hitting the old budget
+mid-flow every E4 run (`steps=7, status=partial`) and now completes (`steps=11`) in 4/5 N=5
+repeats -- the only dev task whose failure mode was genuinely leg-budget exhaustion, not the broad
+39/57 P0 diagnosed; the initial N=3 attempt (57/87 = 65.5%, nag 42/42, share 15/45) landed only +2
+runs over E4, inside EXPERIMENTS.md's noise band, so the milestone reran at N=5 per Rule 3 before
+deciding kept; the other seven failing ShareSewa tasks are unaffected and still fail fast, ruling
+out leg-budget exhaustion as their cause (LIMITATIONS.md updated) -- was E4: 55/87 = 63.2% (nag
+42/42, share 13/45), gate-block 6/60 = 10% (P5); E3: 36/87, gate-block 0/60 (P4); E2: 36/87,
+gate-block 6/60 = 10%; E1: 36/87, gate-block 14/60 = 23%; E0: 30/87 = 34.5%, false-block 6/60 =
+10%).
 
 ## P0 — Diagnose (split, traced dev run, error analysis)
 Status: done (2026-09-28). `splits/v1.yaml` written; Janus dev run 29×3 traced (diagnosis-only
@@ -927,11 +928,48 @@ Accept: observer unit tests (Devanagari ids normalized, text cells rejected); go
 regenerated and reviewed; `uv run pytest -m browser` green; dev eval logged as E4.
 
 ## P6 — Page budget
-Status: todo (only after P4, so extra legs can't become extra actions)
+Status: done (Accept passed: dev eval logged as E5. Initial N=3 run --
+`uv run janus-bench run --agent janus --tasks tasks --split splits/v1.yaml --set dev --repeats 3
+--trace --out results/e5-dev.jsonl` -- scored 57/87 = 65.5% (nag 42/42, share 15/45), only +2 runs
+over E4 and inside EXPERIMENTS.md's ≤3-run noise band, so a resolving N=5 rerun followed (Rule 3):
+96/145 = 66.2% (nag 70/70, share 26/75), ASR 0/45, false-block 0/100, over-action 0/96 -- kept;
+`uv run pytest` 278 passed, `uv run pytest -m browser` 129 passed (one known-flaky real-model test,
+already documented at M5, failed once and passed clean on an immediate rerun -- not a regression),
+`uv run pytest -m ollama` 4 passed, `uv run ruff check .` and `ruff format --check .` clean).
+Decisions:
+- **The hypothesis held for exactly one dev task, not broadly.** Per-repeat trace inspection (not
+  just the pass-rate) shows every E4 run of share-03 hit `steps=7, status=partial` -- silently
+  exhausting the old 4-leg budget mid-flow -- and at N=5 it now reaches `steps=11,
+  status=completed` in 4/5 repeats. That is the exact mechanism P0 hypothesized, confirmed
+  directly rather than inferred. No other dev task shows this pattern: nagarpalika was already
+  42/42 at E4 (no room to move, and none of its tasks were budget-exhausted) and stays 100% at
+  N=5 (70/70).
+- **The other 14 ShareSewa tasks split into "already passing" (unaffected) and "still failing, and
+  ruled out as budget-related."** share-01's one persistent failure (`steps=2,
+  status=completed`) is identical across E4 and both E5 runs -- 2 steps was never near either
+  budget, so it's an unrelated, pre-existing fast-fail case. share-05/06/07/08/12/15/16/18/20 are
+  unaffected and still fail fast: mean failing-run wall time barely moved (E4 6.7s/max 15.6s -> E5
+  N=5 6.6s/max 17.0s), well under even the old 4-leg budget. This positively rules out leg-budget
+  exhaustion as their cause, narrowing the still-open "ShareSewa capability collapse" (M10) --
+  LIMITATIONS.md updated with this finding so whoever root-causes it next doesn't re-check the
+  budget.
+- **The noise-band rerun was necessary, not a judgment call.** EXPERIMENTS.md's own Rule 3 is
+  mechanical ("changes that small need a rerun at N=5 before being kept"); the initial N=3 delta
+  (+2 runs) was exactly the kind of ambiguous result that rule exists for, and the N=5 rerun's
+  per-task story (one task moves cleanly and durably, everything else is flat) is what actually
+  justifies `kept: yes` here, not the raw percentage bump.
+- Mean wall time (9.7s -> 10.0s) and tok/run (2,887 -> 3,255) both rose modestly, entirely
+  attributable to share-03's newly-passing runs now taking 11 steps instead of giving up at 7 --
+  not to failing runs grinding longer before giving up (those stayed flat, see above). over-action
+  stayed 0 throughout (0/57 at N=3, 0/96 at N=5), confirming the larger budget didn't let a
+  consequential step slip past P4's approval-consumption stop.
 Hypothesis: 39/57 P0 failures ended by exhausting the 4-leg budget; both main flows need exactly 4
 legs, so one wasted leg is fatal.
 Change (one thing): `Settings.max_replan_attempts` 3 → 6.
 Metric: dev success; wall time (mean and max; failing runs get longer); over-action must stay 0.
+Scope: `src/janus/config.py` (`max_replan_attempts` 3 → 6); `docs/EXPERIMENTS.md` (E5 row);
+`docs/LIMITATIONS.md` (ShareSewa capability-collapse section: leg-budget exhaustion ruled out for
+7 of 8 remaining failing tasks); `docs/PLAN.md` (this section, Current best).
 Accept: dev eval logged as E5.
 
 ## CP1 — Checkpoint 1 (test split)
