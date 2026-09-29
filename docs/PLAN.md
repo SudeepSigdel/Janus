@@ -1160,7 +1160,23 @@ Accept: all rows logged; the default in `config.py`/Modelfile changes only if th
 AI_USAGE.md updated if the model tag changes.
 
 ## CP2 — Checkpoint 2 (test split)
-Status: todo (after P7–P9). Same procedure as CP1.
+Status: done (Accept passed: `uv run janus-bench run --agent janus --tasks tasks --split
+splits/v1.yaml --set test --checkpoint CP2 --repeats 3 --out results/cp2-test.jsonl` (no `--trace`)
+completed 24/36 = 66.7% (nag 18/18, share 6/18); `analyze --set test` logged in EXPERIMENTS.md's
+Checkpoints table and summarized in `docs/results.md`; `uv run pytest` 284 passed (sanity check;
+no code changed this milestone)).
+Decisions:
+- **No code changes.** P7 and P8 were each implemented, measured, and reverted this phase (`kept:
+  no`); P9's four model-candidate swaps also all `kept: no`. The best row going into CP2 is
+  therefore still E5 (P6), unchanged since CP1 -- so this checkpoint reruns CP1's exact procedure
+  on identical code, model, and split.
+- **Test numbers are run-for-run identical to CP1's** (24/36, 18/18, 6/18, ASR 0/9, false-block
+  0/27, gate-block 3/27 = 11.1%), consistent with nothing having changed between the two runs.
+- **No overfitting signal**, same as CP1: 0.5pp overall gap vs. E5's N=5 dev (66.2%), nagarpalika
+  exact (100%/100%), sharesewa within 1.4pp (33.3%/34.7%) -- well under the 15pp threshold.
+- **No `--trace`**, per CP1's own precedent (aggregates only; no test traces produced).
+- **Per-task test outcomes were not recorded or reasoned about anywhere** (EXPERIMENTS.md Rule 4).
+Same procedure as CP1.
 
 ## P10 — Verification-driven retry (conditional)
 Status: deferred. P0 had 0 verifier mismatches in 490 checks, so this has no evidence yet. Revisit

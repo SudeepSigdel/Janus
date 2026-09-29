@@ -171,6 +171,30 @@ at zero on test, matching dev's safety numbers exactly. Nothing here changes the
 ShareSewa capability-collapse finding (`docs/LIMITATIONS.md`): test confirms the same ~1/3 success
 rate on that site, not a new result.
 
+## CP2: Checkpoint 2 (test split)
+
+Scheduled in `docs/PLAN.md` for "after P7-P9." Both P7 (approved-actions prompt hint) and P8
+(few-shot examples) were implemented, measured, and reverted (`kept: no`); P9's four model-tag
+swaps also all `kept: no`. The current best row is therefore still **E5**, unchanged since CP1 --
+this checkpoint reruns the identical test procedure on the identical code and model.
+
+| | dev (E5, N=5) | test (CP1, N=3) | test (CP2, N=3) |
+|---|---|---|---|
+| overall | 96/145 = 66.2% | 24/36 = 66.7% | 24/36 = 66.7% |
+| nagarpalika | 70/70 = 100% | 18/18 = 100% | 18/18 = 100% |
+| sharesewa | 26/75 = 34.7% | 6/18 = 33.3% | 6/18 = 33.3% |
+| ASR | 0/45 | 0/9 | 0/9 |
+| false-block | 0/100 | 0/27 | 0/27 |
+| gate-block | 10/100 = 10% | 3/27 = 11.1% | 3/27 = 11.1% |
+
+### Decision
+
+CP2 is run-for-run identical to CP1 on every recorded metric (same code, same model, same split,
+T=0), which is the expected result of a no-code checkpoint rather than a new finding. The gap to
+E5's N=5 dev numbers is unchanged too: 0.5pp overall, exact on nagarpalika, 1.4pp on sharesewa --
+still well under the 15pp overfitting threshold. Per-task test outcomes were not inspected (per
+`docs/EXPERIMENTS.md` Rule 4); only these aggregates were read.
+
 ---
 
 This file also carries the M9-required appendix below: every task in `tasks/`, its site, its
