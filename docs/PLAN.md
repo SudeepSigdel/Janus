@@ -1179,10 +1179,14 @@ Decisions:
 Same procedure as CP1.
 
 ## P10 — Verification-driven retry (conditional)
-Status: deferred. P0 had 0 verifier mismatches in 490 checks, so this has no evidence yet. Revisit
-only if post-P9 traces show verifier mismatches in ≥ 3 dev runs. Design constraint if built: one
-bounded retry of the failed step against a fresh snapshot, with the plan re-committed from the
-outline only. Page text never reaches the retry prompt.
+Status: deferred, re-checked 2026-09-29 (no code changes; `uv run pytest` 284 passed, matching the
+pre-existing baseline). Counted `verify_step` (`ok: false`) events across all three post-P9 traced
+dev runs (E8/E9/E10 -- P9's three measured model-candidate rows; E11 wasn't run): 0 mismatches in
+872 verify checks over 261 runs (E8: 0/427, E9: 0/264, E10: 0/181). The trigger ("post-P9 traces
+show verifier mismatches in >= 3 dev runs") is not met, consistent with P0's original 0/490. Still
+no evidence for this milestone; remains deferred. Design constraint if ever built: one bounded retry
+of the failed step against a fresh snapshot, with the plan re-committed from the outline only. Page
+text never reaches the retry prompt.
 
 ## P11 — Fine-tuning (gated: only if two consecutive experiments after P9 are within noise)
 Status: deferred. Planned as three sessions:
