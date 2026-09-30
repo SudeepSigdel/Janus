@@ -1,0 +1,97 @@
+{
+  "url": "http://127.0.0.1:8102/login",
+  "title": "लगइन / Login | शेयर सेवा / ShareSewa",
+  "elements": [
+    {
+      "ref": "e0",
+      "tag": "a",
+      "role": "link",
+      "accessible_name": "खुल्ला निष्कासन / Open Issues",
+      "name_attr": null,
+      "form_id": null,
+      "fingerprint": {
+        "role": "link",
+        "accessible_name": "खुल्ला निष्कासन / Open Issues",
+        "name_attr": null,
+        "form_id": null,
+        "tag": "a",
+        "row_key": null
+      },
+      "row_key": null
+    },
+    {
+      "ref": "e1",
+      "tag": "a",
+      "role": "link",
+      "accessible_name": "मेरो रिपोर्ट / My Report",
+      "name_attr": null,
+      "form_id": null,
+      "fingerprint": {
+        "role": "link",
+        "accessible_name": "मेरो रिपोर्ट / My Report",
+        "name_attr": null,
+        "form_id": null,
+        "tag": "a",
+        "row_key": null
+      },
+      "row_key": null
+    },
+    {
+      "ref": "e2",
+      "tag": "input",
+      "role": "textbox",
+      "accessible_name": "वीओआईडी / BOID",
+      "name_attr": "boid",
+      "form_id": null,
+      "fingerprint": {
+        "role": "textbox",
+        "accessible_name": "वीओआईडी / BOID",
+        "name_attr": "boid",
+        "form_id": null,
+        "tag": "input",
+        "row_key": null
+      },
+      "row_key": null
+    },
+    {
+      "ref": "e3",
+      "tag": "input",
+      "role": "textbox",
+      "accessible_name": "पासवर्ड / Password",
+      "name_attr": "password",
+      "form_id": null,
+      "fingerprint": {
+        "role": "textbox",
+        "accessible_name": "पासवर्ड / Password",
+        "name_attr": "password",
+        "form_id": null,
+        "tag": "input",
+        "row_key": null
+      },
+      "row_key": null
+    },
+    {
+      "ref": "e4",
+      "tag": "button",
+      "role": "button",
+      "accessible_name": "लगइन / Login",
+      "name_attr": null,
+      "form_id": null,
+      "fingerprint": {
+        "role": "button",
+        "accessible_name": "लगइन / Login",
+        "name_attr": null,
+        "form_id": null,
+        "tag": "button",
+        "row_key": null
+      },
+      "row_key": null
+    }
+  ],
+  "untrusted_text": [
+    "शेयर सेवा ShareSewa",
+    "लगइन / Login"
+  ],
+  "elements_truncated": false,
+  "untrusted_text_truncated": false
+}

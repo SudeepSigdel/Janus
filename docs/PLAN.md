@@ -1387,7 +1387,73 @@ Keep: hardening default. Report if: never on its own; one clause in Q1's paragra
 trigger isn't met by the end of Q2.
 
 ## Q3 — Conditional worked example (ShareSewa flow)
-Status: todo. Runs after Q1; see the order note above.
+Status: done (2026-09-30). E14: 72/87 = 82.8% dev at N=3 (nagarpalika 42/42, ShareSewa
+30/45), up from E12's 57/87 = 65.5% (Δ +15). Diffed per (task, repeat) against E12:
+nagarpalika byte-for-byte identical (42/42); ShareSewa gained on exactly 7 tasks
+(share-01/03/05/11/12/15/18, partial/failing -> 3/3), the other 8 unchanged (3
+already 3/3, 5 still the pre-existing capability-collapse failures). ASR flat
+(0/27), false-block and gate-block both 0/60 (was 0/60 / 6/60), tok/run 5,268
+(under the 6,510 cap). The example fired on 78/366 legs, traced fires land only on
+ShareSewa task ids -- zero on any nagarpalika trace, confirming the selector
+discriminates by page shape alone, not a hidden site check. Kept: yes. Full
+numbers, per-task diff, and trace evidence: E14 in docs/EXPERIMENTS.md. `uv run
+pytest` 327 passed, `-m browser` 129 passed (one pre-existing flake, same as Q1's
+E12, reproduced 5/5 in isolation), `-m ollama` 4 passed, `ruff check`/`ruff format
+--check` clean.
+Decisions:
+- **Session-start grounding (real templates, not the traces).** Rather than mining
+  E5/E12 traces first, the real `sharesewa/templates/login.html` and
+  `apply_form.html` were read directly: login has exactly two textboxes (`boid`,
+  `password`), no combobox, and a "Login"/"लगइन" button that matches no
+  consequential keyword (M7 already established this); the apply form has one
+  combobox (`bank`) plus three textboxes, one of which (`pin`) is the field
+  `sensitive_field_names` already marks sensitive (M7). Both map exactly onto
+  Q3's own two candidate shapes, so the selector's two predicates
+  (`_is_login_shaped`: exactly 2 textboxes, 0 comboboxes, no consequential-keyword
+  button; `_has_sensitive_textbox`: any textbox whose `name_attr` is in
+  `policy.sensitive_fields`) were written from the templates and checked against
+  goldens, not guessed from trace-reading.
+- **The login predicate requires *exactly* two textboxes, not "few."** ShareSewa's
+  edit-kitta page (`edit.html`) has one textbox and a "Save" button that also
+  matches no consequential keyword -- a looser "1-2 textboxes" rule would have
+  fired there too, adding token cost with no connection to this milestone's
+  hypothesis. Checked against the real page shape, not caught by luck.
+- **One new live-captured golden, not two.** `tests/integration/golden/
+  sharesewa_login.json` (+ `tests/integration/test_sharesewa_observer_browser.py`,
+  mirroring `test_observer_browser.py`'s pattern) proves the login-shape predicate
+  against the real observer output. The sensitive-field-shape branch is tested
+  against a synthetic `PageSnapshot` instead (`tests/unit/planner/test_examples.py`,
+  `tests/unit/planner/test_plan.py`) -- what's under test there is
+  `policy.sensitive_fields`, not the observer's extraction, so a second live golden
+  would have added browser-test cost without covering anything the synthetic
+  fixture doesn't.
+- **Trace event is emitted only when the example fires**, mirroring `role_repair`'s
+  "count events that happened" convention rather than one event per leg -- so
+  `janus_bench.harness.metrics.example_selection_rate`'s denominator (legs) is
+  read from `plan_attempt` `attempt == 0` events instead, the same source
+  `role_repair_count` already uses to know traces exist at all. Keeps the trace
+  format additive: nothing that previously iterated `events` by stage needed to
+  change (an earlier always-emit design broke an existing `commit_plan` trace test
+  that indexed `data["valid_json"]` without filtering by stage first -- reverted
+  before implementation finished, not shipped).
+- **No `AI_USAGE.md` change.** `select_example` never consumes model output -- it
+  only decides what precedes the page's own outline in the prompt -- so it adds no
+  call site to the list CLAUDE.md requires there (unlike Q1's `repair_roles`, which
+  does consume the model's plan).
+Scope: `src/janus/planner/examples.py` (new: `Example`, `select_example`, one
+hand-authored worked-example flow, all bound values `$inputs.<key>`, never a
+literal); `src/janus/planner/plan.py::commit_plan` (splices the example in after
+the system prompt when it fires; `example_selected` trace event);
+`src/janus_bench/harness/metrics.py` (`example_selection_rate`, wired into
+`experiment_row_markdown`); `tests/unit/planner/test_examples.py` (new: selector
+goldens, leakage guard, `$inputs`-only binding check); `tests/unit/planner/
+test_plan.py` (insertion-point, gating, and trace-event tests); `tests/unit/bench/
+test_metrics.py` (`example_selection_rate` tests); `tests/integration/golden/
+sharesewa_login.json` + `tests/integration/test_sharesewa_observer_browser.py`
+(new); `docs/ARCHITECTURE.md` (planner-stage note + Q3's security note on
+page-triggered but capability-free example selection).
+Accept: unit tests (leakage, selector goldens) green -- yes; `uv run pytest`,
+`-m browser`, `-m ollama`, ruff green -- yes; E14 logged -- yes.
 Hypothesis: ShareSewa's apply failures are a flow-knowledge gap (E7: one "login → list → form →
 review → submit" example took all 6 dev apply tasks to 3/3). Nagarpalika's E7 regression came from
 the role lock, which Q1 removed, and the token blow-up came from sending examples on every leg.

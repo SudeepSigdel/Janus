@@ -56,7 +56,14 @@ flowchart TD
   enforces -- so a model that names the right element with the wrong op doesn't cost a retry, or
   wrongly lock a ceiling from its own mistake. A validator rejection's plain-string errors are fed
   back for up to `Settings.max_plan_retries` retries, within which capabilities can only shrink,
-  never grow (invariant 2).
+  never grow (invariant 2). `planner/examples.py::select_example` (Q3, docs/PLAN.md) splices one
+  hand-authored worked example in right after the system prompt, but only on a leg whose page is
+  shaped like ShareSewa's login or PIN-bearing apply form (element roles/counts, `name_attr`, and
+  `policy.sensitive_fields` -- trusted structure only, never `untrusted_text` or the URL). A hostile
+  page could still shape its own trusted structure to trigger it; the only effect is extra planning
+  text in the prompt, since the selector grants no capability and the example itself binds every
+  value by `$inputs.<key>` reference, never a literal -- `validate_plan`/`authorize_action` don't
+  know or care whether an example was shown.
 
 - **Grounding** (`planner/ground.py`) -- a repair pass, not a new authority. When a step's ref or
   `<select>` value doesn't already match something real on the page, it tries deterministic

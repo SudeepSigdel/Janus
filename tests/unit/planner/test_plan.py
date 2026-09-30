@@ -630,6 +630,197 @@ def test_repair_declined_by_policy_still_falls_through_to_the_ceiling_chain() ->
     assert any("adds capabilities beyond what was committed" in e for e in exc_info.value.errors)
 
 
+def _login_shaped_snapshot() -> PageSnapshot:
+    """Shaped like the real ShareSewa login page (docs/PLAN.md Q3): two textboxes, no
+    combobox, a submit button whose label matches no consequential keyword."""
+    textbox = lambda ref, name: Element(  # noqa: E731
+        ref=ref,
+        tag="input",
+        role="textbox",
+        accessible_name=name,
+        name_attr=name,
+        form_id=None,
+        fingerprint=Fingerprint(
+            role="textbox", accessible_name=name, name_attr=name, form_id=None, tag="input"
+        ),
+    )
+    button = Element(
+        ref="e2",
+        tag="button",
+        role="button",
+        accessible_name="Login",
+        name_attr=None,
+        form_id=None,
+        fingerprint=Fingerprint(
+            role="button", accessible_name="Login", name_attr=None, form_id=None, tag="button"
+        ),
+    )
+    return PageSnapshot(
+        url="http://127.0.0.1:8102/login",
+        title="Login",
+        elements=[textbox("e0", "boid"), textbox("e1", "password"), button],
+        untrusted_text=[],
+    )
+
+
+def _sensitive_field_snapshot() -> PageSnapshot:
+    """Shaped like the real ShareSewa apply form's PIN field (docs/PLAN.md Q3)."""
+    pin = Element(
+        ref="e0",
+        tag="input",
+        role="textbox",
+        accessible_name="Transaction PIN",
+        name_attr="pin",
+        form_id=None,
+        fingerprint=Fingerprint(
+            role="textbox",
+            accessible_name="Transaction PIN",
+            name_attr="pin",
+            form_id=None,
+            tag="input",
+        ),
+    )
+    return PageSnapshot(
+        url="http://127.0.0.1:8102/apply/example-issue",
+        title="Apply",
+        elements=[pin],
+        untrusted_text=[],
+    )
+
+
+def test_example_inserted_right_after_system_prompt_on_a_login_shaped_page() -> None:
+    seen_bodies: list[dict] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen_bodies.append(json.loads(request.content))
+        return _response({"task_id": "share-01", "steps": [{"op": "DONE", "status": "completed"}]})
+
+    commit_plan(
+        task_id="share-01",
+        instruction="Log in and apply.",
+        inputs={"boid": "x", "password": "y"},
+        snapshot=_login_shaped_snapshot(),
+        policy=_policy(allowed_ops=frozenset({"FILL_FORM", "CLICK", "DONE"})),
+        llm=_client(handler),
+        max_retries=1,
+    )
+    messages = seen_bodies[0]["messages"]
+    assert messages[0]["role"] == "system"
+    assert messages[1]["role"] == "user"
+    assert "example" in json.loads(messages[1]["content"])["task_id"]
+    # The real page's own outline is the last message before the model's turn.
+    real_outline = json.loads(messages[-1]["content"])
+    assert real_outline["task_id"] == "share-01"
+
+
+def test_example_inserted_when_a_textbox_is_sensitive() -> None:
+    seen_bodies: list[dict] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen_bodies.append(json.loads(request.content))
+        return _response({"task_id": "share-01", "steps": [{"op": "DONE", "status": "completed"}]})
+
+    commit_plan(
+        task_id="share-01",
+        instruction="Fill in the PIN.",
+        inputs={"pin": "1234"},
+        snapshot=_sensitive_field_snapshot(),
+        policy=Policy(
+            allowed_origins=frozenset({"http://127.0.0.1:8102"}),
+            allowed_ops=frozenset({"FILL_FORM", "DONE"}),
+            max_steps=5,
+            sensitive_fields=frozenset({"pin"}),
+        ),
+        llm=_client(handler),
+        max_retries=1,
+    )
+    messages = seen_bodies[0]["messages"]
+    assert json.loads(messages[1]["content"])["task_id"] == "example"
+
+
+def test_example_not_inserted_when_the_sensitive_field_is_not_declared() -> None:
+    """Same page shape as above, but the task's policy doesn't mark `pin` sensitive --
+    proves the second candidate shape is gated by `policy.sensitive_fields`, not by
+    anything about the page alone."""
+    seen_bodies: list[dict] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen_bodies.append(json.loads(request.content))
+        return _response({"task_id": "share-01", "steps": [{"op": "DONE", "status": "completed"}]})
+
+    commit_plan(
+        task_id="share-01",
+        instruction="Fill in the PIN.",
+        inputs={"pin": "1234"},
+        snapshot=_sensitive_field_snapshot(),
+        policy=Policy(
+            allowed_origins=frozenset({"http://127.0.0.1:8102"}),
+            allowed_ops=frozenset({"FILL_FORM", "DONE"}),
+            max_steps=5,
+        ),
+        llm=_client(handler),
+        max_retries=1,
+    )
+    messages = seen_bodies[0]["messages"]
+    assert messages[1]["role"] == "user"
+    assert json.loads(messages[1]["content"])["task_id"] == "share-01"
+
+
+def test_example_not_inserted_on_an_ordinary_page() -> None:
+    seen_bodies: list[dict] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen_bodies.append(json.loads(request.content))
+        return _response({"task_id": "nag-01", "steps": [{"op": "DONE", "status": "completed"}]})
+
+    commit_plan(
+        task_id="nag-01",
+        instruction="Click the link.",
+        inputs={},
+        snapshot=_snapshot(),
+        policy=_policy(),
+        llm=_client(handler),
+        max_retries=1,
+    )
+    messages = seen_bodies[0]["messages"]
+    assert len(messages) == 2  # system + the page's own outline, nothing spliced in
+
+
+def test_example_selected_trace_event_only_fires_when_the_example_fires() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return _response({"task_id": "nag-01", "steps": [{"op": "DONE", "status": "completed"}]})
+
+    events: list[tuple[str, dict]] = []
+    commit_plan(
+        task_id="nag-01",
+        instruction="Click the link.",
+        inputs={},
+        snapshot=_snapshot(),
+        policy=_policy(),
+        llm=_client(handler),
+        max_retries=1,
+        trace=lambda stage, data: events.append((stage, data)),
+    )
+    assert not any(stage == "example_selected" for stage, _ in events)
+
+    events.clear()
+
+    def login_handler(request: httpx.Request) -> httpx.Response:
+        return _response({"task_id": "share-01", "steps": [{"op": "DONE", "status": "completed"}]})
+
+    commit_plan(
+        task_id="share-01",
+        instruction="Log in.",
+        inputs={"boid": "x", "password": "y"},
+        snapshot=_login_shaped_snapshot(),
+        policy=_policy(allowed_ops=frozenset({"FILL_FORM", "CLICK", "DONE"})),
+        llm=_client(login_handler),
+        max_retries=1,
+        trace=lambda stage, data: events.append((stage, data)),
+    )
+    assert sum(stage == "example_selected" for stage, _ in events) == 1
+
+
 def test_trace_reports_invalid_json_attempts() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json={"choices": [{"message": {"content": "not json"}}]})

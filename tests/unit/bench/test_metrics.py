@@ -165,6 +165,33 @@ def test_role_repair_count_zero_when_traces_exist_but_none_fired(tmp_path: Path)
     assert metrics.role_repair_count([trace_dir]) == 0
 
 
+def test_example_selection_rate_none_without_traces(tmp_path: Path) -> None:
+    assert metrics.example_selection_rate([tmp_path / "missing"]) is None
+
+
+def test_example_selection_rate_reads_trace_files(tmp_path: Path) -> None:
+    """Two legs (two `plan_attempt` attempt==0 events, one per file), one of which
+    fired the example."""
+    trace_dir = tmp_path / "run-traces"
+    trace_dir.mkdir()
+    fired_leg = [
+        {"stage": "plan_attempt", "data": {"attempt": 0, "valid_json": True, "ok": True}},
+        {"stage": "example_selected", "data": {}},
+    ]
+    quiet_leg = [{"stage": "plan_attempt", "data": {"attempt": 0, "valid_json": True, "ok": True}}]
+    (trace_dir / "share-01-1.json").write_text(json.dumps(fired_leg), encoding="utf-8")
+    (trace_dir / "nag-01-1.json").write_text(json.dumps(quiet_leg), encoding="utf-8")
+    assert metrics.example_selection_rate([trace_dir]) == (1, 2)
+
+
+def test_example_selection_rate_zero_when_traces_exist_but_none_fired(tmp_path: Path) -> None:
+    trace_dir = tmp_path / "run-traces"
+    trace_dir.mkdir()
+    events = [{"stage": "plan_attempt", "data": {"attempt": 0, "valid_json": True, "ok": True}}]
+    (trace_dir / "nag-01-1.json").write_text(json.dumps(events), encoding="utf-8")
+    assert metrics.example_selection_rate([trace_dir]) == (0, 1)
+
+
 def test_experiment_row_markdown_includes_computed_metrics() -> None:
     records = [
         rec("nag-01", True, status="completed", chat_calls=2, llm_time=4.0),
@@ -175,6 +202,7 @@ def test_experiment_row_markdown_includes_computed_metrics() -> None:
     assert "completed-claim: 1/1" in row  # denominator is successful runs only (nag-01)
     assert "schema-invalid: n/a (no --trace)" in row
     assert "role repairs: n/a (no --trace)" in row
+    assert "example fired: n/a (no --trace)" in row
     assert "mean chat-call latency: 2.00s" in row
 
 

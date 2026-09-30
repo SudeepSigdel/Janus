@@ -39,6 +39,13 @@ place -- closing the exact false-block chain P8's worked example tripped over
 `policy.allowed_ops`, or not in an already-locked ceiling) still falls through to
 `validate_plan` and is rejected -- and still sets the ceiling on that basis -- exactly
 as before this pre-pass existed.
+
+Q3 (docs/PLAN.md): `janus.planner.examples.select_example` picks, from trusted
+structure alone (element roles/`name_attr`, `policy.sensitive_fields`), whether this
+leg's page is shaped like the one E7's worked example actually helped (ShareSewa's
+login and multi-field apply forms). If it fires, that example's turns are spliced in
+right after the system prompt, before the page's own outline -- on every other leg
+the message list is exactly what it was before this feature existed.
 """
 
 from __future__ import annotations
@@ -51,6 +58,7 @@ from pydantic import ValidationError
 
 from janus.llm import LLMClient, LLMError
 from janus.observer.snapshot import PageSnapshot
+from janus.planner.examples import select_example
 from janus.planner.ops import Plan
 from janus.validator.plan import ValidationResult, repair_roles, validate_plan
 from janus.validator.policy import Capability, Policy
@@ -226,15 +234,26 @@ def commit_plan(
     behavior is unchanged from before the parameter existed.
     """
     schema = _plan_schema(policy)
-    messages: list[dict[str, str]] = [
-        {"role": "system", "content": _SYSTEM_PROMPT},
+    messages: list[dict[str, str]] = [{"role": "system", "content": _SYSTEM_PROMPT}]
+
+    # Q3 (docs/PLAN.md): the one worked example, only on legs whose page matches
+    # (trusted structure only -- see planner/examples.py). Spliced in once, before
+    # this leg's own outline, so it reads as a prior demonstration in the same
+    # conversation rather than part of the task itself.
+    example = select_example(snapshot, policy)
+    if example is not None:
+        messages.extend(dict(m) for m in example.messages)
+        if trace is not None:
+            trace("example_selected", {})
+
+    messages.append(
         {
             "role": "user",
             "content": _user_message(
                 task_id, instruction, list(inputs), snapshot, completed_ops or []
             ),
-        },
-    ]
+        }
+    )
 
     errors: list[str] = []
     ceiling = committed_capabilities

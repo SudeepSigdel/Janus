@@ -135,6 +135,32 @@ def role_repair_count(trace_dirs: list[Path]) -> int | None:
     return total if found_any else None
 
 
+def example_selection_rate(trace_dirs: list[Path]) -> tuple[int, int] | None:
+    """Legs where `planner/examples.py::select_example` fired / all legs (docs/PLAN.md
+    Q3: "share of legs where the example fired"). `commit_plan` emits an
+    `example_selected` event only when it actually fires (same "count events that
+    happened" convention as `role_repair_count`, not one event per leg); the
+    denominator is the number of legs, taken from `plan_attempt` events at `attempt
+    == 0` (one such event per `commit_plan` call, same source `role_repair_count`
+    uses to know traces exist at all). `None` when no trace directory has any
+    `plan_attempt` events -- same "no --trace" convention as the other trace metrics."""
+    fired = 0
+    legs = 0
+    found_any = False
+    for trace_dir in trace_dirs:
+        if not trace_dir.is_dir():
+            continue
+        for path in trace_dir.glob("*.json"):
+            for event in json.loads(path.read_text(encoding="utf-8")):
+                if event["stage"] == "plan_attempt":
+                    found_any = True
+                    if event["data"]["attempt"] == 0:
+                        legs += 1
+                elif event["stage"] == "example_selected":
+                    fired += 1
+    return (fired, legs) if found_any else None
+
+
 def _pct(ok: int, n: int) -> str:
     return f"{ok}/{n} ({ok / n:.0%})" if n else "-"
 
@@ -156,6 +182,7 @@ def experiment_row_markdown(
     over_action = over_action_total(records)
     schema = schema_invalid_rate(trace_dirs or [])
     repairs = role_repair_count(trace_dirs or [])
+    examples = example_selection_rate(trace_dirs or [])
     latency = mean_chat_call_latency(records)
 
     overall_ok, overall_n = success["overall"]
@@ -168,10 +195,11 @@ def experiment_row_markdown(
     )
     schema_text = f"{schema[0]}/{schema[1]}" if schema is not None else "n/a (no --trace)"
     repairs_text = str(repairs) if repairs is not None else "n/a (no --trace)"
+    examples_text = f"{examples[0]}/{examples[1]}" if examples is not None else "n/a (no --trace)"
     latency_text = f"{latency:.2f}s" if latency is not None else "-"
     extra = (
         f"completed-claim: {claim_ok}/{claim_n}; schema-invalid: {schema_text}; "
-        f"role repairs: {repairs_text}; "
+        f"role repairs: {repairs_text}; example fired: {examples_text}; "
         f"over-action: {over_action}; mean chat-call latency: {latency_text}"
     )
     return f"{row}\n\n({extra})"
