@@ -12,7 +12,9 @@ inputs:
   phone: "9890123456"
   dob_ad: "1993-02-10"
 approvals:
-  - submit_application
+  - action: submit_application
+    names: ["अर्को / Next: review", "पेश गर्नुहोस् / Submit application"]
+    path: "/apply/relationship-certificate*"
 tags: [bilingual, bs_date, numerals, multi_page]
 success:
   - {path: applications, op: count, value: 7}

@@ -20,6 +20,7 @@ from janus.executor.executor import StepOutcome
 from janus.llm import LLMClient
 from janus.observer.snapshot import Element, Fingerprint, PageSnapshot
 from janus.planner.ops import Step
+from janus.policy import ApprovalTarget
 from janus.validator.policy import Policy
 from janus.verifier.verify import StepCheck
 
@@ -407,8 +408,7 @@ def test_approval_consumed_by_a_commit_ends_the_run_completed_with_no_done_step(
         policy=_policy(),
         llm=_llm(handler),
         settings=Settings(),
-        granted_ops=frozenset({"CLICK", "SUBMIT"}),
-        approval_count=1,
+        approvals=[ApprovalTarget(action="cancel_application", names=["Confirm cancel"], path="*")],
     )
     assert result.status == "completed"
     assert result.steps_run == 1
@@ -451,8 +451,7 @@ def test_a_second_commit_after_approvals_exhausted_is_denied(
         policy=_policy(),
         llm=_llm(handler),
         settings=Settings(),
-        granted_ops=frozenset({"CLICK", "SUBMIT"}),
-        approval_count=1,
+        approvals=[ApprovalTarget(action="cancel_application", names=["Confirm cancel"], path="*")],
     )
     assert result.status == "completed"
     assert result.steps_run == 1  # the second CLICK in the plan never ran
@@ -486,10 +485,61 @@ def test_a_click_that_does_not_cause_a_post_does_not_consume_an_approval(
         policy=_policy(),
         llm=_llm(handler),
         settings=Settings(max_replan_attempts=0),
-        granted_ops=frozenset({"CLICK", "SUBMIT"}),
-        approval_count=1,
+        approvals=[ApprovalTarget(action="cancel_application", names=["Cancel"], path="*")],
     )
     assert result.status == "partial"  # never claimed DONE, and the run wasn't ended for it
+
+
+def test_an_id_bound_approval_for_a_different_target_still_blocks(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # docs/PLAN.md Q2: a control whose name matches an approval but whose row/path
+    # id doesn't must still be denied -- the approval's own `id` binding, not just
+    # `janus.policy.approval_matches` in isolation, has to flow through run_task's
+    # element/row_key lookup.
+    def handler(request: httpx.Request) -> httpx.Response:
+        return _chat({"task_id": "t", "steps": [{"op": "CLICK", "ref": "e0"}]})
+
+    element = Element(
+        ref="e0",
+        tag="a",
+        role="link",
+        accessible_name="Cancel",
+        name_attr=None,
+        form_id=None,
+        row_key="046",
+        fingerprint=Fingerprint(
+            role="link",
+            accessible_name="Cancel",
+            name_attr=None,
+            form_id=None,
+            tag="a",
+            row_key="046",
+        ),
+    )
+    snapshot = PageSnapshot(
+        url="http://127.0.0.1:8101/applications", title="t", elements=[element], untrusted_text=[]
+    )
+    monkeypatch.setattr(agent, "install_egress_guard", lambda page, origins: None)
+    monkeypatch.setattr(agent, "extract_snapshot", lambda page, settings: snapshot)
+    monkeypatch.setattr(
+        agent, "execute_step", lambda page, step, snapshot, inputs: StepOutcome(ok=True)
+    )
+
+    result = agent.run_task(
+        _FakePage(),
+        task_id="t",
+        instruction="Cancel application 045.",
+        start_url="http://127.0.0.1:8101/applications",
+        inputs={},
+        policy=_policy(),
+        llm=_llm(handler),
+        settings=Settings(),
+        approvals=[ApprovalTarget(action="cancel_application", names=["Cancel"], id="045")],
+    )
+    assert result.status == "blocked"
+    assert result.gate_block == "authorize_action"
+    assert result.steps_run == 0
 
 
 def test_no_declared_approvals_keeps_current_done_self_report_behavior(

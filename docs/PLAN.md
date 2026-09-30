@@ -1489,7 +1489,69 @@ Accept: unit tests (leakage, selector goldens) green; `uv run pytest`, `-m brows
 ruff green; E14 logged.
 
 ## Q2 — Per-target approvals
-Status: todo.
+Status: done (2026-09-30). E15: 72/87 = 82.8% dev at N=3, run-for-run identical to
+E14 (nag 42/42, share 30/45); `false_completed` and `unmatched_consequential_denials`
+both 0/87; kept (hardening default). E16 (P7's `approved_actions` prompt re-added on
+top): also 72/87, run-for-run identical to E15; reverted per the standard keep rule
+(Δ=0) -- see below. `uv run pytest` 342 passed, `-m browser` 133 passed (incl. 3 new
+adversarial approval-binding tests), `-m ollama` 4 passed, `ruff check`/`ruff format
+--check` clean. Full numbers, traces, and commands: E15/E16 in docs/EXPERIMENTS.md.
+Session-start finding, confirmed before any code changed: `results/e5-dev-traces/
+share-01-1.json` shows exactly the hypothesized bug -- `status="completed",
+steps=2, success=False` (a login SUBMIT consuming the sole `apply_issue` approval).
+Decisions:
+- **`ApprovalTarget.names` are cross-checked against `validator/consequential.py`'s
+  keyword table and the real site templates, not copied wholesale from
+  `oracle_flow.py`'s broader flow lists.** `oracle_flow._FLOWS` exists for a
+  different purpose (P1's false-block clause 2: "did the oracle also take this
+  step," regardless of whether that step needs approval) and includes non-
+  consequential steps like "लगइन / Login" and "मेरो रिपोर्ट / My Report" that must
+  *not* be in an approval's `names` -- including "Login" in `apply_issue` would
+  have reintroduced this milestone's own fix target. Each approval's `names` are
+  exactly the controls whose accessible name matches a `consequential.py` keyword,
+  plus (submit_application/apply_issue only) the one intermediate "Next: review"
+  control, which carries no keyword but is a real `<button type="submit">` the
+  model sometimes plans as `SUBMIT` (M6's already-documented finding), making it
+  unconditionally consequential on that op regardless of keyword.
+- **`path` binding uses the task's own service/issue slug** (`/apply/<slug>*`,
+  derived from `inputs.service`/`inputs.issue`, default `residence-recommendation`)
+  rather than PLAN.md's own illustrative `/apply/*/review` sketch. Tighter (an
+  approval for one service/issue can't authorize a different one on the same site)
+  at no extra cost, since the slug is always known at migration time. The glob has
+  no interior `/` before the trailing `*` (`/apply/<slug>*`, not `/apply/<slug>/*`)
+  so it matches both the pre-review page (`/apply/<slug>`, where "Next: review"
+  lives) and the review page (`/apply/<slug>/review`, where the final submit
+  lives) with one pattern.
+- **`id` binding matches `row_key` OR a whole path segment of the URL**, covering
+  a cancel/withdraw flow's two pages (a list page, where the target has a row but
+  a generic URL, and a confirm page, where the URL carries the id but the target
+  button isn't in any row) with one field. Whole-segment matching (split on `/`,
+  exact equality), not substring, so `id: "045"` never matches `/applications/1045/cancel`.
+- **`ApprovalTarget` lives in a new top-level `janus/policy.py`, not
+  `validator/policy.py`.** The latter is invariant-2 capability machinery
+  (`Policy`/`Capability`); `ApprovalTarget` is a task-authoring shape both
+  `janus.task.TaskFile` and `janus_bench.harness.taskspec.TaskSpec` need to parse,
+  and the import boundary only allows `janus_bench` to import `janus`, never the
+  reverse.
+- **The legacy string form was removed outright, not kept as a fallback** (all 34
+  non-empty task-YAML approvals migrated via a one-off regex-based script, not a
+  full YAML re-dump, so every other line of every task file is byte-identical). A
+  fallback would have silently reintroduced whole-run op-kind granting for any
+  task someone forgot to migrate.
+- **E16 (P7's prompt hint, re-added) was evaluated and reverted, not skipped.**
+  Its own hypothesis ("the E6 failure can no longer consume an approval, so the
+  hint is now safe to reintroduce") was correct but moot: Q3's worked example
+  (E14) had already fixed the specific ShareSewa flow E6/E16 targeted by a
+  different mechanism (teaching the model the right flow, rather than telling it
+  when to act), so E16's traces never exercise the case its own hypothesis was
+  about. Logged with `kept: no` per the standard rule (Rule 2: no rise beyond
+  noise), not treated as inconclusive.
+- **`false_completed`/`unmatched_consequential_denials` are pure `analyze`
+  aggregates over existing `RunRecord` fields** (`status`/`success`,
+  `gate_block == "authorize_action"`), not new `TaskResult`/`RunRecord` fields --
+  every benchmark run's only `authorize_action` denial reason is "matches no
+  remaining approval" (the simulated user never uses the live `escalate` channel),
+  so the existing `gate_block` value already says exactly this.
 Hypothesis: an approval that names *what* it approves closes the E6 failure (an unrelated
 authorized POST consumes the approval) and finally enforces the `:045` suffix that M4 parsed but
 never checked.

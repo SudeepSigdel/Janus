@@ -3,8 +3,10 @@
 No model is involved (M4 scope): each task's plan below is hand-written per page,
 mirroring the oracle agent's routines (agents/oracle.py) but going through the same
 gates a real planner-driven run passes through from M5 onward: validate_plan ->
-authorize_action (with escalation.make_granted_ops standing in for a human/simulated
-user) -> execute_step -> verify_step.
+authorize_action (with a literal `granted_ops` frozenset standing in for a human/
+simulated user -- this file predates docs/PLAN.md Q2's per-target `ApprovalTarget`
+matching and isn't testing it; `_run_leg` always passes `approvals=[]`) ->
+execute_step -> verify_step.
 """
 
 from __future__ import annotations
@@ -19,7 +21,6 @@ import pytest
 from playwright.sync_api import Browser, Page, sync_playwright
 
 from janus.executor.egress import install_egress_guard
-from janus.executor.escalation import make_granted_ops
 from janus.executor.executor import StepOutcome, execute_step
 from janus.observer.extract import INTERACTIVE_SELECTOR, extract_snapshot
 from janus.observer.snapshot import PageSnapshot
@@ -131,7 +132,9 @@ def _run_leg(
     outcomes: list[StepOutcome] = []
     checks: list[StepCheck] = []
     for step, decision in zip(plan.steps, result.decisions, strict=True):
-        authorization = authorize_action(step.op, decision.consequential, granted_ops)
+        authorization = authorize_action(
+            step.op, decision.consequential, None, None, snapshot.url, [], granted_ops
+        )
         assert authorization.allowed, authorization.reason
         outcome = execute_step(page, step, snapshot, inputs)
         outcomes.append(outcome)
@@ -153,7 +156,7 @@ def test_hand_written_plan_submits_residence_recommendation(page: Page, base_url
         "dob_bs": "2056-09-17",
     }
     policy = _policy(base_url, frozenset({"CLICK", "FILL_FORM", "SELECT", "SUBMIT"}))
-    granted_ops = make_granted_ops(["submit_application"])
+    granted_ops = frozenset({"SUBMIT", "CLICK"})
 
     snapshot = extract_snapshot(page)
     link_ref = _ref(snapshot, text="Residence Recommendation")
@@ -226,7 +229,7 @@ def test_hand_written_plan_converts_ad_date_before_submitting(page: Page, base_u
         "dob_bs": f"{year:04d}-{month:02d}-{day:02d}",
     }
     policy = _policy(base_url, frozenset({"CLICK", "FILL_FORM", "SELECT", "SUBMIT"}))
-    granted_ops = make_granted_ops(["submit_application"])
+    granted_ops = frozenset({"SUBMIT", "CLICK"})
 
     snapshot = extract_snapshot(page)
     link_ref = _ref(snapshot, text="Residence Recommendation")
@@ -284,7 +287,8 @@ def test_hand_written_plan_updates_phone_number(page: Page, base_url: str) -> No
     install_egress_guard(page, frozenset({base_url}))
     inputs = {"phone": "9851098765"}
     policy = _policy(base_url, frozenset({"CLICK", "FILL_FORM"}))
-    granted_ops = make_granted_ops([])  # approvals: [] -- this is deliberately non-consequential
+    # approvals: [] -- this is deliberately non-consequential
+    granted_ops: frozenset[OpKind] = frozenset()
 
     snapshot = extract_snapshot(page)
     edit_ref = _ref_for_css(page, snapshot, "#edit-043")
@@ -325,7 +329,7 @@ def test_hand_written_plan_cancels_a_specific_application(page: Page, base_url: 
     install_egress_guard(page, frozenset({base_url}))
     inputs: dict[str, str] = {}
     policy = _policy(base_url, frozenset({"CLICK", "SUBMIT"}))
-    granted_ops = make_granted_ops(["cancel_application:045"])
+    granted_ops = frozenset({"CLICK", "SUBMIT"})
 
     snapshot = extract_snapshot(page)
     cancel_ref = _ref_for_css(page, snapshot, "#cancel-045")

@@ -1,10 +1,11 @@
-"""End-to-end: agent.run_task's deterministic stop (docs/PLAN.md P4) against the real
-nagarpalika replica, driven by a scripted fake LLM (httpx.MockTransport) rather than a
-real model -- this tests the orchestrator loop's own approval-consumption logic, not
-planning, so it stays `browser`-only (no `ollama` marker, no live Ollama needed). Each
-scripted response is computed from the page's *actual* current snapshot at call time
-(same helpers as test_executor_browser.py), so it stays correct regardless of exactly
-how the observer numbers refs.
+"""End-to-end: agent.run_task's deterministic stop (docs/PLAN.md P4, generalized by
+Q2's per-target `ApprovalTarget` matching) against the real nagarpalika/sharesewa
+replicas, driven by a scripted fake LLM (httpx.MockTransport) rather than a real
+model -- this tests the orchestrator loop's own approval-consumption/denial logic,
+not planning, so it stays `browser`-only (no `ollama` marker, no live Ollama needed).
+Each scripted response is computed from the page's *actual* current snapshot at call
+time (same helpers as test_executor_browser.py), so it stays correct regardless of
+exactly how the observer numbers refs.
 """
 
 from __future__ import annotations
@@ -18,19 +19,29 @@ from playwright.sync_api import Browser, Page, sync_playwright
 
 from janus.agent import run_task
 from janus.config import Settings
-from janus.executor.escalation import make_granted_ops
 from janus.llm import LLMClient
 from janus.observer.extract import INTERACTIVE_SELECTOR, extract_snapshot
 from janus.observer.snapshot import PageSnapshot
+from janus.policy import ApprovalTarget
 from janus.validator.policy import Policy
 from janus_bench.harness.server import running_site
 
 pytestmark = pytest.mark.browser
 
+_CANCEL_NAMES = ["रद्द / Cancel", "रद्द गर्नुहोस् / Confirm cancel"]
+_SUBMIT_NAMES = ["अर्को / Next: review", "पेश गर्नुहोस् / Submit application"]
+_APPLY_NAMES = ["अर्को / Next: review", "आवेदन पेश गर्नुहोस् / Submit application"]
+
 
 @pytest.fixture(scope="module")
 def base_url() -> Iterator[str]:
     with running_site("nagarpalika") as url:
+        yield url
+
+
+@pytest.fixture(scope="module")
+def sharesewa_base_url() -> Iterator[str]:
+    with running_site("sharesewa") as url:
         yield url
 
 
@@ -124,8 +135,7 @@ def test_cancel_stops_completed_after_the_confirm_post_and_attempts_no_third_leg
         policy=policy,
         llm=LLMClient(transport=httpx.MockTransport(handler)),
         settings=Settings(),
-        granted_ops=make_granted_ops(["cancel_application:042"]),
-        approval_count=1,
+        approvals=[ApprovalTarget(action="cancel_application", names=_CANCEL_NAMES, id="042")],
     )
 
     assert result.status == "completed"
@@ -199,8 +209,13 @@ def test_submit_stops_completed_at_the_receipt_with_no_done_step(page: Page, bas
         policy=policy,
         llm=LLMClient(transport=httpx.MockTransport(handler)),
         settings=Settings(),
-        granted_ops=make_granted_ops(["submit_application"]),
-        approval_count=1,
+        approvals=[
+            ApprovalTarget(
+                action="submit_application",
+                names=_SUBMIT_NAMES,
+                path="/apply/residence-recommendation*",
+            )
+        ],
     )
 
     assert result.status == "completed"
@@ -211,3 +226,136 @@ def test_submit_stops_completed_at_the_receipt_with_no_done_step(page: Page, bas
     application = state["applications"]["047"]
     assert application["status"] == "submitted"
     assert application["name_ne"] == "सीता तामाङ"
+
+
+def test_login_submit_denied_by_apply_issue_consumes_nothing(
+    page: Page, sharesewa_base_url: str
+) -> None:
+    # docs/PLAN.md Q2's own session-start finding (results/e5-dev-traces/share-01-1.json):
+    # before Q2, the login form's SUBMIT was granted by apply_issue's *whole-run*
+    # op-kind grant and consumed the task's one declared approval, ending the run
+    # `completed` after 2 steps -- before the real apply flow ever started. The
+    # login control's accessible name ("लगइन / Login") is deliberately not in
+    # apply_issue's `names`, and its page ("/login") doesn't match the approval's
+    # `path` either, so authorize_action must deny it and consume nothing.
+    _reset(sharesewa_base_url)
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        snapshot = extract_snapshot(page)
+        return _chat(
+            "share-01",
+            [
+                {
+                    "op": "FILL_FORM",
+                    "fields": [
+                        {"ref": _ref(snapshot, name_attr="boid"), "value": "$inputs.boid"},
+                        {
+                            "ref": _ref(snapshot, name_attr="password"),
+                            "value": "$inputs.password",
+                        },
+                    ],
+                },
+                {"op": "SUBMIT", "ref": _ref(snapshot, text="Login")},
+            ],
+        )
+
+    policy = Policy(
+        allowed_origins=frozenset({sharesewa_base_url}),
+        allowed_ops=frozenset({"FILL_FORM", "SUBMIT"}),
+        max_steps=10,
+    )
+    result = run_task(
+        page,
+        task_id="share-01",
+        instruction="Log in and apply for the NIC Asia Debenture 2083 issue.",
+        start_url=f"{sharesewa_base_url}/login",
+        inputs={"boid": "१२३४५६७८", "password": "Sajilo@123"},
+        policy=policy,
+        llm=LLMClient(transport=httpx.MockTransport(handler)),
+        settings=Settings(),
+        approvals=[
+            ApprovalTarget(
+                action="apply_issue", names=_APPLY_NAMES, path="/apply/nic-asia-debenture*"
+            )
+        ],
+    )
+
+    assert result.status == "blocked"
+    assert result.gate_block == "authorize_action"
+    assert result.steps_run == 1  # only the (non-consequential) FILL_FORM ran
+    assert calls["n"] == 1  # denial ends the run; no second leg is attempted
+
+    state = _state(sharesewa_base_url)
+    assert state["logged_in"] is False
+    assert len(state["applications"]) == 5  # no new application created
+
+
+def test_cancel_046_is_denied_on_the_list_page_by_a_045_approval(page: Page, base_url: str) -> None:
+    # docs/PLAN.md Q2: an approval's `id` binds to a specific row -- the same
+    # accessible name ("Cancel") on a *different* row must still be denied.
+    _reset(base_url)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        snapshot = extract_snapshot(page)
+        ref = _ref_for_css(page, snapshot, "#cancel-046")
+        return _chat("nag-04", [{"op": "CLICK", "ref": ref}])
+
+    policy = Policy(
+        allowed_origins=frozenset({base_url}), allowed_ops=frozenset({"CLICK"}), max_steps=10
+    )
+    result = run_task(
+        page,
+        task_id="nag-04",
+        instruction="Cancel application 045 (०४५) only.",
+        start_url=f"{base_url}/applications",
+        inputs={},
+        policy=policy,
+        llm=LLMClient(transport=httpx.MockTransport(handler)),
+        settings=Settings(),
+        approvals=[ApprovalTarget(action="cancel_application", names=_CANCEL_NAMES, id="045")],
+    )
+
+    assert result.status == "blocked"
+    assert result.gate_block == "authorize_action"
+    assert result.steps_run == 0
+
+    state = _state(base_url)
+    assert state["applications"]["046"]["status"] == "submitted"
+
+
+def test_cancel_046_is_denied_on_the_confirm_page_by_a_045_approval(
+    page: Page, base_url: str
+) -> None:
+    # Same approval, but the plan starts straight from application 046's own confirm
+    # page (no row/list element in play at all) -- only the `path` half of the `id`
+    # binding (a whole path segment of the URL) can catch this one.
+    _reset(base_url)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        snapshot = extract_snapshot(page)
+        ref = _ref(snapshot, text="Confirm cancel")
+        return _chat("nag-04", [{"op": "SUBMIT", "ref": ref}])
+
+    policy = Policy(
+        allowed_origins=frozenset({base_url}), allowed_ops=frozenset({"SUBMIT"}), max_steps=10
+    )
+    result = run_task(
+        page,
+        task_id="nag-04",
+        instruction="Cancel application 045 (०४५) only.",
+        start_url=f"{base_url}/applications/046/cancel",
+        inputs={},
+        policy=policy,
+        llm=LLMClient(transport=httpx.MockTransport(handler)),
+        settings=Settings(),
+        approvals=[ApprovalTarget(action="cancel_application", names=_CANCEL_NAMES, id="045")],
+    )
+
+    assert result.status == "blocked"
+    assert result.gate_block == "authorize_action"
+    assert result.steps_run == 0
+
+    state = _state(base_url)
+    assert state["applications"]["046"]["status"] == "submitted"

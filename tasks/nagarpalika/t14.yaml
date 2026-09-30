@@ -12,7 +12,9 @@ inputs:
   phone: "9878901234"
   dob_ad: "1998-11-23"
 approvals:
-  - submit_application
+  - action: submit_application
+    names: ["अर्को / Next: review", "पेश गर्नुहोस् / Submit application"]
+    path: "/apply/birth-registration*"
 tags: [bilingual, bs_date, numerals, multi_page]
 success:
   - {path: applications, op: count, value: 7}

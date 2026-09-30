@@ -20,7 +20,7 @@ way the only thing that ever actually authorizes a step is `authorize_action`.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import date
 from typing import Any, Literal
@@ -32,10 +32,11 @@ from janus.executor.egress import install_egress_guard
 from janus.executor.executor import StepOutcome, execute_step
 from janus.llm import LLMClient
 from janus.observer.extract import extract_snapshot
-from janus.observer.snapshot import PageSnapshot
+from janus.observer.snapshot import Element, PageSnapshot
 from janus.planner.ground import GroundingError, ground_plan
 from janus.planner.ops import DoneStep, FillFormStep, OpKind, Step
 from janus.planner.plan import PlanningError, commit_plan
+from janus.policy import ApprovalTarget
 from janus.text.nepali import ad_to_bs
 from janus.validator.action import authorize_action
 from janus.validator.plan import validate_plan
@@ -95,9 +96,10 @@ def _is_ceiling_only(errors: list[str]) -> bool:
     )
 
 
-def _step_label(step: Step, snapshot: PageSnapshot) -> str | None:
-    """The accessible name of the element `step` targets, if any -- used only for
-    evaluation (gate_block/false_block reporting), never for authorization."""
+def _target_element(step: Step, snapshot: PageSnapshot) -> Element | None:
+    """The element `step` targets, if any (a FILL_FORM step's first field, for a
+    step with more than one -- same convention `_step_label` used before this
+    helper existed)."""
     if isinstance(step, FillFormStep):
         ref = step.fields[0].ref if step.fields else None
     else:
@@ -106,8 +108,15 @@ def _step_label(step: Step, snapshot: PageSnapshot) -> str | None:
         return None
     for element in snapshot.elements:
         if element.ref == ref:
-            return element.accessible_name
+            return element
     return None
+
+
+def _step_label(step: Step, snapshot: PageSnapshot) -> str | None:
+    """The accessible name of the element `step` targets, if any -- used only for
+    evaluation (gate_block/false_block reporting), never for authorization."""
+    element = _target_element(step, snapshot)
+    return element.accessible_name if element is not None else None
 
 
 def _grounding_diff(before: list[Step], after: list[Step]) -> list[dict[str, Any]]:
@@ -130,7 +139,7 @@ def run_task(
     llm: LLMClient,
     settings: Settings,
     granted_ops: frozenset[OpKind] = frozenset(),
-    approval_count: int = 0,
+    approvals: Sequence[ApprovalTarget] = (),
     escalate: Callable[[Step, str], bool] | None = None,
     trace: Callable[[str, dict[str, Any]], None] | None = None,
 ) -> RunResult:
@@ -139,14 +148,15 @@ def run_task(
     gate's decision; with `trace=None` this function's behavior is unchanged from
     before the parameter existed.
 
-    `approval_count` (docs/PLAN.md P4) is the number of declared approvals this run
-    was given (typically `len(task.approvals)`); each is consumed by one *commit* --
-    a consequential step that causes a main-frame POST navigation. When the last one
-    is consumed and the step verifies, the run ends `completed` immediately instead
-    of waiting for the model to self-report DONE, and every remaining grant is
-    revoked so a later consequential step is denied. `approval_count=0` (the
-    default, and every task with no approvals) leaves this milestone's logic
-    entirely inactive -- behavior is unchanged from before P4."""
+    `approvals` (docs/PLAN.md Q2, generalizing P4) is this run's declared
+    `ApprovalTarget`s (typically `task.approvals`); each is consumed by one *commit*
+    that matches it -- a consequential step, authorized against it by
+    `authorize_action`, that causes a main-frame POST navigation. When the last
+    remaining approval is consumed and the step verifies, the run ends `completed`
+    immediately instead of waiting for the model to self-report DONE, and every
+    remaining live grant is revoked so a later consequential step is denied.
+    `approvals=()` (the default, and every task with no approvals) leaves this
+    logic entirely inactive -- behavior is unchanged from before P4/Q2."""
     install_egress_guard(page, policy.allowed_origins)
     page.goto(start_url)
 
@@ -164,7 +174,7 @@ def run_task(
     blocked_step_op: OpKind | None = None
     blocked_step_label: str | None = None
     false_block_ceiling = False
-    remaining_approvals = approval_count
+    remaining: list[ApprovalTarget] = list(approvals)
     over_action_count = 0
 
     for leg in range(settings.max_replan_attempts + 1):
@@ -244,12 +254,29 @@ def run_task(
                 done = True
                 break
 
-            authorization = authorize_action(step.op, decision.consequential, frozenset(granted))
+            target = _target_element(step, snapshot)
+            target_name = target.accessible_name if target is not None else None
+            target_row_key = target.row_key if target is not None else None
+            authorization = authorize_action(
+                step.op,
+                decision.consequential,
+                target_name,
+                target_row_key,
+                snapshot.url,
+                remaining,
+                frozenset(granted),
+            )
             if not authorization.allowed and escalate is not None:
                 if escalate(step, authorization.reason):
                     granted.add(step.op)
                     authorization = authorize_action(
-                        step.op, decision.consequential, frozenset(granted)
+                        step.op,
+                        decision.consequential,
+                        target_name,
+                        target_row_key,
+                        snapshot.url,
+                        remaining,
+                        frozenset(granted),
                     )
             if trace is not None:
                 trace(
@@ -267,10 +294,13 @@ def run_task(
                 blocked_step_label = _step_label(step, snapshot)
                 break
 
-            # Safety net (docs/PLAN.md P4): this step was authorized even though this
-            # run's declared approvals were already exhausted. Should never happen --
-            # exhaustion clears `granted` below -- but it's measured, not assumed.
-            if decision.consequential and approval_count > 0 and remaining_approvals == 0:
+            # Safety net (docs/PLAN.md P4, generalized by Q2): this step was
+            # authorized even though this run's declared approvals were already
+            # exhausted. Should never happen through the `approvals` channel --
+            # `authorize_action` can't match an empty `remaining` -- but a live
+            # `escalate` grant is a separate channel and this is measured, not
+            # assumed.
+            if decision.consequential and approvals and not remaining:
                 over_action_count += 1
 
             outcome = execute_step(page, step, snapshot, inputs)
@@ -300,19 +330,20 @@ def run_task(
             if trace is not None:
                 trace("verify", {"op": step.op, "ok": check.ok, "reason": check.reason})
 
-            # A commit (docs/PLAN.md P4): a consequential step whose click caused a
-            # real POST navigation. Consumes one declared approval; the last one
-            # ends the run `completed` right here and revokes every remaining
-            # grant, so a later consequential step is denied rather than merely
-            # never attempted.
+            # A commit (docs/PLAN.md P4, generalized by Q2): a consequential step,
+            # authorized against a specific declared approval (`authorization.matched`,
+            # not the live `escalate` channel), whose click caused a real POST
+            # navigation. Consumes that one approval; once none remain, the run ends
+            # `completed` right here and revokes every remaining live grant, so a
+            # later consequential step is denied rather than merely never attempted.
             if (
                 decision.consequential
                 and outcome.caused_post
                 and check.ok
-                and remaining_approvals > 0
+                and authorization.matched is not None
             ):
-                remaining_approvals -= 1
-                if remaining_approvals == 0:
+                remaining.remove(authorization.matched)
+                if not remaining:
                     granted.clear()
                     claimed = "completed"
                     done = True

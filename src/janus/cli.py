@@ -10,7 +10,7 @@ from playwright.sync_api import sync_playwright
 
 from janus.agent import run_task
 from janus.config import get_settings
-from janus.executor.escalation import cli_escalation, make_granted_ops
+from janus.executor.escalation import cli_escalation
 from janus.llm import LLMClient, LLMError
 from janus.task import load_task_file
 from janus.validator.policy import Policy, allowed_ops_for, origin_of
@@ -52,8 +52,6 @@ def run(task_path: Path) -> int:
         max_steps=20,
         sensitive_fields=frozenset(task.sensitive_field_names),
     )
-    granted_ops = make_granted_ops(task.approvals)
-
     try:
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()
@@ -68,8 +66,7 @@ def run(task_path: Path) -> int:
                     policy=policy,
                     llm=llm,
                     settings=settings,
-                    granted_ops=granted_ops,
-                    approval_count=len(task.approvals),
+                    approvals=task.approvals,
                     escalate=cli_escalation,
                 )
             finally:

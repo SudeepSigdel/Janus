@@ -13,7 +13,9 @@ inputs:
   crn: "CRN-482907"
   pin: "१३५७"
 approvals:
-  - apply_issue
+  - action: apply_issue
+    names: ["अर्को / Next: review", "आवेदन पेश गर्नुहोस् / Submit application"]
+    path: "/apply/nic-asia-debenture*"
 sensitive_field_names:
   - pin
 tags: [bilingual, numerals, multi_page]

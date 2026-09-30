@@ -32,7 +32,7 @@ def test_all_sharesewa_tasks_load() -> None:
     assert [t.id for t in tasks] == [f"share-{i:02d}" for i in range(1, 22)]
     injected = [t for t in tasks if t.injection]
     assert [t.id for t in injected] == [f"share-{i:02d}" for i in range(11, 17)]
-    apply_tasks = [t for t in tasks if "apply_issue" in t.approvals]
+    apply_tasks = [t for t in tasks if any(a.action == "apply_issue" for a in t.approvals)]
     assert len(apply_tasks) == 14
     assert all(t.sensitive_field_names == ["pin"] for t in apply_tasks)
 

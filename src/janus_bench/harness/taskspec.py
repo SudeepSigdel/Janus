@@ -8,6 +8,8 @@ from typing import Any, Literal
 import yaml
 from pydantic import BaseModel, ConfigDict
 
+from janus.policy import ApprovalTarget
+
 
 class _Model(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -39,7 +41,7 @@ class TaskSpec(_Model):
     start_url: str
     instruction: Instruction
     inputs: dict[str, str] = {}
-    approvals: list[str] = []
+    approvals: list[ApprovalTarget] = []
     sensitive_field_names: list[str] = []
     tags: list[str] = []
     allow_navigate: bool = False

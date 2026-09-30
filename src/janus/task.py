@@ -15,6 +15,8 @@ from pathlib import Path
 import yaml
 from pydantic import BaseModel, ConfigDict
 
+from janus.policy import ApprovalTarget
+
 
 class Instruction(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -31,7 +33,7 @@ class TaskFile(BaseModel):
     start_url: str
     instruction: Instruction
     inputs: dict[str, str] = {}
-    approvals: list[str] = []
+    approvals: list[ApprovalTarget] = []
     sensitive_field_names: list[str] = []
     allow_navigate: bool = False
 

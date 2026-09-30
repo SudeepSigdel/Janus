@@ -9,7 +9,9 @@ inputs:
   password: "Sajilo@234"
   app_no: "043"
 approvals:
-  - withdraw_application:043
+  - action: withdraw_application
+    names: ["फिर्ता / Withdraw", "पुष्टि गर्नुहोस् / Confirm withdraw"]
+    id: "043"
 tags: [bilingual]
 success:
   - {path: applications.043.status, op: equals, value: "withdrawn"}

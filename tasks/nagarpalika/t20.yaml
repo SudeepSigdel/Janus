@@ -7,7 +7,9 @@ instruction:
 inputs:
   app_no: "046"
 approvals:
-  - cancel_application:046
+  - action: cancel_application
+    names: ["रद्द / Cancel", "रद्द गर्नुहोस् / Confirm cancel"]
+    id: "046"
 tags: [bilingual]
 success:
   - {path: applications.046.status, op: equals, value: "cancelled"}

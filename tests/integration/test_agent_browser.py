@@ -16,7 +16,6 @@ from playwright.sync_api import Browser, Page, sync_playwright
 
 from janus.agent import run_task
 from janus.config import get_settings
-from janus.executor.escalation import make_granted_ops
 from janus.llm import LLMClient, LLMError
 from janus.validator.policy import Policy
 from janus_bench.harness.checks import evaluate_all
@@ -96,7 +95,7 @@ def _run_one(page: Page, base_url: str, llm: LLMClient, task: TaskSpec) -> bool:
         policy=policy,
         llm=llm,
         settings=get_settings(),
-        granted_ops=make_granted_ops(task.approvals),
+        approvals=task.approvals,
         escalate=_auto_approve,
     )
     # Success is state-based, never taken on the agent's own say-so (CLAUDE.md:

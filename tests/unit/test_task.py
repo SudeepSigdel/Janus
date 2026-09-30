@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from janus.policy import ApprovalTarget
 from janus.task import load_task_file
 
 TASKS_DIR = Path(__file__).resolve().parents[2] / "tasks" / "nagarpalika"
@@ -17,7 +18,13 @@ def test_load_task_file_reads_t01() -> None:
     assert task.site == "nagarpalika"
     assert task.start_url == "http://127.0.0.1:8101/services"
     assert task.inputs["ward"] == "5"
-    assert task.approvals == ["submit_application"]
+    assert task.approvals == [
+        ApprovalTarget(
+            action="submit_application",
+            names=["अर्को / Next: review", "पेश गर्नुहोस् / Submit application"],
+            path="/apply/residence-recommendation*",
+        )
+    ]
     assert "Sita Tamang" in task.instruction.en
 
 

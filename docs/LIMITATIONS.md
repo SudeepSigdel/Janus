@@ -125,34 +125,46 @@ fields a task author forgets to mark) or (b) a new validator check that diffs a 
 value against page-provided legitimate options when the field is being filled from ungrounded
 model output rather than a direct `$inputs` reference -- out of scope for this milestone.
 
-### Escalation grants are now per-use, still not per-target
+### Escalation grants are now per-target, per-use (closed at M4/P4's own scope; name-matching is the open edge)
 
-`executor/escalation.py`'s approval labels (e.g. `cancel_application`) map to a set of `OpKind`s
-(e.g. `{CLICK, SUBMIT}`), not to *which* element or record the op targets. A task's `:045`-style
-approval suffix (intended to mean "only cancel application 045") is parsed but not enforced --
-`Policy`'s capability model is `(op, origin, form_id)`, and neither site's forms set a `form_id`, so
-nothing downstream can currently distinguish "cancel 045" from "cancel 046" at the authorization
-layer. Flagged at M4.
+`executor/escalation.py`'s approval labels (e.g. `cancel_application`) used to map to a set of
+`OpKind`s (e.g. `{CLICK, SUBMIT}`) only, not to *which* element or record the op targets. A task's
+`:045`-style approval suffix (intended to mean "only cancel application 045") was parsed but not
+enforced -- `Policy`'s capability model is `(op, origin, form_id)`, and neither site's forms set a
+`form_id`, so nothing downstream could distinguish "cancel 045" from "cancel 046" at the
+authorization layer. Flagged at M4.
 
-**P4 narrows this gap but does not close it.** Before P4, a granted op kind stayed granted for the
-*whole run*: once CLICK+SUBMIT were authorized for `cancel_application:045`, nothing stopped the
-same run from later cancelling a *different* application too (this is exactly what happened in an
-M10 dev trace, nag-19 #1: a correct cancel of 042 was followed by a second, unrequested cancel).
-P4 makes a grant **per-use**: each declared approval is consumed by exactly one *commit* (a
-consequential step that causes a real POST navigation), and the moment the last approval is
-consumed, every remaining grant is revoked -- `authorize_action` denies any further consequential
-step for the rest of the run. This closes the "second, unrequested action" failure mode entirely
-(measured by the new `over_action_count` -- consequential steps authorized after exhaustion --
-which must read 0, and does on every dev run so far).
+**P4 made a grant per-use.** Before P4, a granted op kind stayed granted for the *whole run*: once
+CLICK+SUBMIT were authorized for `cancel_application:045`, nothing stopped the same run from later
+cancelling a *different* application too (this is exactly what happened in an M10 dev trace,
+nag-19 #1: a correct cancel of 042 was followed by a second, unrequested cancel). Each declared
+approval was consumed by exactly one *commit* (a consequential step that causes a real POST
+navigation), and the moment the last approval was consumed, every remaining grant was revoked. This
+closed the "second, unrequested action" failure mode, but the *one* commit an approval granted was
+still authorized at op-kind granularity only, never by target -- `authorize_action` would equally
+authorize a plan whose single CLICK+SUBMIT commit cancels 046 instead of the approved 045, and
+(found live, not just in theory) also equally authorize an *unrelated* control: ShareSewa's login
+`SUBMIT` was granted by `apply_issue`'s whole-run op-kind grant and silently consumed the task's one
+declared approval, ending the run `completed` after 2 steps, before the real apply flow started
+(`results/e5-dev-traces/share-01-1.json`, `success=False, status="completed", steps=2` -- a real
+false-completion in E5, the pre-Q2 best).
 
-What P4 does **not** fix: the *one* commit an approval grants is still authorized at op-kind
-granularity only, never by target. `authorize_action` would equally authorize a plan whose single
-CLICK+SUBMIT commit cancels 046 instead of the approved 045 -- the `:045` suffix is still parsed
-and unused. A wrong-target *first and only* action is still caught only by the resulting
-`/__bench/state` check in tests, not by `authorize_action` itself. Fixing that still needs `Policy`'s
-capability model to grow a target dimension (`form_id` is the existing but unused hook, and neither
-site's forms set one) -- unchanged from the M4 assessment that this is bigger than a one-milestone
-change.
+**Q2 closes both.** A declared approval is now a `janus.policy.ApprovalTarget`: an action (still
+mapped to `OpKind`s), the exact accessible name(s) of the control(s) it covers (copied from the
+real site templates, not guessed), and exactly one of `id` (matched against the target's `row_key`
+on a list page, or a whole path segment of the URL on a confirm page) or `path` (a URL glob, for an
+approval with no existing row to bind to). `authorize_action` authorizes a consequential step only
+if it matches a *remaining* declared approval on all three axes; `agent.py::run_task` removes the
+matched approval once the step it authorized actually commits. A wrong-target action (046 against a
+045 approval) and an unrelated action (login against `apply_issue`) are both denied outright, not
+merely caught after the fact by a `/__bench/state` check.
+
+**What Q2 does not fix: name-matching is only as strong as the page's own labels.** `approval_matches`
+trusts `Element.accessible_name` and `Element.row_key` -- both already-trusted structure (invariant
+1), but structure a hostile page still authors. A page that gave a *different*, unapproved control
+the exact same accessible name and row id as an approved one would still match. This is the
+explicitly deferred edge named in `docs/PLAN.md` Q2 and is exactly what Q5 (adaptive injection
+suite, attacking the channels Janus does expose) is designed to test once it lands.
 
 ### Baseline has no escalation step at all
 

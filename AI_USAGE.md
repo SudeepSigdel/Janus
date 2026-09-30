@@ -61,7 +61,11 @@ re-validated by deterministic code, or both, before anything downstream acts on 
 - **`validator/plan.py::validate_plan`** and **`validator/action.py::authorize_action`**
   -- the deterministic gates every model-produced `Plan`/`Step` above must pass
   before `executor/executor.py::execute_step` (or `agent.py`'s escalation path) ever
-  touches a live page.
+  touches a live page. `authorize_action` (docs/PLAN.md Q2) checks a consequential
+  step's op kind, the model-chosen target's accessible name, and its `row_key`/page
+  URL against the run's remaining declared `janus.policy.ApprovalTarget`s (or a live
+  human grant) -- the model picks which element to act on; it never gets to invent
+  what that action is authorized to do.
 
 No other module calls `LLMClient`.
 

@@ -1,60 +1,26 @@
-"""Escalation: how a consequential action gets into `granted_ops`
-(validator/action.py::authorize_action expects that set already built).
+"""Escalation: how a consequential action gets approved.
 
-Two interfaces:
-  - `cli_escalation`: an interactive human approves or denies one action at a time.
-  - `make_granted_ops`: a deterministic benchmark "simulated user" that grants
-    exactly what a task's declared `approvals` allow, before any step runs.
+`cli_escalation` is the interactive channel -- a human approves or denies one action
+at a time at a prompt; a yes grants that op kind for the rest of the run
+(`agent.py`'s `granted_ops`). It's deliberately coarser than
+`janus.policy.ApprovalTarget`'s per-target matching: the human *is* the per-target
+check there (they see the actual step before answering), so nothing needs to
+re-derive a target binding for them the way the benchmark's deterministic simulated
+user does via a task's declared `approvals` (docs/PLAN.md Q2).
 
-Approval labels are free-form strings, optionally suffixed `:<target>` (e.g.
-"cancel_application:045"). Only the prefix maps to op kinds here -- Policy's
-capability model is (op, origin, form_id), with no per-record target, and
-nagarpalika's forms set no form_id at all, so nothing downstream of this function
-can currently tell "cancel 045" from "cancel 046" apart. The suffix is parsed and
-available for tests/logging, but is not enforced by authorize_action. That gap is
-a known M4 limitation (see docs/PLAN.md), not something this module papers over.
-
-`submit_application` grants both SUBMIT and CLICK (not SUBMIT alone): nagarpalika's
-final submit control is an ordinary `<button type="submit">`, and nothing forces the
-planner to name that verb SUBMIT rather than CLICK -- validator/consequential.py's
-keyword match ("submit" / "पेश") flags it consequential either way. Running the real
-planner against the harness's deterministic simulated user (M6) showed it reliably
-plans that button as CLICK, so SUBMIT-only left every submit-flow task blocked on its
-last step. Same rationale as `cancel_application` below, just discovered later.
-
-`apply_issue` (ShareSewa, M7) and `withdraw_application` (ShareSewa, M7) follow the
-same {SUBMIT, CLICK} shape for the same reason -- their final buttons ("Submit
-Application" / "Confirm withdraw") also trip a consequential keyword regardless of
-which op the planner names them.
+Before Q2, a task's declared approvals were turned into a flat `granted_ops` set via
+`make_granted_ops`/`parse_approval` here -- op-kind-for-the-whole-run, with no check
+on which control actually caused a step's POST. That let an unrelated authorized
+step (e.g. ShareSewa's login SUBMIT, also granted by `apply_issue`) consume a task's
+approval by accident (`docs/EXPERIMENTS.md`'s E6 row). Q2 replaces that with
+`janus.policy.ApprovalTarget`, parsed straight from task YAML and passed to
+`authorize_action`/`run_task` directly -- there is no longer a string label to parse
+here.
 """
 
 from __future__ import annotations
 
-from janus.planner.ops import OpKind, Step
-
-_APPROVAL_OP_KINDS: dict[str, frozenset[OpKind]] = {
-    "submit_application": frozenset({"SUBMIT", "CLICK"}),
-    # Cancelling is a link click (navigates to a confirmation page) followed by a
-    # form submit; both trip the "cancel" consequential keyword (validator/consequential.py).
-    "cancel_application": frozenset({"CLICK", "SUBMIT"}),
-    "apply_issue": frozenset({"SUBMIT", "CLICK"}),
-    "withdraw_application": frozenset({"CLICK", "SUBMIT"}),
-}
-
-
-def parse_approval(label: str) -> tuple[str, str | None]:
-    """Split "cancel_application:045" into ("cancel_application", "045")."""
-    action, _, target = label.partition(":")
-    return action, target or None
-
-
-def make_granted_ops(approvals: list[str]) -> frozenset[OpKind]:
-    """The op kinds a benchmark task's declared approvals grant, for the whole run."""
-    granted: set[OpKind] = set()
-    for label in approvals:
-        action, _ = parse_approval(label)
-        granted |= _APPROVAL_OP_KINDS.get(action, frozenset())
-    return frozenset(granted)
+from janus.planner.ops import Step
 
 
 def cli_escalation(step: Step, reason: str) -> bool:

@@ -192,6 +192,24 @@ def test_example_selection_rate_zero_when_traces_exist_but_none_fired(tmp_path: 
     assert metrics.example_selection_rate([trace_dir]) == (0, 1)
 
 
+def test_false_completed_count_only_when_claimed_completed_but_not_successful() -> None:
+    records = [
+        rec(success=False, status="completed"),  # docs/PLAN.md Q2's E6 shape
+        rec(success=True, status="completed"),
+        rec(success=False, status="partial"),
+    ]
+    assert metrics.false_completed_count(records) == 1
+
+
+def test_unmatched_consequential_denial_count_reads_gate_block() -> None:
+    records = [
+        rec(gate_block="authorize_action"),
+        rec(gate_block="validate_plan"),
+        rec(gate_block=None),
+    ]
+    assert metrics.unmatched_consequential_denial_count(records) == 1
+
+
 def test_experiment_row_markdown_includes_computed_metrics() -> None:
     records = [
         rec("nag-01", True, status="completed", chat_calls=2, llm_time=4.0),
@@ -203,6 +221,9 @@ def test_experiment_row_markdown_includes_computed_metrics() -> None:
     assert "schema-invalid: n/a (no --trace)" in row
     assert "role repairs: n/a (no --trace)" in row
     assert "example fired: n/a (no --trace)" in row
+    assert "over-action: 0" in row
+    assert "false-completed: 0" in row
+    assert "unmatched consequential denials: 0" in row
     assert "mean chat-call latency: 2.00s" in row
 
 

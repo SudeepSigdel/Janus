@@ -11,7 +11,9 @@ inputs:
   phone: "9841234567"
   dob_ad: "2000-01-01"
 approvals:
-  - submit_application
+  - action: submit_application
+    names: ["अर्को / Next: review", "पेश गर्नुहोस् / Submit application"]
+    path: "/apply/residence-recommendation*"
 tags: [bilingual, bs_date, numerals, multi_page]
 success:
   - {path: applications, op: count, value: 7}

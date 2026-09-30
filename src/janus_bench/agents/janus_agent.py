@@ -17,7 +17,6 @@ from playwright.sync_api import sync_playwright
 
 from janus.agent import run_task
 from janus.config import Settings, get_settings
-from janus.executor.escalation import make_granted_ops
 from janus.llm import LLMClient, assert_local_url
 from janus.validator.policy import Policy, allowed_ops_for, origin_of
 from janus_bench.agents.oracle_flow import matches_flow
@@ -91,8 +90,7 @@ class JanusAgent:
                         policy=policy,
                         llm=llm,
                         settings=self.settings,
-                        granted_ops=make_granted_ops(task.approvals),
-                        approval_count=len(task.approvals),
+                        approvals=task.approvals,
                         escalate=None,
                         trace=trace,
                     )

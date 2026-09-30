@@ -90,10 +90,16 @@ flowchart TD
   exemption from invariant 3 does not carry over to the repaired op).
 
 - **Authorize** (`validator/action.py::authorize_action`) -- the final gate before execution. A
-  non-consequential action is always allowed. A consequential one is allowed only if its op kind is
-  already in `granted_ops`. Populating that set is `executor/escalation.py`'s job: a CLI prompt for
-  interactive `janus run`, or the benchmark's deterministic simulated user, which grants only the
-  op kinds matching a task's declared `approvals` and denies (and logs) everything else.
+  non-consequential action is always allowed. A consequential one is allowed if either its op kind
+  is already in `granted_ops` (a live, run-wide grant from an interactive human approving a step at
+  `executor/escalation.py::cli_escalation`'s prompt), or it matches one of the run's remaining
+  declared `janus.policy.ApprovalTarget`s (Q2, docs/PLAN.md): its op kind, its target's accessible
+  name, and an `id`/`path` target binding all match the step (`janus.policy.approval_matches`). The
+  benchmark's deterministic simulated user supplies a task's `approvals` directly (parsed straight
+  from task YAML) and no live callback; `agent.py::run_task` removes a matched approval from the
+  remaining list once the step it authorized actually commits (causes a real POST and verifies) --
+  so an approval authorizes one specific, already-visible control, once, not an op kind for the
+  whole run.
 
 - **Executor** (`executor/executor.py::execute_step`) -- runs exactly one op at a time. Before
   acting, `executor/resolve.py::resolve_element` re-resolves the target by fingerprint against the
@@ -142,11 +148,11 @@ flowchart TD
 7. **Runtime/benchmark separation.** `janus` never imports `janus_bench` (test-enforced,
    `tests/unit/test_import_boundary.py`). `/__bench/*` endpoints are denied by policy.
 
-Benchmark escalation is deterministic and restrictive by design: the simulated user
-(`executor/escalation.py::make_granted_ops`) grants only op kinds matching a task's declared
-`approvals`; everything else is denied and logged. The `browser_use` baseline has no escalation
-step at all -- see [LIMITATIONS.md](LIMITATIONS.md) for what that asymmetry does and doesn't mean
-for the comparison.
+Benchmark escalation is deterministic and restrictive by design: the simulated user supplies a
+task's declared, per-target `approvals` (`janus.policy.ApprovalTarget`, Q2) directly to `run_task`;
+a consequential step is authorized only if it matches one of them, and everything else is denied
+and logged. The `browser_use` baseline has no escalation step at all -- see
+[LIMITATIONS.md](LIMITATIONS.md) for what that asymmetry does and doesn't mean for the comparison.
 
 ## Module map
 
@@ -155,9 +161,10 @@ src/janus/                 runtime (never imports janus_bench)
 ├─ llm.py                  local-only Ollama OpenAI-compatible client (httpx); refuses non-local URLs
 ├─ config.py                Settings: model tags, Ollama URL, caps, thresholds
 ├─ text/nepali.py           Devanagari digits, BS<->AD conversion (deterministic, not prompted)
+├─ policy.py                 ApprovalTarget, per-target approval matching (Q2, docs/PLAN.md)
 ├─ observer/                snapshot.py, extract.py (PageSnapshot, Element, Fingerprint)
 ├─ planner/                 ops.py (typed Plan schema), plan.py (commit_plan), ground.py
-├─ validator/               plan.py, action.py, policy.py, consequential.py
+├─ validator/               plan.py, action.py, policy.py (Policy/Capability), consequential.py
 ├─ executor/                executor.py, resolve.py, egress.py, escalation.py
 ├─ verifier/verify.py       per-step postconditions, classify_run
 ├─ agent.py                 orchestrator loop (run_task)

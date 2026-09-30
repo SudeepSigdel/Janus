@@ -76,6 +76,23 @@ def over_action_total(records: list[RunRecord]) -> int:
     return sum(r.over_action_count or 0 for r in records)
 
 
+def false_completed_count(records: list[RunRecord]) -> int:
+    """docs/PLAN.md Q2: runs the agent itself claimed `status="completed"` but whose
+    state-based success checks failed -- the exact shape of the E6 bug (a login
+    SUBMIT consuming an unrelated approval and ending the run early). Should be 0
+    after Q2's per-target approval matching; a pure aggregate over `RunRecord`, no
+    new field needed."""
+    return sum(r.status == "completed" and not r.success for r in records)
+
+
+def unmatched_consequential_denial_count(records: list[RunRecord]) -> int:
+    """docs/PLAN.md Q2: consequential steps `authorize_action` denied because they
+    matched no remaining declared approval -- every `authorize_action` gate block is
+    exactly this in a benchmark run (the simulated user never uses the live
+    `escalate` channel), so this reads straight off `RunRecord.gate_block`."""
+    return sum(r.gate_block == "authorize_action" for r in records)
+
+
 def mean_chat_call_latency(records: list[RunRecord]) -> float | None:
     """Seconds per LLM chat call (`llm_time` / `chat_calls`, summed across records
     before dividing) -- docs/PLAN.md P9's per-candidate latency metric."""
@@ -180,6 +197,8 @@ def experiment_row_markdown(
     tokens = tokens_per_run(records)
     claim_ok, claim_n = completed_claim_rate(records)
     over_action = over_action_total(records)
+    false_completed = false_completed_count(records)
+    unmatched_denials = unmatched_consequential_denial_count(records)
     schema = schema_invalid_rate(trace_dirs or [])
     repairs = role_repair_count(trace_dirs or [])
     examples = example_selection_rate(trace_dirs or [])
@@ -200,6 +219,8 @@ def experiment_row_markdown(
     extra = (
         f"completed-claim: {claim_ok}/{claim_n}; schema-invalid: {schema_text}; "
         f"role repairs: {repairs_text}; example fired: {examples_text}; "
-        f"over-action: {over_action}; mean chat-call latency: {latency_text}"
+        f"over-action: {over_action}; false-completed: {false_completed}; "
+        f"unmatched consequential denials: {unmatched_denials}; "
+        f"mean chat-call latency: {latency_text}"
     )
     return f"{row}\n\n({extra})"
