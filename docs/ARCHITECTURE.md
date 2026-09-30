@@ -14,9 +14,9 @@ from). The loop repeats across page transitions, bounded by `Settings.max_replan
 
 ```mermaid
 flowchart TD
-    A[Observer<br/>observer/extract.py] -->|PageSnapshot: trusted<br/>elements + untrusted_text| B[Planner: commit_plan<br/>planner/plan.py]
-    B -->|Plan: JSON-schema<br/>constrained, closed op<br/>vocabulary| C[Grounding<br/>planner/ground.py]
-    C -->|repaired ref/value,<br/>never a new op| D[Validator: validate_plan<br/>validator/plan.py]
+    A[Observer<br/>observer/extract.py] -->|PageSnapshot: trusted<br/>elements + untrusted_text| B["Planner: commit_plan<br/>planner/plan.py<br/>(each attempt: repair_roles,<br/>then validate_plan, internally)"]
+    B -->|Plan: committed once<br/>an attempt validates| C[Grounding<br/>planner/ground.py]
+    C -->|repaired ref/value,<br/>never a new op| D[Validator: validate_plan<br/>validator/plan.py<br/>re-checked post-grounding]
     D -- reject: error text fed<br/>back to planner, retry --> B
     D -- accept --> E[Authorize: authorize_action<br/>validator/action.py]
     E -- consequential,<br/>not granted --> F[Escalation<br/>executor/escalation.py]
@@ -50,9 +50,13 @@ flowchart TD
   key *names* (never values), and the snapshot's trusted structural outline. It **never sees
   `untrusted_text`** (invariant 1). Output is constrained to `Plan.model_json_schema()` (closed op
   vocabulary in `planner/ops.py`: `NAVIGATE`, `FILL_FORM`, `SELECT`, `CLICK`, `SUBMIT`, `EXTRACT`,
-  `DONE`); a validator rejection's plain-string errors are fed back for up to
-  `Settings.max_plan_retries` retries, within which capabilities can only shrink, never grow
-  (invariant 2).
+  `DONE`). Before each attempt reaches the validator, `validator/plan.py::repair_roles` (Q1,
+  docs/PLAN.md) deterministically rewrites a FILL_FORM step aimed at a `combobox` to SELECT, and a
+  SELECT step aimed at a `textbox` to FILL_FORM, bound by the same retry ceiling `validate_plan`
+  enforces -- so a model that names the right element with the wrong op doesn't cost a retry, or
+  wrongly lock a ceiling from its own mistake. A validator rejection's plain-string errors are fed
+  back for up to `Settings.max_plan_retries` retries, within which capabilities can only shrink,
+  never grow (invariant 2).
 
 - **Grounding** (`planner/ground.py`) -- a repair pass, not a new authority. When a step's ref or
   `<select>` value doesn't already match something real on the page, it tries deterministic
@@ -70,7 +74,13 @@ flowchart TD
   (invariant 3), and on replan, `capabilities(new) ⊆ capabilities(committed)` (invariant 2). It also
   computes each step's effective consequential flag: the deterministic keyword/semantics classifier
   in `validator/consequential.py`, OR'd with the model's own hint -- a hint can only ever upgrade,
-  never downgrade (invariant 4).
+  never downgrade (invariant 4). `validator/plan.py::repair_roles` (Q1, docs/PLAN.md) is a separate,
+  pure pre-pass over the same module's role check -- it only ever rewrites the FILL_FORM/SELECT
+  role mismatch (textbox/combobox), only within `policy.allowed_ops` and the current retry ceiling,
+  and never changes a ref, value, origin, or form; `validate_plan` itself is unchanged and still
+  re-checks a repaired plan exactly as it would a model-written one (a repaired SELECT-turned-
+  FILL_FORM literal on a sensitive field is still rejected -- SELECT's page-enumerated-option
+  exemption from invariant 3 does not carry over to the repaired op).
 
 - **Authorize** (`validator/action.py::authorize_action`) -- the final gate before execution. A
   non-consequential action is always allowed. A consequential one is allowed only if its op kind is
@@ -108,7 +118,12 @@ flowchart TD
    off-origin `NAVIGATE`, for example, would leave nothing a legitimate correction could ever fit
    inside; a rejection that describes a real, in-policy capability (an unknown ref, a role mismatch)
    still locks one, so a retry still can't quietly expand scope under the guise of a fix (P2,
-   docs/PLAN.md).
+   docs/PLAN.md). **Repair versus ceiling (Q1, docs/PLAN.md):** `validator/plan.py::repair_roles`
+   runs before this check, not instead of it, and is itself bound by whatever ceiling is already
+   locked -- a role-mismatch fix whose corrected capability isn't already in the ceiling is
+   declined, not applied, so repair can never be used to smuggle a capability past a lock a prior
+   rejection already set. A mismatch the repair declines still reaches `validate_plan` and, if it
+   describes a real in-policy capability, still locks the ceiling exactly as before Q1 existed.
 3. **Values bind by reference.** `$inputs.<key>` by default; literals only for non-sensitive fields
    or page-enumerated options. A sensitive field can never be bound to a model-invented literal.
 4. **Consequential detection is deterministic.** En/ne/hi keywords plus submit semantics

@@ -492,6 +492,144 @@ def test_trace_fires_once_per_attempt_and_is_a_noop_when_none() -> None:
     assert (plan2.steps[0].ref, result2.ok) == (plan.steps[0].ref, result.ok)
 
 
+def test_combobox_fill_form_is_repaired_and_commits_on_first_attempt() -> None:
+    """Q1 (docs/PLAN.md): the exact E7/E8 mistake -- a combobox's ref in FILL_FORM
+    -- must no longer cost a retry or lock a ceiling; repair_roles fixes it before
+    validate_plan ever sees the attempt."""
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        return _response(
+            {
+                "task_id": "nag-01",
+                "steps": [{"op": "FILL_FORM", "fields": [{"ref": "e1", "value": "5"}]}],
+            }
+        )
+
+    combobox = Element(
+        ref="e1",
+        tag="select",
+        role="combobox",
+        accessible_name="Ward no.",
+        name_attr="ward",
+        form_id="f1",
+        fingerprint=Fingerprint(
+            role="combobox",
+            accessible_name="Ward no.",
+            name_attr="ward",
+            form_id="f1",
+            tag="select",
+        ),
+    )
+    snapshot = PageSnapshot(
+        url="http://127.0.0.1:8101/apply", title="Apply", elements=[combobox], untrusted_text=[]
+    )
+    policy = Policy(
+        allowed_origins=frozenset({"http://127.0.0.1:8101"}),
+        allowed_ops=frozenset({"FILL_FORM", "SELECT", "DONE"}),
+        max_steps=5,
+    )
+
+    events: list[tuple[str, dict]] = []
+    plan, result = commit_plan(
+        task_id="nag-01",
+        instruction="Set the ward.",
+        inputs={},
+        snapshot=snapshot,
+        policy=policy,
+        llm=_client(handler),
+        max_retries=2,
+        trace=lambda stage, data: events.append((stage, data)),
+    )
+    assert calls["n"] == 1
+    assert result.ok
+    assert plan.steps[0].op == "SELECT"
+    assert [e for e in events if e[0] == "role_repair"] == [
+        (
+            "role_repair",
+            {"attempt": 0, "step_index": 0, "ref": "e1", "from_op": "FILL_FORM", "to_op": "SELECT"},
+        )
+    ]
+
+
+def test_repair_declined_by_policy_still_falls_through_to_the_ceiling_chain() -> None:
+    """A mismatch repair_roles declines (here: SELECT isn't in policy.allowed_ops)
+    is left for validate_plan, which still locks the ceiling from it exactly as
+    before Q1 existed -- the repair must never widen what a declined mismatch is
+    allowed to do."""
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return _response(
+                {
+                    "task_id": "nag-01",
+                    "steps": [{"op": "FILL_FORM", "fields": [{"ref": "e1", "value": "5"}]}],
+                }
+            )
+        return _response(
+            {
+                "task_id": "nag-01",
+                "steps": [{"op": "FILL_FORM", "fields": [{"ref": "e0", "value": "$inputs.x"}]}],
+            }
+        )
+
+    combobox = Element(
+        ref="e1",
+        tag="select",
+        role="combobox",
+        accessible_name="Ward no.",
+        name_attr="ward",
+        form_id="f1",
+        fingerprint=Fingerprint(
+            role="combobox",
+            accessible_name="Ward no.",
+            name_attr="ward",
+            form_id="f1",
+            tag="select",
+        ),
+    )
+    textbox = Element(
+        ref="e0",
+        tag="input",
+        role="textbox",
+        accessible_name="Name",
+        name_attr="name",
+        form_id="f2",
+        fingerprint=Fingerprint(
+            role="textbox", accessible_name="Name", name_attr="name", form_id="f2", tag="input"
+        ),
+    )
+    snapshot = PageSnapshot(
+        url="http://127.0.0.1:8101/apply",
+        title="Apply",
+        elements=[combobox, textbox],
+        untrusted_text=[],
+    )
+    # SELECT is not allowed at all, so repair_roles must decline the FILL_FORM/e1
+    # mismatch -- it falls straight through to validate_plan's own rejection.
+    policy = Policy(
+        allowed_origins=frozenset({"http://127.0.0.1:8101"}),
+        allowed_ops=frozenset({"FILL_FORM", "DONE"}),
+        max_steps=5,
+    )
+
+    with pytest.raises(PlanningError) as exc_info:
+        commit_plan(
+            task_id="nag-01",
+            instruction="Set the ward.",
+            inputs={"x": "y"},
+            snapshot=snapshot,
+            policy=policy,
+            llm=_client(handler),
+            max_retries=2,
+        )
+    assert calls["n"] == 3
+    assert any("adds capabilities beyond what was committed" in e for e in exc_info.value.errors)
+
+
 def test_trace_reports_invalid_json_attempts() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json={"choices": [{"message": {"content": "not json"}}]})

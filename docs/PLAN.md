@@ -1315,7 +1315,17 @@ Accept: B1 row in EXPERIMENTS.md with command and records; `docs/results.md` bas
 updated to B1; README's results line updated if it cites the baseline; `uv run pytest` green.
 
 ## Q1 — Deterministic role repair
-Status: todo.
+Status: done (2026-09-30). `validator/plan.py::repair_roles` implemented as specified and kept
+(`yes*`, hardening basis). E12 (default `janus-planner`): 57/87, run-for-run identical to E5's own
+N=3 dev run (Δ=0 exactly), 27 role repairs fired (attempt 0 only, concentrated on ShareSewa rather
+than the E7/E8-traced nagarpalika page), ASR/false-block flat. E13 (`janus-planner-4b` vs E8):
+12/87 (was 0/87), false-block 25%→5% -- a real but partial recovery, well short of the Report-if
+bar (≥50% or within 10pp of E5); not promoted to default. Neither Report-if nor the literal
+Drop-if condition was cleanly met by E13 -- logged as a partial result, repair kept on E12's
+hardening basis alone, matching the milestone's own fallback. `uv run pytest` (309), `-m browser`
+(129), `-m ollama` (4), ruff check/format all green (each in isolation; see E12's row for a
+concurrent-run false-failure that didn't reproduce). Full numbers, traces, and commands: E12/E13 in
+docs/EXPERIMENTS.md.
 Hypothesis: a FILL_FORM step that targets a combobox, or a SELECT step that targets a textbox, has
 a correct intent and the wrong op kind. Today that rejection sets the retry ceiling, so the model's
 own correction is refused (E7: 8 nagarpalika dev tasks; E8/E9: most of qwen3:4b's 25-50%

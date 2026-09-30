@@ -141,6 +141,30 @@ def test_schema_invalid_rate_reads_trace_files(tmp_path: Path) -> None:
     assert (invalid, total) == (1, 2)
 
 
+def test_role_repair_count_none_without_traces(tmp_path: Path) -> None:
+    assert metrics.role_repair_count([tmp_path / "missing"]) is None
+
+
+def test_role_repair_count_reads_trace_files(tmp_path: Path) -> None:
+    trace_dir = tmp_path / "run-traces"
+    trace_dir.mkdir()
+    events = [
+        {"stage": "plan_attempt", "data": {"valid_json": True, "ok": False}},
+        {"stage": "role_repair", "data": {"ref": "e1", "from_op": "FILL_FORM", "to_op": "SELECT"}},
+        {"stage": "plan_attempt", "data": {"valid_json": True, "ok": True}},
+    ]
+    (trace_dir / "nag-01-1.json").write_text(json.dumps(events), encoding="utf-8")
+    assert metrics.role_repair_count([trace_dir]) == 1
+
+
+def test_role_repair_count_zero_when_traces_exist_but_none_fired(tmp_path: Path) -> None:
+    trace_dir = tmp_path / "run-traces"
+    trace_dir.mkdir()
+    events = [{"stage": "plan_attempt", "data": {"valid_json": True, "ok": True}}]
+    (trace_dir / "nag-01-1.json").write_text(json.dumps(events), encoding="utf-8")
+    assert metrics.role_repair_count([trace_dir]) == 0
+
+
 def test_experiment_row_markdown_includes_computed_metrics() -> None:
     records = [
         rec("nag-01", True, status="completed", chat_calls=2, llm_time=4.0),
@@ -150,6 +174,7 @@ def test_experiment_row_markdown_includes_computed_metrics() -> None:
     assert "1/2" in row
     assert "completed-claim: 1/1" in row  # denominator is successful runs only (nag-01)
     assert "schema-invalid: n/a (no --trace)" in row
+    assert "role repairs: n/a (no --trace)" in row
     assert "mean chat-call latency: 2.00s" in row
 
 

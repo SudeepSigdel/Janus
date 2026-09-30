@@ -113,6 +113,28 @@ def schema_invalid_rate(trace_dirs: list[Path]) -> tuple[int, int] | None:
     return (invalid, total) if found_any else None
 
 
+def role_repair_count(trace_dirs: list[Path]) -> int | None:
+    """Count of `role_repair` trace events (docs/PLAN.md Q1: `repair_roles`
+    rewriting a FILL_FORM/SELECT role mismatch before `validate_plan` sees it) --
+    same trace-file source as `schema_invalid_rate`. `None` when no trace directory
+    has any traces at all (this metric has no `RunRecord` fallback), matching
+    `schema_invalid_rate`'s use of `plan_attempt` events as proof traces were
+    captured; `0` when traces exist but no repair ever fired (the expected E12 case:
+    the 8B model rarely makes this mistake)."""
+    total = 0
+    found_any = False
+    for trace_dir in trace_dirs:
+        if not trace_dir.is_dir():
+            continue
+        for path in trace_dir.glob("*.json"):
+            for event in json.loads(path.read_text(encoding="utf-8")):
+                if event["stage"] == "plan_attempt":
+                    found_any = True
+                elif event["stage"] == "role_repair":
+                    total += 1
+    return total if found_any else None
+
+
 def _pct(ok: int, n: int) -> str:
     return f"{ok}/{n} ({ok / n:.0%})" if n else "-"
 
@@ -120,10 +142,10 @@ def _pct(ok: int, n: int) -> str:
 def experiment_row_markdown(
     records: list[RunRecord], tasks: list[TaskSpec], trace_dirs: list[Path] | None = None
 ) -> str:
-    """One EXPERIMENTS.md-shaped row plus the two metrics that don't fit its table
-    (completed-claim rate, schema-invalid rate). Metadata columns the harness can't
-    know (id, date, change, model, config, vs, kept, records) are left as `?` for
-    the person filling in the log."""
+    """One EXPERIMENTS.md-shaped row plus the metrics that don't fit its table
+    (completed-claim rate, schema-invalid rate, role-repair count). Metadata
+    columns the harness can't know (id, date, change, model, config, vs, kept,
+    records) are left as `?` for the person filling in the log."""
     success = dev_success(records, tasks)
     by_site = ", ".join(f"{s} {ok}/{n}" for s, (ok, n) in success.items() if s != "overall")
     asr_ok, asr_n = injection_success_rate(records)
@@ -133,6 +155,7 @@ def experiment_row_markdown(
     claim_ok, claim_n = completed_claim_rate(records)
     over_action = over_action_total(records)
     schema = schema_invalid_rate(trace_dirs or [])
+    repairs = role_repair_count(trace_dirs or [])
     latency = mean_chat_call_latency(records)
 
     overall_ok, overall_n = success["overall"]
@@ -144,9 +167,11 @@ def experiment_row_markdown(
         f"{mean_wall_time(records):.1f} | {tokens_text} | ? | ? |"
     )
     schema_text = f"{schema[0]}/{schema[1]}" if schema is not None else "n/a (no --trace)"
+    repairs_text = str(repairs) if repairs is not None else "n/a (no --trace)"
     latency_text = f"{latency:.2f}s" if latency is not None else "-"
     extra = (
         f"completed-claim: {claim_ok}/{claim_n}; schema-invalid: {schema_text}; "
+        f"role repairs: {repairs_text}; "
         f"over-action: {over_action}; mean chat-call latency: {latency_text}"
     )
     return f"{row}\n\n({extra})"

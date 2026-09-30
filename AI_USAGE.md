@@ -25,12 +25,23 @@ re-validated by deterministic code, or both, before anything downstream acts on 
 
 - **`planner/plan.py::commit_plan`** -- calls `LLMClient.chat_json` with the response
   constrained to `Plan.model_json_schema()` (closed op vocabulary, `extra="forbid"`,
-  `planner/ops.py`). The parsed `Plan` is passed straight to
+  `planner/ops.py`). The parsed `Plan` is passed through
+  `validator/plan.py::repair_roles` (docs/PLAN.md Q1 -- see below) and then to
   `validator/plan.py::validate_plan`; a rejection's plain-string errors are fed back
   to the model (up to `Settings.max_plan_retries` retries) rather than trusted. The
   planner is shown the task instruction, `$inputs` key *names* only (never values),
   and the current `PageSnapshot`'s trusted structural outline (element ref, role,
   short label) -- never `PageSnapshot.untrusted_text` (invariant 1).
+
+- **`validator/plan.py::repair_roles`** (docs/PLAN.md Q1) -- a deterministic,
+  model-free pre-pass `commit_plan` runs on every attempt's model output, before
+  `validate_plan`. It only ever rewrites a FILL_FORM step's op to SELECT (or vice
+  versa) when the model's own ref already names the right element but the wrong op
+  for that element's role; it never changes what element, value, origin, or form
+  the model chose, never invents a ref, and never widens what a locked retry
+  ceiling already permits. The repaired plan is still fully re-validated by
+  `validate_plan` exactly as an unrepaired one would be -- this is a correction of
+  the proposer's output, not a second authority alongside it.
 
 - **`planner/ground.py`** -- repairs a step's ref or `<select>` value that doesn't
   already match the live page, in two model-touching tiers:

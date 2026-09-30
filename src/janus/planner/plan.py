@@ -27,6 +27,18 @@ every legitimate correction then got rejected as "adds capabilities beyond what 
 committed" against a ceiling that only ever contained garbage. A caller that already
 has a real cross-call ceiling (none exists yet in this codebase) may still pass
 `committed_capabilities` to have every attempt checked against it from the start.
+
+Q1 (docs/PLAN.md): "a role mismatch" above is now the rarer case. Before each
+attempt reaches `validate_plan`, `janus.validator.plan.repair_roles` rewrites a
+FILL_FORM step aimed at a `combobox` to SELECT (and a SELECT step aimed at a
+`textbox` to FILL_FORM), passed this call's current `ceiling` so a repair can never
+ask for more than what's already locked. Most role mismatches never reach
+`validate_plan` at all, so they never get the chance to lock a ceiling in the first
+place -- closing the exact false-block chain P8's worked example tripped over
+(EXPERIMENTS.md E7). A mismatch the repair declines (corrected op not in
+`policy.allowed_ops`, or not in an already-locked ceiling) still falls through to
+`validate_plan` and is rejected -- and still sets the ceiling on that basis -- exactly
+as before this pre-pass existed.
 """
 
 from __future__ import annotations
@@ -40,7 +52,7 @@ from pydantic import ValidationError
 from janus.llm import LLMClient, LLMError
 from janus.observer.snapshot import PageSnapshot
 from janus.planner.ops import Plan
-from janus.validator.plan import ValidationResult, validate_plan
+from janus.validator.plan import ValidationResult, repair_roles, validate_plan
 from janus.validator.policy import Capability, Policy
 
 _SYSTEM_PROMPT = (
@@ -245,6 +257,27 @@ def commit_plan(
             if trace is not None:
                 trace("plan_attempt", {"attempt": attempt, "valid_json": False, "errors": errors})
             continue
+
+        # Q1 (docs/PLAN.md): deterministic role repair, before validate_plan sees
+        # this attempt. A FILL_FORM step aimed at a combobox becomes SELECT, and a
+        # SELECT step aimed at a textbox becomes FILL_FORM, so the model's own
+        # correction on the next retry isn't refused as "adds capabilities beyond
+        # what was committed" against a ceiling a role mismatch shouldn't have set
+        # in the first place. Pure pre-pass: never authorizes anything itself, and
+        # the repaired plan still goes through the unchanged validate_plan below.
+        plan, repairs = repair_roles(plan, snapshot, policy, ceiling)
+        if trace is not None:
+            for repair in repairs:
+                trace(
+                    "role_repair",
+                    {
+                        "attempt": attempt,
+                        "step_index": repair.step_index,
+                        "ref": repair.ref,
+                        "from_op": repair.from_op,
+                        "to_op": repair.to_op,
+                    },
+                )
 
         result = validate_plan(plan, policy, snapshot, inputs, ceiling)
         if trace is not None:
