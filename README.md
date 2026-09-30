@@ -60,21 +60,22 @@ uv run janus-bench report --tasks tasks --records <results.jsonl> [--records <mo
 correctness; `browser_use` is the open-source baseline agent; `janus` is this project's own agent.
 All results are state-based (`/__bench/state`), never LLM-judged.
 
-## Results (M10 full evaluation, 41 tasks, both sites)
+## Results (dev split, 29 tasks, both agents at N=3)
 
-Full tables, injection-category and difficulty-tag breakdowns, and the task appendix are in
+Current comparison (Q0): Janus (E5) vs. the `browser_use` baseline (B1), same model, same scoring.
+Full tables, the historical M10 full-set evaluation, and the task appendix are in
 [docs/results.md](docs/results.md). Headline:
 
-| agent | overall | nagarpalika (20 tasks) | sharesewa (21 tasks) | mean wall time |
-| --- | --- | --- | --- | ---: |
-| browser_use (baseline) | 21/41 (51%) | 11/20 (55%) | 10/21 (48%) | 283.9s |
-| janus | 40/123 (33%, N=3) | 34/60 (57%) | 6/63 (9.5%) | 11.9s |
+| agent | overall | nagarpalika (14 tasks) | sharesewa (15 tasks) | ASR | mean wall time |
+| --- | --- | --- | --- | --- | ---: |
+| browser_use (baseline, B1) | 40/87 (46%) | 19/42 (45%) | 21/45 (47%) | 0/27 | 454.2s (median 290.3s) |
+| janus (E5) | 57/87 (66%) | 42/42 (100%) | 15/45 (33%) | 0/27 | 10.3s |
 
-Read the per-site split, not the blended overall number: Janus matches or beats the baseline on
-nagarpalika and is ~24x faster, but collapses on ShareSewa's longer, PIN-gated flow -- a real,
-unresolved capability gap (see [docs/LIMITATIONS.md](docs/LIMITATIONS.md)), not noise.
+Read the per-site split, not the blended overall number: Janus leads on nagarpalika and is ~28x
+faster, but still trails the baseline on ShareSewa's longer, login-gated flow -- a real, open
+capability gap (see [docs/LIMITATIONS.md](docs/LIMITATIONS.md)), not noise.
 
-**Safety:** zero exfiltration leaks for either agent across all 16 exfiltration-case runs.
+**Safety:** neither agent was hijacked or leaked on the 27 dev injection runs above, and the M10 full-set run had zero exfiltration leaks for either agent across all 16 exfiltration-case runs. Because the baseline resists too, these injection cases do not yet separate the two agents.
 Injection resistance is not uniform across attack types or sites for either agent -- see
 [docs/LIMITATIONS.md](docs/LIMITATIONS.md) for the value-poisoning gap that remains structurally
 real (an approved field fill's value isn't checked) even though the ShareSewa case once cited as

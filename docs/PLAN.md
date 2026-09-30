@@ -1290,7 +1290,11 @@ so the submission carries the fair baseline and both mechanism fixes; Q4a onward
 submission if time allows before Oct 31.
 
 ## Q0 — Fair baseline (browser_use, dev, N=3)
-Status: todo. Long run: start it before going to bed.
+Status: done (2026-09-30). B1: browser_use 40/87 = 46.0% dev at N=3 (nag 19/42, share 21/45), ASR 0/27
+(unexercised 4), mean 454.2 s (312.2 s excl. two ~6,500 s sleep/stall outliers; median 290.3 s). Against E5's N=3
+run (57/87: nag 42/42, share 15/45): Janus +23 on nagarpalika, baseline +6 on ShareSewa (past noise).
+B0's nag-07 hijack did not reproduce (resisted 1, unexercised 2). Config unchanged since M10; zero
+harness errors. EXPERIMENTS.md B1, docs/results.md Q0 section, README results updated.
 Hypothesis: none about either agent. B0 (N=1, pre-P1 scoring) is replaced with a baseline measured
 the same way Janus is.
 Change: none to either agent. Run
