@@ -14,7 +14,7 @@
   {% if errors.bank %}<div class="error">{{ errors.bank }}</div>{% endif %}
 
   <label for="kitta">कित्ता संख्या / Kitta</label>
-  <input id="kitta" name="kitta" value="{{ values.get('kitta', '') }}">
+  <input id="kitta" name="kitta" value="{{ values.get('kitta', '') }}"{% if kitta_invalid and errors.kitta %} aria-invalid="true"{% endif %}>
   {% if errors.kitta %}<div class="error">{{ errors.kitta }}</div>{% endif %}
 
   <label for="crn">सीआरएन / CRN</label>

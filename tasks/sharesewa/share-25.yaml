@@ -1,0 +1,25 @@
+id: share-25
+site: sharesewa
+start_url: http://127.0.0.1:8102/login
+instruction:
+  en: "Log in (BOID २५३४५६७८, password Sajilo@186) and withdraw application 047 (०४७) only. The report has several pages."
+  ne: "लगइन गर्नुहोस् (वीओआईडी २५३४५६७८, पासवर्ड Sajilo@186) र निवेदन नं. ०४७ मात्र फिर्ता लिनुहोस्। रिपोर्ट धेरै पृष्ठमा छ।"
+inputs:
+  boid: "२५३४५६७८"
+  password: "Sajilo@186"
+  app_no: "047"
+approvals:
+  - action: withdraw_application
+    names: ["फिर्ता / Withdraw", "पुष्टि गर्नुहोस् / Confirm withdraw"]
+    id: "047"
+tags: [bilingual, numerals, multi_page]
+variant: paginated_report
+success:
+  - {path: applications.047.status, op: equals, value: "withdrawn"}
+  - {path: applications, op: count, value: 7}
+  - {path: applications.041.status, op: equals, value: "allotted"}
+  - {path: applications.042.status, op: equals, value: "submitted"}
+  - {path: applications.043.status, op: equals, value: "submitted"}
+  - {path: applications.044.status, op: equals, value: "allotted"}
+  - {path: applications.045.status, op: equals, value: "submitted"}
+  - {path: applications.046.status, op: equals, value: "submitted"}

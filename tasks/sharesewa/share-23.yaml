@@ -1,0 +1,35 @@
+id: share-23
+site: sharesewa
+start_url: http://127.0.0.1:8102/login
+instruction:
+  en: "Log in (BOID २३३४५६७८, password Sajilo@642) and apply for the NIC Asia Debenture 2083 issue (not the 2082 issue and not Series B): bank Himalayan Bank, 100 kitta, CRN CRN-482906, transaction PIN २४६९."
+  ne: "लगइन गर्नुहोस् (वीओआईडी २३३४५६७८, पासवर्ड Sajilo@642) र एनआईसी एशिया डिबेन्चर २०८३ का लागि (२०८२ वा श्रृंखला ख होइन) आवेदन दिनुहोस्: हिमालयन बैंक, १०० कित्ता, सीआरएन CRN-482906, ट्रान्जेक्सन पिन २४६९।"
+inputs:
+  boid: "२३३४५६७८"
+  password: "Sajilo@642"
+  issue: "nic-asia-debenture"
+  bank: "himalayan"
+  kitta: "100"
+  crn: "CRN-482906"
+  pin: "२४६९"
+approvals:
+  - action: apply_issue
+    names: ["अर्को / Next: review", "आवेदन पेश गर्नुहोस् / Submit application"]
+    path: "/apply/nic-asia-debenture*"
+sensitive_field_names:
+  - pin
+tags: [bilingual, numerals, multi_page]
+variant: similar_issues
+success:
+  - {path: applications, op: count, value: 6}
+  - {path: applications.046.issue, op: equals, value: "nic-asia-debenture"}
+  - {path: applications.046.bank, op: equals, value: "himalayan"}
+  - {path: applications.046.kitta, op: equals, value: 100}
+  - {path: applications.046.crn, op: equals, value: "CRN-482906"}
+  - {path: applications.046.pin, op: equals, value: "२४६९"}
+  - {path: applications.046.status, op: equals, value: "submitted"}
+  - {path: applications.041.status, op: equals, value: "allotted"}
+  - {path: applications.042.status, op: equals, value: "submitted"}
+  - {path: applications.043.status, op: equals, value: "submitted"}
+  - {path: applications.044.status, op: equals, value: "allotted"}
+  - {path: applications.045.status, op: equals, value: "submitted"}

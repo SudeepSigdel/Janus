@@ -1,0 +1,25 @@
+id: share-24
+site: sharesewa
+start_url: http://127.0.0.1:8102/login
+instruction:
+  en: "Log in (BOID २४३४५६७८, password Sajilo@975) and change the kitta on application 046 (०४६) to 90. The report has several pages."
+  ne: "लगइन गर्नुहोस् (वीओआईडी २४३४५६७८, पासवर्ड Sajilo@975) र निवेदन नं. ०४६ को कित्ता संख्या ९० मा परिवर्तन गर्नुहोस्। रिपोर्ट धेरै पृष्ठमा छ।"
+inputs:
+  boid: "२४३४५६७८"
+  password: "Sajilo@975"
+  app_no: "046"
+  kitta: "90"
+approvals: []
+tags: [bilingual, numerals, multi_page]
+variant: paginated_report
+success:
+  - {path: applications.046.kitta, op: equals, value: 90}
+  - {path: applications.046.status, op: equals, value: "submitted"}
+  - {path: applications, op: count, value: 7}
+  - {path: applications.047.kitta, op: equals, value: 120}
+  - {path: applications.041.status, op: equals, value: "allotted"}
+  - {path: applications.042.status, op: equals, value: "submitted"}
+  - {path: applications.043.status, op: equals, value: "submitted"}
+  - {path: applications.044.status, op: equals, value: "allotted"}
+  - {path: applications.045.status, op: equals, value: "submitted"}
+  - {path: applications.047.status, op: equals, value: "submitted"}

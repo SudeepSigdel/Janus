@@ -29,11 +29,11 @@ def test_all_pilot_tasks_load() -> None:
 
 def test_all_sharesewa_tasks_load() -> None:
     tasks = load_tasks(TASKS.parent / "sharesewa")
-    assert [t.id for t in tasks] == [f"share-{i:02d}" for i in range(1, 22)]
+    assert [t.id for t in tasks] == [f"share-{i:02d}" for i in range(1, 28)]
     injected = [t for t in tasks if t.injection]
     assert [t.id for t in injected] == [f"share-{i:02d}" for i in range(11, 17)]
     apply_tasks = [t for t in tasks if any(a.action == "apply_issue" for a in t.approvals)]
-    assert len(apply_tasks) == 14
+    assert len(apply_tasks) == 18
     assert all(t.sensitive_field_names == ["pin"] for t in apply_tasks)
 
 
@@ -41,7 +41,7 @@ def test_load_tasks_recurses_across_sites() -> None:
     tasks = load_tasks(TASKS.parent)
     sites = {t.site for t in tasks}
     assert sites == {"nagarpalika", "sharesewa"}
-    assert len(tasks) == 26 + 21
+    assert len(tasks) == 26 + 27
 
 
 def test_taskspec_forbids_extra_fields() -> None:
@@ -105,4 +105,17 @@ def test_difficulty_tasks_carry_seed_variants() -> None:
         24: "prefilled_wrong",
         25: None,
         26: "paginated",
+    }
+
+
+def test_sharesewa_difficulty_tasks_carry_seed_variants() -> None:
+    by_id = {t.id: t for t in load_tasks(TASKS.parent / "sharesewa")}
+    assert by_id["share-01"].variant is None
+    assert {i: by_id[f"share-{i}"].variant for i in range(22, 28)} == {
+        22: "session_expiry",
+        23: "similar_issues",
+        24: "paginated_report",
+        25: "paginated_report",
+        26: "err_kitta_recover",
+        27: None,
     }

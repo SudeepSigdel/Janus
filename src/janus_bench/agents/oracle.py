@@ -9,6 +9,7 @@ from playwright.sync_api import Page, sync_playwright
 
 from janus.text.nepali import ad_to_bs
 from janus_bench.harness.taskspec import TaskSpec
+from janus_bench.sites.common.digits import to_ne_digits
 
 
 def _ad_to_bs_string(ad_iso: str) -> str:
@@ -91,15 +92,53 @@ def _login(page: Page, task: TaskSpec) -> None:
     page.wait_for_url("**/issues")
 
 
-def _apply(page: Page, task: TaskSpec) -> None:
+def _fill_apply(page: Page, task: TaskSpec, kitta: str) -> None:
     inputs = task.inputs
-    _login(page, task)
     page.click(f"#apply-{inputs['issue']}")
     page.select_option("#bank", inputs["bank"])
-    page.fill("#kitta", inputs["kitta"])
+    page.fill("#kitta", kitta)
     page.fill("#crn", inputs["crn"])
     page.fill("#pin", inputs["pin"])
     page.click("#btn-review")
+
+
+def _apply(page: Page, task: TaskSpec) -> None:
+    _login(page, task)
+    _fill_apply(page, task, task.inputs["kitta"])
+    page.click("#btn-submit")
+    page.wait_for_selector("#receipt-id")
+
+
+def _apply_relogin(page: Page, task: TaskSpec) -> None:
+    """The session lapses at the review step: land on /login, log in again, redo the form."""
+    _login(page, task)
+    _fill_apply(page, task, task.inputs["kitta"])
+    page.wait_for_url("**/login")
+    _login(page, task)
+    _fill_apply(page, task, task.inputs["kitta"])
+    page.click("#btn-submit")
+    page.wait_for_selector("#receipt-id")
+
+
+def _apply_kitta_retry(page: Page, task: TaskSpec) -> None:
+    """Submit the kitta as given, see the rejection, then retry with the clean number."""
+    _login(page, task)
+    _fill_apply(page, task, task.inputs["kitta_raw"])
+    page.wait_for_selector("#kitta[aria-invalid=true]")
+    page.fill("#kitta", task.inputs["kitta"])
+    page.click("#btn-review")
+    page.click("#btn-submit")
+    page.wait_for_selector("#receipt-id")
+
+
+def _apply_ascii_boid(page: Page, task: TaskSpec) -> None:
+    """The BOID is given in ASCII digits; the portal only accepts Devanagari digits."""
+    page.goto(task.start_url)
+    page.fill("#boid", to_ne_digits(task.inputs["boid"]))
+    page.fill("#password", task.inputs["password"])
+    page.click("#btn-login")
+    page.wait_for_url("**/issues")
+    _fill_apply(page, task, task.inputs["kitta"])
     page.click("#btn-submit")
     page.wait_for_selector("#receipt-id")
 
@@ -110,6 +149,25 @@ def _edit_kitta(page: Page, task: TaskSpec) -> None:
     page.click(f"#edit-{task.inputs['app_no']}")
     page.fill("#kitta", task.inputs["kitta"])
     page.click("#btn-save")
+    page.wait_for_url("**/report")
+
+
+def _edit_kitta_paged(page: Page, task: TaskSpec) -> None:
+    _login(page, task)
+    page.click('a[href="/report"]')
+    page.click("#next-page")
+    page.click(f"#edit-{task.inputs['app_no']}")
+    page.fill("#kitta", task.inputs["kitta"])
+    page.click("#btn-save")
+    page.wait_for_url("**/report")
+
+
+def _withdraw_paged(page: Page, task: TaskSpec) -> None:
+    _login(page, task)
+    page.click('a[href="/report"]')
+    page.click("#next-page")
+    page.click(f"#withdraw-{task.inputs['app_no']}")
+    page.click("#btn-confirm-withdraw")
     page.wait_for_url("**/report")
 
 
@@ -169,6 +227,12 @@ ROUTINES: dict[str, Callable[[Page, TaskSpec], None]] = {
     "share-19": _edit_kitta,
     "share-20": _withdraw,
     "share-21": _apply,
+    "share-22": _apply_relogin,
+    "share-23": _apply,
+    "share-24": _edit_kitta_paged,
+    "share-25": _withdraw_paged,
+    "share-26": _apply_kitta_retry,
+    "share-27": _apply_ascii_boid,
 }
 
 

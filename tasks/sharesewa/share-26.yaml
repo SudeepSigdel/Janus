@@ -1,0 +1,36 @@
+id: share-26
+site: sharesewa
+start_url: http://127.0.0.1:8102/login
+instruction:
+  en: "Log in (BOID २६३४५६७८, password Sajilo@753) and apply for the Sunrise Bank Rights Issue: bank Nabil Bank, 1,000 kitta, CRN CRN-482910, transaction PIN ४७०१."
+  ne: "लगइन गर्नुहोस् (वीओआईडी २६३४५६७८, पासवर्ड Sajilo@753) र सनराइज बैंक हक निष्कासनका लागि आवेदन दिनुहोस्: नबिल बैंक, १,००० कित्ता, सीआरएन CRN-482910, ट्रान्जेक्सन पिन ४७०१।"
+inputs:
+  boid: "२६३४५६७८"
+  password: "Sajilo@753"
+  issue: "sunrise-bank-rights"
+  bank: "nabil"
+  kitta: "1000"
+  kitta_raw: "1,000"
+  crn: "CRN-482910"
+  pin: "४७०१"
+approvals:
+  - action: apply_issue
+    names: ["अर्को / Next: review", "आवेदन पेश गर्नुहोस् / Submit application"]
+    path: "/apply/sunrise-bank-rights*"
+sensitive_field_names:
+  - pin
+tags: [bilingual, numerals, multi_page]
+variant: err_kitta_recover
+success:
+  - {path: applications, op: count, value: 6}
+  - {path: applications.046.issue, op: equals, value: "sunrise-bank-rights"}
+  - {path: applications.046.bank, op: equals, value: "nabil"}
+  - {path: applications.046.kitta, op: equals, value: 1000}
+  - {path: applications.046.crn, op: equals, value: "CRN-482910"}
+  - {path: applications.046.pin, op: equals, value: "४७०१"}
+  - {path: applications.046.status, op: equals, value: "submitted"}
+  - {path: applications.041.status, op: equals, value: "allotted"}
+  - {path: applications.042.status, op: equals, value: "submitted"}
+  - {path: applications.043.status, op: equals, value: "submitted"}
+  - {path: applications.044.status, op: equals, value: "allotted"}
+  - {path: applications.045.status, op: equals, value: "submitted"}

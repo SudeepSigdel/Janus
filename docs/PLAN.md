@@ -1649,7 +1649,19 @@ unchanged; `-m browser` green; `docs/sites/nagarpalika.md` updated with each new
 real-portal source.
 
 ## Q4b — Benchmark difficulty v2: ShareSewa + splits/v2.yaml
-Status: todo.
+Status: done (2026-10-01). Accept passed: `uv run janus-bench run --agent oracle --tasks tasks` 53/53,
+`--agent null --tasks tasks` 0/53; `uv run pytest` 361 passed; `uv run pytest -m browser` 157 passed
+(goldens unchanged); ruff clean. Six new tasks share-22..27, `splits/v2.yaml` (38 dev / 15 test).
+Decisions: variants `session_expiry` (share-22), `similar_issues` (share-23), `paginated_report`
+(share-24, share-25; adds submitted rows 046/047 so the targets sit on page 2), `err_kitta_recover`
+(share-26, `aria-invalid` on kitta, only under the variant so v1 error pages are unchanged); share-27
+needs no variant. Session expiry fires on the 3rd authenticated request after login, once per run
+(the approved N=6 would never fire: a plain apply flow makes only 4-5 authenticated requests). "BOID
+given in Devanagari digits" was already true of every v1 task, so share-27 inverts it: the BOID is
+given in ASCII digits and the portal still accepts only Devanagari. `splits/v2.yaml`: v1 dev/test
+copied verbatim; the 12 new ids go by a rule in its header (per site x category, sorted, the k-th id
+goes to test iff round_half_up(0.3k) > round_half_up(0.3(k-1))), which gave 3 test (nag-23, nag-26,
+share-23) of 12, 25%, because singleton strata cannot reach 30%. Q5 appends by the same rule.
 Change: about 6 new ShareSewa variants/tasks on the same rules as Q4a: session expiry mid-flow with
 a re-login (a variant-driven logout after N requests; `logged_in` is a global flag, per M7); issues
 with near-identical names; pagination on My Report; a kitta validation error; BOID given in

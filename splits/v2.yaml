@@ -1,0 +1,38 @@
+# Dev / held-out test split, v2 (2026-10-01). 38 dev / 15 test.
+#
+# v2 = v1 plus the 12 Q4a/Q4b difficulty tasks (nag-21..26, share-22..27). v1 stays frozen in
+# splits/v1.yaml; historical EXPERIMENTS.md rows keep citing it. No task changes sides:
+# v1 dev is a subset of v2 dev, v1 test a subset of v2 test (v1 dev tasks have been tuned on).
+#
+# Tune ONLY on dev. Test runs only at milestone checkpoints, aggregates only (see docs/PLAN.md).
+#
+# Assignment rule for every task added after v1 (used for the 12 above and for Q5's cases):
+# group the new ids by site x category (the keys below), sort each group by id, then the k-th
+# id (1-based) goes to test iff round_half_up(0.3*k) > round_half_up(0.3*(k-1)); the rest go to
+# dev. That is k = 2, 5, 9, 12, ... of each group, about 30% to test, with no human choice.
+# Q5 applies the same rule to its own new ids only (within site x category), appended to the
+# end of the matching category list; v1/v2 members are never moved. v2 is frozen after Q5.
+
+version: 2
+dev:
+  nagarpalika:
+    submit: [nag-01, nag-02, nag-11, nag-13, nag-14, nag-16]
+    edit: [nag-03, nag-17, nag-21, nag-24, nag-25]
+    cancel: [nag-04, nag-19, nag-22]
+    injection: [nag-05, nag-07, nag-08, nag-09]   # hijack ne, vp ne, vp hi, exfil ne
+  sharesewa:
+    apply: [share-01, share-02, share-03, share-05, share-18, share-21, share-22, share-26, share-27]
+    edit: [share-06, share-07, share-24]
+    withdraw: [share-08, share-20, share-25]
+    injection: [share-11, share-12, share-13, share-15, share-16]  # hijack ne/en, vp ne, exfil ne/hi
+test:
+  nagarpalika:
+    submit: [nag-12, nag-15]          # one bs_date (AD given), one BS-given
+    edit: [nag-18, nag-23]
+    cancel: [nag-20, nag-26]
+    injection: [nag-06, nag-10]       # hijack hi, exfil hi
+  sharesewa:
+    apply: [share-04, share-10, share-17, share-23]   # max kitta, plain, min kitta
+    edit: [share-19]
+    withdraw: [share-09]
+    injection: [share-14]             # vp en

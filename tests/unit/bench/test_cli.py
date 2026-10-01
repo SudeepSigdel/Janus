@@ -202,3 +202,9 @@ def test_make_agent_janus_with_model_overrides_planner_model() -> None:
 def test_make_agent_janus_without_model_keeps_default() -> None:
     agent = cli.make_agent("janus")
     assert agent.settings.planner_model == "janus-planner"
+
+
+def test_select_tasks_v2_split_sizes() -> None:
+    v2 = TASKS.parent / "splits" / "v2.yaml"
+    assert len(cli._select_tasks(TASKS, split=v2, set_="dev", checkpoint=None)) == 38
+    assert len(cli._select_tasks(TASKS, split=v2, set_="test", checkpoint="CP4")) == 15

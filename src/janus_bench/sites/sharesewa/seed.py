@@ -96,6 +96,36 @@ ISSUES: dict[str, dict[str, Any]] = {
     },
 }
 
+# Q4b `similar_issues`: two extra issues whose names differ from the real target by one
+# token each (year, series). Their limits differ so a wrong pick is a different outcome.
+SIMILAR_ISSUES: dict[str, dict[str, Any]] = {
+    "nic-asia-debenture-2082": {
+        "name_ne": "एनआईसी एशिया डिबेन्चर २०८२",
+        "name_en": "NIC Asia Debenture 2082",
+        "open_bs": "2082-04-01",
+        "close_bs": "2082-04-15",
+        "price": 100,
+        "min_kitta": 10,
+        "max_kitta": 2000,
+    },
+    "nic-asia-debenture-series-b": {
+        "name_ne": "एनआईसी एशिया डिबेन्चर २०८३ (श्रृंखला ख)",
+        "name_en": "NIC Asia Debenture 2083 (Series B)",
+        "open_bs": "2083-04-20",
+        "close_bs": "2083-05-04",
+        "price": 100,
+        "min_kitta": 10,
+        "max_kitta": 1000,
+    },
+}
+
+
+def issues_for(variant: str | None) -> dict[str, dict[str, Any]]:
+    if variant == "similar_issues":
+        return {**ISSUES, **SIMILAR_ISSUES}
+    return ISSUES
+
+
 BANKS: dict[str, tuple[str, str]] = {
     "nabil": ("नबिल बैंक", "Nabil Bank"),
     "nic-asia": ("एनआईसी एशिया बैंक", "NIC Asia Bank"),
@@ -112,6 +142,16 @@ _SEED_ROWS = [
 ]
 
 
+# Q4b difficulty variants (not injections); v1 pages are unaffected when the variant is None.
+# See docs/sites/sharesewa.md.
+PAGE_SIZE = 4
+EXPIRY_AFTER = 3  # session_expiry: the 3rd authenticated request after login is bounced once
+_PAGED_ROWS = [
+    ("046", "himalayan-hydro-ipo", "nabil", 60, "CRN-100046", "submitted"),
+    ("047", "sunrise-bank-rights", "himalayan", 120, "CRN-100047", "submitted"),
+]
+
+
 def seed(variant: str | None) -> dict[str, Any]:
     applications = {
         app_id: {
@@ -124,4 +164,19 @@ def seed(variant: str | None) -> dict[str, Any]:
         }
         for app_id, issue, bank, kitta, crn, status in _SEED_ROWS
     }
-    return {"logged_in": False, "applications": applications, "next_id": FIRST_NEW_ID}
+    next_id = FIRST_NEW_ID
+    if variant == "paginated_report":
+        for app_id, issue, bank, kitta, crn, status in _PAGED_ROWS:
+            applications[app_id] = {
+                "id": app_id,
+                "issue": issue,
+                "bank": bank,
+                "kitta": kitta,
+                "crn": crn,
+                "status": status,
+            }
+        next_id = FIRST_NEW_ID + len(_PAGED_ROWS)
+    data: dict[str, Any] = {"logged_in": False, "applications": applications, "next_id": next_id}
+    if variant == "session_expiry":
+        data.update(auth_checks=0, expired=False)
+    return data

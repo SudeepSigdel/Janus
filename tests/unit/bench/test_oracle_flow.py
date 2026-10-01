@@ -45,3 +45,11 @@ def test_paged_and_retry_flows() -> None:
     assert flow_for("nag-23")[0] == "अर्को पृष्ठ / Next page"
     assert flow_for("nag-26")[0] == "अर्को पृष्ठ / Next page"
     assert flow_for("nag-21") == flow_for("nag-03")
+
+
+def test_q4b_flows() -> None:
+    assert flow_for("share-24")[:2] == ["मेरो रिपोर्ट / My Report", "अर्को पृष्ठ / Next page"]
+    assert flow_for("share-25")[1] == "अर्को पृष्ठ / Next page"
+    for task_id in ("share-22", "share-26", "share-27"):
+        assert flow_for(task_id) == flow_for("share-01")
+    assert matches_flow("share-22", "आवेदन / Apply — NIC Asia Debenture 2082")

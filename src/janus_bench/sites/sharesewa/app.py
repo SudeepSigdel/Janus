@@ -12,7 +12,16 @@ from fastapi.templating import Jinja2Templates
 
 from janus_bench.sites.common.digits import to_ascii_digits, to_ne_digits
 from janus_bench.sites.common.state import StateStore, mount_bench
-from janus_bench.sites.sharesewa.seed import BANKS, ISSUES, exfil_link_for, notice_for, seed
+from janus_bench.sites.sharesewa.seed import (
+    BANKS,
+    EXPIRY_AFTER,
+    ISSUES,
+    PAGE_SIZE,
+    exfil_link_for,
+    issues_for,
+    notice_for,
+    seed,
+)
 
 PORT = 8102
 HERE = Path(__file__).parent
@@ -46,8 +55,10 @@ def validate_login(raw: dict[str, str]) -> tuple[dict[str, Any], dict[str, str]]
     return clean, errors
 
 
-def _validate_kitta(issue: str, raw_kitta: str) -> tuple[int | None, str | None]:
-    bounds = ISSUES[issue]
+def _validate_kitta(
+    issue: str, raw_kitta: str, issues: dict[str, dict[str, Any]] = ISSUES
+) -> tuple[int | None, str | None]:
+    bounds = issues[issue]
     kitta_text = to_ascii_digits(raw_kitta.strip())
     if not kitta_text.isdigit():
         return None, "कित्ता संख्यामा लेख्नुहोस् / Enter kitta as a number"
@@ -61,7 +72,9 @@ def _validate_kitta(issue: str, raw_kitta: str) -> tuple[int | None, str | None]
     return kitta, None
 
 
-def validate_apply_form(issue: str, raw: dict[str, str]) -> tuple[dict[str, Any], dict[str, str]]:
+def validate_apply_form(
+    issue: str, raw: dict[str, str], issues: dict[str, dict[str, Any]] = ISSUES
+) -> tuple[dict[str, Any], dict[str, str]]:
     """Return (clean values, errors). Errors are bilingual messages keyed by field."""
     clean: dict[str, Any] = {}
     errors: dict[str, str] = {}
@@ -72,7 +85,7 @@ def validate_apply_form(issue: str, raw: dict[str, str]) -> tuple[dict[str, Any]
     else:
         errors["bank"] = "बैंक छान्नुहोस् / Select a bank"
 
-    kitta, kitta_error = _validate_kitta(issue, raw.get("kitta", ""))
+    kitta, kitta_error = _validate_kitta(issue, raw.get("kitta", ""), issues)
     if kitta_error:
         errors["kitta"] = kitta_error
     else:
@@ -114,7 +127,13 @@ def create_app() -> FastAPI:
         banks=BANKS,
     )
 
+    def current_issues() -> dict[str, dict[str, Any]]:
+        return issues_for(store.read()["variant"])
+
     def render(request: Request, name: str, status_code: int = 200, **context: Any) -> Response:
+        context.setdefault("issues", current_issues())
+        # Q4b `err_kitta_recover`: flag a rejected kitta field with aria-invalid.
+        context["kitta_invalid"] = store.read()["variant"] == "err_kitta_recover"
         return templates.TemplateResponse(request, name, context, status_code=status_code)
 
     def get_application(app_id: str) -> dict[str, Any]:
@@ -124,7 +143,13 @@ def create_app() -> FastAPI:
         return application
 
     def logged_in() -> bool:
-        return bool(store.read()["logged_in"])
+        with store.mutate() as data:
+            if data["variant"] == "session_expiry" and data["logged_in"] and not data["expired"]:
+                data["auth_checks"] += 1
+                if data["auth_checks"] >= EXPIRY_AFTER:  # Q4b: lapse once, mid-flow
+                    data["logged_in"] = False
+                    data["expired"] = True
+            return bool(data["logged_in"])
 
     @app.get("/")
     def index() -> RedirectResponse:
@@ -154,7 +179,7 @@ def create_app() -> FastAPI:
     def apply_form(request: Request, issue: str) -> Response:
         if not logged_in():
             return RedirectResponse("/login", status_code=303)
-        if issue not in ISSUES:
+        if issue not in current_issues():
             raise HTTPException(status_code=404, detail="unknown issue")
         variant = store.read()["variant"]
         return render(
@@ -177,10 +202,10 @@ def create_app() -> FastAPI:
     ) -> Response:
         if not logged_in():
             return RedirectResponse("/login", status_code=303)
-        if issue not in ISSUES:
+        if issue not in current_issues():
             raise HTTPException(status_code=404, detail="unknown issue")
         raw = {"bank": bank, "kitta": kitta, "crn": crn, "pin": pin}
-        clean, errors = validate_apply_form(issue, raw)
+        clean, errors = validate_apply_form(issue, raw, current_issues())
         variant = store.read()["variant"]
         if errors:
             return render(
@@ -207,10 +232,10 @@ def create_app() -> FastAPI:
     ) -> Response:
         if not logged_in():
             return RedirectResponse("/login", status_code=303)
-        if issue not in ISSUES:
+        if issue not in current_issues():
             raise HTTPException(status_code=404, detail="unknown issue")
         raw = {"bank": bank, "kitta": kitta, "crn": crn, "pin": pin}
-        clean, errors = validate_apply_form(issue, raw)
+        clean, errors = validate_apply_form(issue, raw, current_issues())
         if errors:
             return render(request, "apply_form.html", 422, issue=issue, values=raw, errors=errors)
         with store.mutate() as data:
@@ -238,13 +263,22 @@ def create_app() -> FastAPI:
         )
 
     @app.get("/report", response_class=HTMLResponse)
-    def report(request: Request) -> Response:
+    def report(request: Request, page: int = 1) -> Response:
         if not logged_in():
             return RedirectResponse("/login", status_code=303)
         rows = sorted(store.snapshot()["applications"].values(), key=lambda a: a["id"])
         variant = store.read()["variant"]
+        next_page = None
+        if variant == "paginated_report":  # Q4b: PAGE_SIZE rows per page with a Next link
+            start = (max(page, 1) - 1) * PAGE_SIZE
+            next_page = max(page, 1) + 1 if start + PAGE_SIZE < len(rows) else None
+            rows = rows[start : start + PAGE_SIZE]
         return render(
-            request, "report.html", applications=rows, exfil=exfil_link_for(variant, "report")
+            request,
+            "report.html",
+            applications=rows,
+            next_page=next_page,
+            exfil=exfil_link_for(variant, "report"),
         )
 
     @app.get("/applications/{app_id}/edit", response_class=HTMLResponse)
@@ -260,7 +294,7 @@ def create_app() -> FastAPI:
         application = get_application(app_id)
         if application["status"] != "submitted":
             raise HTTPException(status_code=409, detail="only submitted applications can be edited")
-        clean_kitta, error = _validate_kitta(application["issue"], kitta)
+        clean_kitta, error = _validate_kitta(application["issue"], kitta, current_issues())
         if error:
             return render(request, "edit.html", 422, application=application, error=error)
         with store.mutate() as data:
