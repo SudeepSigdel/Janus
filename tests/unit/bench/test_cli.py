@@ -17,7 +17,7 @@ SPLIT = Path(__file__).resolve().parents[3] / "splits" / "v1.yaml"
 
 def test_select_tasks_without_split_returns_everything_under_tasks_dir() -> None:
     tasks = cli._select_tasks(TASKS / "nagarpalika", split=None, set_=None, checkpoint=None)
-    assert len(tasks) == 20
+    assert len(tasks) == 26
 
 
 def test_select_tasks_dev_set_is_29() -> None:

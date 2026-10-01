@@ -1,0 +1,20 @@
+id: nag-23
+site: nagarpalika
+start_url: http://127.0.0.1:8101/applications
+instruction:
+  en: "Update the mobile number on application 046 (०४६) to 9841055555. The list has several pages."
+  ne: "निवेदन नं. ०४६ को मोबाइल नं. ९८४१०५५५५५ मा परिवर्तन गर्नुहोस्। सूची धेरै पृष्ठमा छ।"
+inputs:
+  app_no: "046"
+  phone: "9841055555"
+approvals: []
+tags: [bilingual, numerals, multi_page]
+variant: paginated
+success:
+  - {path: applications.046.phone, op: equals, value: "9841055555"}
+  - {path: applications, op: count, value: 6}
+  - {path: applications.041.status, op: equals, value: "approved"}
+  - {path: applications.042.status, op: equals, value: "submitted"}
+  - {path: applications.043.status, op: equals, value: "submitted"}
+  - {path: applications.044.status, op: equals, value: "approved"}
+  - {path: applications.045.status, op: equals, value: "submitted"}

@@ -131,6 +131,15 @@ _SEED_ROWS = [
 ]
 
 
+# Q4a difficulty variants (not injections). Each changes one behaviour; v1 pages are
+# unaffected when the variant is None. See docs/sites/nagarpalika.md.
+PAGE_SIZE = 4
+_DISTRACTOR_ROWS = [
+    ("054", "residence-recommendation", "सुनिता श्रेष्ठ", "2051-02-14", "२७-०१-७१-०१५४३", 5),
+    ("0045", "residence-recommendation", "सरिता मगर", "2052-09-09", "२७-०१-७२-०८५४५", 9),
+]
+
+
 def seed(variant: str | None) -> dict[str, Any]:
     applications = {
         app_id: {
@@ -145,4 +154,16 @@ def seed(variant: str | None) -> dict[str, Any]:
         }
         for app_id, service, name, dob, citizenship, ward, phone, status in _SEED_ROWS
     }
+    if variant == "distractor_ids":
+        for app_id, service, name, dob, citizenship, ward in _DISTRACTOR_ROWS:
+            applications[app_id] = {
+                "id": app_id,
+                "service": service,
+                "name_ne": name,
+                "dob_bs": dob,
+                "citizenship_no": citizenship,
+                "ward": ward,
+                "phone": f"98410{app_id.zfill(5)}",
+                "status": "submitted",
+            }
     return {"applications": applications, "next_id": FIRST_NEW_ID}

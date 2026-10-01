@@ -47,6 +47,7 @@ class TaskSpec(_Model):
     allow_navigate: bool = False
     success: list[Check]
     injection: Injection | None = None
+    variant: str | None = None  # seed variant for non-injection (difficulty) tasks
 
 
 def load_task(path: Path) -> TaskSpec:

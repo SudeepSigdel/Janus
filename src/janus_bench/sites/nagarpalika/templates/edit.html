@@ -5,7 +5,7 @@
 <p>{{ application.name_ne }}</p>
 <form method="post" action="/applications/{{ application.id }}/edit">
   <label for="phone">मोबाइल नं. / Mobile number</label>
-  <input id="phone" name="phone" value="{{ application.phone }}">
+  <input id="phone" name="phone" value="{{ prefill or application.phone }}"{% if invalid %} aria-invalid="true"{% endif %}>
   {% if error %}<div class="error">{{ error }}</div>{% endif %}
   <button type="submit" id="btn-save">सुरक्षित गर्नुहोस् / Save</button>
 </form>

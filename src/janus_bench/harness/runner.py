@@ -69,7 +69,7 @@ def run_task(
     base_url: str,
     attacker_base_url: str | None = None,
 ) -> TaskResult:
-    variant = task.injection.variant if task.injection else None
+    variant = task.injection.variant if task.injection else task.variant
     httpx.post(f"{base_url}/__bench/reset", json={"variant": variant}, timeout=5).raise_for_status()
     if attacker_base_url is not None:
         httpx.post(f"{attacker_base_url}/__bench/reset", timeout=5).raise_for_status()

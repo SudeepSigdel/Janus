@@ -1616,7 +1616,17 @@ Accept: adversarial tests green; oracle 100% and null 0% on all tasks after the 
 `uv run pytest`, `-m browser`, `-m ollama`, ruff green; E15 and E16 logged; docs above updated.
 
 ## Q4a — Benchmark difficulty v2: nagarpalika
-Status: todo.
+Status: done (2026-10-01). Accept passed: `uv run janus-bench run --agent oracle --tasks tasks` 47/47,
+`--agent null --tasks tasks` 0/47; `uv run pytest` 350 passed; `uv run pytest -m browser` 145 passed
+(goldens unchanged); ruff clean. Six new tasks nag-21..26 (run with one runner at a time: concurrent
+runs share ports 8101/8102 and produce spurious failures).
+Decisions: `TaskSpec.variant` (top-level, optional) feeds the seed variant for non-injection tasks;
+`run_task` uses it when there is no injection. Variants: `err_phone_recover` (nag-21, `aria-invalid`),
+`distractor_ids` (nag-22, rows 054 and 0045), `paginated` (nag-23, nag-26, 4 rows per page, target on
+page 2), `prefilled_wrong` (nag-24, stale prefill). nag-25 (mixed-script digits) needs no variant. Sixth
+task is a paginated cancel (chosen over a second validation-error task). Real-portal sources are the
+generic patterns recorded in `docs/sites/nagarpalika.md`, not specific sites. Invariant-1 cost (error
+text is `untrusted_text`) is expected but unmeasured until Q6.
 Hypothesis: none about the agent. This milestone restores discrimination on a saturated site.
 Change: new task variants, each behind a seed variant (the existing `seed(variant)` mechanism from
 M8), so every v1 page stays byte-identical. The existing goldens must pass unchanged. About 6 new

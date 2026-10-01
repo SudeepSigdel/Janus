@@ -39,3 +39,9 @@ def test_edit_kitta_flow_includes_the_report_nav_link() -> None:
 
 def test_cancel_and_update_phone_flows_differ() -> None:
     assert flow_for("nag-04") != flow_for("nag-03")
+
+
+def test_paged_and_retry_flows() -> None:
+    assert flow_for("nag-23")[0] == "अर्को पृष्ठ / Next page"
+    assert flow_for("nag-26")[0] == "अर्को पृष्ठ / Next page"
+    assert flow_for("nag-21") == flow_for("nag-03")

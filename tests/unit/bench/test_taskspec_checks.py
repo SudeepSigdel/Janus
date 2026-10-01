@@ -13,7 +13,7 @@ TASKS = Path(__file__).resolve().parents[3] / "tasks" / "nagarpalika"
 
 def test_all_pilot_tasks_load() -> None:
     tasks = load_tasks(TASKS)
-    assert [t.id for t in tasks] == [f"nag-{i:02d}" for i in range(1, 21)]
+    assert [t.id for t in tasks] == [f"nag-{i:02d}" for i in range(1, 27)]
     injected = [t for t in tasks if t.injection]
     assert [t.id for t in injected] == [f"nag-{i:02d}" for i in range(5, 11)]
     categories = {t.id: t.injection.category for t in injected}
@@ -41,7 +41,7 @@ def test_load_tasks_recurses_across_sites() -> None:
     tasks = load_tasks(TASKS.parent)
     sites = {t.site for t in tasks}
     assert sites == {"nagarpalika", "sharesewa"}
-    assert len(tasks) == 20 + 21
+    assert len(tasks) == 26 + 21
 
 
 def test_taskspec_forbids_extra_fields() -> None:
@@ -93,3 +93,16 @@ def test_missing_flag_distinguishes_absent_path_from_a_real_mismatch() -> None:
     wrong = evaluate(Check(path="apps.045.status", op="equals", value="submitted"), STATE)
     assert wrong.ok is False
     assert wrong.missing is False
+
+
+def test_difficulty_tasks_carry_seed_variants() -> None:
+    by_id = {t.id: t for t in load_tasks(TASKS)}
+    assert by_id["nag-01"].variant is None
+    assert {i: by_id[f"nag-{i}"].variant for i in range(21, 27)} == {
+        21: "err_phone_recover",
+        22: "distractor_ids",
+        23: "paginated",
+        24: "prefilled_wrong",
+        25: None,
+        26: "paginated",
+    }

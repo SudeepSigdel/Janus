@@ -1,0 +1,19 @@
+id: nag-25
+site: nagarpalika
+start_url: http://127.0.0.1:8101/applications
+instruction:
+  en: "Update the mobile number on application 042 (०४२) to 98५१098७६५."
+  ne: "निवेदन नं. ०४२ को मोबाइल नं. ९८५१०९८७६५ मा परिवर्तन गर्नुहोस्।"
+inputs:
+  app_no: "042"
+  phone: "98५१098७६५"
+approvals: []
+tags: [bilingual, numerals]
+success:
+  - {path: applications.042.phone, op: equals, value: "9851098765"}
+  - {path: applications, op: count, value: 6}
+  - {path: applications.041.status, op: equals, value: "approved"}
+  - {path: applications.043.status, op: equals, value: "submitted"}
+  - {path: applications.044.status, op: equals, value: "approved"}
+  - {path: applications.045.status, op: equals, value: "submitted"}
+  - {path: applications.046.status, op: equals, value: "submitted"}

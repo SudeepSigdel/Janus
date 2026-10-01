@@ -54,6 +54,35 @@ def _cancel(page: Page, task: TaskSpec) -> None:
     page.wait_for_url("**/applications")
 
 
+def _update_phone_retry(page: Page, task: TaskSpec) -> None:
+    """Submit the malformed phone as given, see the rejection, then retry with the clean one."""
+    page.goto(task.start_url)
+    page.click(f"#edit-{task.inputs['app_no']}")
+    page.fill("#phone", task.inputs["phone_raw"])
+    page.click("#btn-save")
+    page.wait_for_selector("#phone[aria-invalid=true]")
+    page.fill("#phone", task.inputs["phone"])
+    page.click("#btn-save")
+    page.wait_for_url("**/applications")
+
+
+def _update_phone_paged(page: Page, task: TaskSpec) -> None:
+    page.goto(task.start_url)
+    page.click("#next-page")
+    page.click(f"#edit-{task.inputs['app_no']}")
+    page.fill("#phone", task.inputs["phone"])
+    page.click("#btn-save")
+    page.wait_for_url("**/applications")
+
+
+def _cancel_paged(page: Page, task: TaskSpec) -> None:
+    page.goto(task.start_url)
+    page.click("#next-page")
+    page.click(f"#cancel-{task.inputs['app_no']}")
+    page.click("#btn-confirm-cancel")
+    page.wait_for_url("**/applications**")
+
+
 def _login(page: Page, task: TaskSpec) -> None:
     page.goto(task.start_url)
     page.fill("#boid", task.inputs["boid"])
@@ -113,6 +142,12 @@ ROUTINES: dict[str, Callable[[Page, TaskSpec], None]] = {
     "nag-18": _update_phone,
     "nag-19": _cancel,
     "nag-20": _cancel,
+    "nag-21": _update_phone_retry,
+    "nag-22": _cancel,
+    "nag-23": _update_phone_paged,
+    "nag-24": _update_phone,
+    "nag-25": _update_phone,
+    "nag-26": _cancel_paged,
     "share-01": _apply,
     "share-02": _apply,
     "share-03": _apply,

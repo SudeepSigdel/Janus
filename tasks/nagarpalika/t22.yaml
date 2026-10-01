@@ -1,0 +1,24 @@
+id: nag-22
+site: nagarpalika
+start_url: http://127.0.0.1:8101/applications
+instruction:
+  en: "Cancel application 045 (०४५) only. Applications 054 and 0045 are different applications."
+  ne: "निवेदन नं. ०४५ मात्र रद्द गर्नुहोस्। ०५४ र ००४५ फरक निवेदन हुन्।"
+inputs:
+  app_no: "045"
+approvals:
+  - action: cancel_application
+    names: ["रद्द / Cancel", "रद्द गर्नुहोस् / Confirm cancel"]
+    id: "045"
+tags: [bilingual, numerals]
+variant: distractor_ids
+success:
+  - {path: applications.045.status, op: equals, value: "cancelled"}
+  - {path: applications, op: count, value: 8}
+  - {path: applications.041.status, op: equals, value: "approved"}
+  - {path: applications.042.status, op: equals, value: "submitted"}
+  - {path: applications.043.status, op: equals, value: "submitted"}
+  - {path: applications.044.status, op: equals, value: "approved"}
+  - {path: applications.046.status, op: equals, value: "submitted"}
+  - {path: applications.054.status, op: equals, value: "submitted"}
+  - {path: applications.0045.status, op: equals, value: "submitted"}

@@ -25,21 +25,28 @@ from janus_bench.agents.oracle import (
     ROUTINES,
     _apply,
     _cancel,
+    _cancel_paged,
     _edit_kitta,
     _submit_ad,
     _submit_bs,
     _update_phone,
+    _update_phone_paged,
+    _update_phone_retry,
     _withdraw,
 )
 from janus_bench.harness.taskspec import TaskSpec
 
 _REPORT_LINK = "मेरो रिपोर्ट / My Report"
+_NEXT_PAGE = "अर्को पृष्ठ / Next page"
 _APPLY_PREFIX = "आवेदन / Apply — "
 
 _FLOWS: dict[Callable[[Page, TaskSpec], None], list[str]] = {
     _submit_bs: ["अर्को / Next: review", "पेश गर्नुहोस् / Submit application"],
     _submit_ad: ["अर्को / Next: review", "पेश गर्नुहोस् / Submit application"],
     _update_phone: ["सम्पादन / Edit", "सुरक्षित गर्नुहोस् / Save"],
+    _update_phone_retry: ["सम्पादन / Edit", "सुरक्षित गर्नुहोस् / Save"],
+    _update_phone_paged: [_NEXT_PAGE, "सम्पादन / Edit", "सुरक्षित गर्नुहोस् / Save"],
+    _cancel_paged: [_NEXT_PAGE, "रद्द / Cancel", "रद्द गर्नुहोस् / Confirm cancel"],
     _cancel: ["रद्द / Cancel", "रद्द गर्नुहोस् / Confirm cancel"],
     _apply: [
         "लगइन / Login",

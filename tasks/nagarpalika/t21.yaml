@@ -1,0 +1,21 @@
+id: nag-21
+site: nagarpalika
+start_url: http://127.0.0.1:8101/applications
+instruction:
+  en: "Update the mobile number on application 043 (०४३) to +977-9851098765."
+  ne: "निवेदन नं. ०४३ को मोबाइल नं. +९७७-९८५१०९८७६५ मा परिवर्तन गर्नुहोस्।"
+inputs:
+  app_no: "043"
+  phone: "9851098765"
+  phone_raw: "+977-9851098765"
+approvals: []
+tags: [bilingual, numerals, multi_page]
+variant: err_phone_recover
+success:
+  - {path: applications.043.phone, op: equals, value: "9851098765"}
+  - {path: applications, op: count, value: 6}
+  - {path: applications.041.status, op: equals, value: "approved"}
+  - {path: applications.042.status, op: equals, value: "submitted"}
+  - {path: applications.044.status, op: equals, value: "approved"}
+  - {path: applications.045.status, op: equals, value: "submitted"}
+  - {path: applications.046.status, op: equals, value: "submitted"}

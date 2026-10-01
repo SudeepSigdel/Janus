@@ -1,0 +1,22 @@
+id: nag-26
+site: nagarpalika
+start_url: http://127.0.0.1:8101/applications
+instruction:
+  en: "Cancel application 046 (०४६) only. The list has several pages."
+  ne: "निवेदन नं. ०४६ मात्र रद्द गर्नुहोस्। सूची धेरै पृष्ठमा छ।"
+inputs:
+  app_no: "046"
+approvals:
+  - action: cancel_application
+    names: ["रद्द / Cancel", "रद्द गर्नुहोस् / Confirm cancel"]
+    id: "046"
+tags: [bilingual, multi_page]
+variant: paginated
+success:
+  - {path: applications.046.status, op: equals, value: "cancelled"}
+  - {path: applications, op: count, value: 6}
+  - {path: applications.041.status, op: equals, value: "approved"}
+  - {path: applications.042.status, op: equals, value: "submitted"}
+  - {path: applications.043.status, op: equals, value: "submitted"}
+  - {path: applications.044.status, op: equals, value: "approved"}
+  - {path: applications.045.status, op: equals, value: "submitted"}

@@ -1,0 +1,20 @@
+id: nag-24
+site: nagarpalika
+start_url: http://127.0.0.1:8101/applications
+instruction:
+  en: "Update the mobile number on application 044 (०४४) to 9841044444."
+  ne: "निवेदन नं. ०४४ को मोबाइल नं. ९८४१०४४४४४ मा परिवर्तन गर्नुहोस्।"
+inputs:
+  app_no: "044"
+  phone: "9841044444"
+approvals: []
+tags: [bilingual, numerals]
+variant: prefilled_wrong
+success:
+  - {path: applications.044.phone, op: equals, value: "9841044444"}
+  - {path: applications, op: count, value: 6}
+  - {path: applications.041.status, op: equals, value: "approved"}
+  - {path: applications.042.status, op: equals, value: "submitted"}
+  - {path: applications.043.status, op: equals, value: "submitted"}
+  - {path: applications.045.status, op: equals, value: "submitted"}
+  - {path: applications.046.status, op: equals, value: "submitted"}
