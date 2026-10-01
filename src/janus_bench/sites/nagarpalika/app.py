@@ -12,7 +12,17 @@ from fastapi.templating import Jinja2Templates
 
 from janus_bench.sites.common.digits import to_ascii_digits, to_ne_digits
 from janus_bench.sites.common.state import StateStore, mount_bench
-from janus_bench.sites.nagarpalika.seed import PAGE_SIZE, exfil_link_for, notice_for, seed
+from janus_bench.sites.nagarpalika.seed import (
+    OPTION_WARD_LABEL,
+    OPTION_WARD_VARIANT,
+    PAGE_SIZE,
+    PREFILL_VARIANTS,
+    PREFILLED_ALT_PHONE,
+    exfil_link_for,
+    notice_for,
+    seed,
+    spoof_for,
+)
 
 PORT = 8101
 HERE = Path(__file__).parent
@@ -102,6 +112,14 @@ def create_app() -> FastAPI:
             raise HTTPException(status_code=404, detail="application not found")
         return application
 
+    def form_extras(variant: str | None) -> dict[str, Any]:
+        """Q5 injection variants that change the apply form (see seed.py)."""
+        return {
+            "alt_phone_field": variant in PREFILL_VARIANTS,
+            "alt_phone_default": PREFILLED_ALT_PHONE,
+            "ward_option_label": OPTION_WARD_LABEL if variant == OPTION_WARD_VARIANT else None,
+        }
+
     @app.get("/")
     def index() -> RedirectResponse:
         return RedirectResponse("/services", status_code=303)
@@ -123,6 +141,7 @@ def create_app() -> FastAPI:
             values={},
             errors={},
             notice=notice_for(variant, "form"),
+            **form_extras(variant),
         )
 
     @app.post("/apply/{service}/review", response_class=HTMLResponse)
@@ -134,6 +153,7 @@ def create_app() -> FastAPI:
         citizenship_no: str = Form(""),
         ward: str = Form(""),
         phone: str = Form(""),
+        alt_phone: str | None = Form(None),
     ) -> Response:
         if service not in SERVICES:
             raise HTTPException(status_code=404, detail="unknown service")
@@ -146,6 +166,8 @@ def create_app() -> FastAPI:
         }
         clean, errors = validate_form(raw)
         variant = store.read()["variant"]
+        if variant in PREFILL_VARIANTS:
+            raw["alt_phone"] = clean["alt_phone"] = (alt_phone or "").strip()
         if errors:
             return render(
                 request,
@@ -155,6 +177,7 @@ def create_app() -> FastAPI:
                 values=raw,
                 errors=errors,
                 notice=notice_for(variant, "form"),
+                **form_extras(variant),
             )
         return render(
             request,
@@ -173,6 +196,7 @@ def create_app() -> FastAPI:
         citizenship_no: str = Form(""),
         ward: str = Form(""),
         phone: str = Form(""),
+        alt_phone: str | None = Form(None),
     ) -> Response:
         if service not in SERVICES:
             raise HTTPException(status_code=404, detail="unknown service")
@@ -184,8 +208,19 @@ def create_app() -> FastAPI:
             "phone": phone,
         }
         clean, errors = validate_form(raw)
+        variant = store.read()["variant"]
+        if variant in PREFILL_VARIANTS:
+            raw["alt_phone"] = clean["alt_phone"] = (alt_phone or "").strip()
         if errors:
-            return render(request, "form.html", 422, service=service, values=raw, errors=errors)
+            return render(
+                request,
+                "form.html",
+                422,
+                service=service,
+                values=raw,
+                errors=errors,
+                **form_extras(variant),
+            )
         with store.mutate() as data:
             app_id = f"{data['next_id']:03d}"
             data["next_id"] += 1
@@ -223,6 +258,7 @@ def create_app() -> FastAPI:
             applications=rows,
             next_page=next_page,
             exfil=exfil_link_for(variant, "applications"),
+            spoof=spoof_for(variant, "applications"),
         )
 
     @app.get("/applications/{app_id}/edit", response_class=HTMLResponse)

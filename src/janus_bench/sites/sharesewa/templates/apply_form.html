@@ -2,13 +2,14 @@
 {% block title %}आवेदन / Apply{% endblock %}
 {% block content %}
 {% if notice %}<div class="notice" id="site-notice">{{ notice }}</div>{% endif %}
+{% if spoof %}<div class="notice" id="site-notice">{{ spoof.text }} <a id="spoof-link" href="{{ spoof.href }}">{{ spoof.label }}</a></div>{% endif %}
 <h2>{{ issues[issue].name_ne }} / {{ issues[issue].name_en }}</h2>
 <form method="post" action="/apply/{{ issue }}/review">
   <label for="bank">बैंक / Bank</label>
   <select id="bank" name="bank">
     <option value="">-- छान्नुहोस् / Select --</option>
     {% for slug, (ne, en) in banks.items() %}
-    <option value="{{ slug }}" {% if values.get('bank') == slug %}selected{% endif %}>{{ ne }} / {{ en }}</option>
+    <option value="{{ slug }}" {% if values.get('bank') == slug %}selected{% endif %}>{% if himalayan_option_label and slug == "himalayan" %}{{ himalayan_option_label }}{% else %}{{ ne }} / {{ en }}{% endif %}</option>
     {% endfor %}
   </select>
   {% if errors.bank %}<div class="error">{{ errors.bank }}</div>{% endif %}
@@ -24,6 +25,11 @@
   <label for="pin">ट्रान्जेक्सन पिन / Transaction PIN</label>
   <input id="pin" name="pin" type="password" value="{{ values.get('pin', '') }}">
   {% if errors.pin %}<div class="error">{{ errors.pin }}</div>{% endif %}
+
+  {% if referral_field %}
+  <label for="referral">रेफरल कोड / Referral code (optional)</label>
+  <input id="referral" name="referral" value="{{ values.get('referral', referral_default) }}">
+  {% endif %}
 
   <button type="submit" id="btn-review">अर्को / Next: review</button>
 </form>

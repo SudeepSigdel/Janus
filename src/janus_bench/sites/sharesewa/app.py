@@ -16,11 +16,16 @@ from janus_bench.sites.sharesewa.seed import (
     BANKS,
     EXPIRY_AFTER,
     ISSUES,
+    OPTION_BANK_LABEL,
+    OPTION_BANK_VARIANT,
     PAGE_SIZE,
+    PREFILL_VARIANTS,
+    PREFILLED_REFERRAL,
     exfil_link_for,
     issues_for,
     notice_for,
     seed,
+    spoof_for,
 )
 
 PORT = 8102
@@ -136,6 +141,14 @@ def create_app() -> FastAPI:
         context["kitta_invalid"] = store.read()["variant"] == "err_kitta_recover"
         return templates.TemplateResponse(request, name, context, status_code=status_code)
 
+    def form_extras(variant: str | None) -> dict[str, Any]:
+        """Q5 injection variants that change the apply form (see seed.py)."""
+        return {
+            "referral_field": variant in PREFILL_VARIANTS,
+            "referral_default": PREFILLED_REFERRAL,
+            "himalayan_option_label": OPTION_BANK_LABEL if variant == OPTION_BANK_VARIANT else None,
+        }
+
     def get_application(app_id: str) -> dict[str, Any]:
         application = store.read()["applications"].get(app_id)
         if application is None:
@@ -189,6 +202,8 @@ def create_app() -> FastAPI:
             values={},
             errors={},
             notice=notice_for(variant, "apply_form"),
+            spoof=spoof_for(variant, "apply_form"),
+            **form_extras(variant),
         )
 
     @app.post("/apply/{issue}/review", response_class=HTMLResponse)
@@ -199,6 +214,7 @@ def create_app() -> FastAPI:
         kitta: str = Form(""),
         crn: str = Form(""),
         pin: str = Form(""),
+        referral: str | None = Form(None),
     ) -> Response:
         if not logged_in():
             return RedirectResponse("/login", status_code=303)
@@ -207,6 +223,8 @@ def create_app() -> FastAPI:
         raw = {"bank": bank, "kitta": kitta, "crn": crn, "pin": pin}
         clean, errors = validate_apply_form(issue, raw, current_issues())
         variant = store.read()["variant"]
+        if variant in PREFILL_VARIANTS:
+            raw["referral"] = clean["referral"] = (referral or "").strip()
         if errors:
             return render(
                 request,
@@ -216,6 +234,7 @@ def create_app() -> FastAPI:
                 values=raw,
                 errors=errors,
                 notice=notice_for(variant, "apply_form"),
+                **form_extras(variant),
             )
         return render(
             request, "review.html", issue=issue, values=clean, notice=notice_for(variant, "review")
@@ -229,6 +248,7 @@ def create_app() -> FastAPI:
         kitta: str = Form(""),
         crn: str = Form(""),
         pin: str = Form(""),
+        referral: str | None = Form(None),
     ) -> Response:
         if not logged_in():
             return RedirectResponse("/login", status_code=303)
@@ -236,8 +256,19 @@ def create_app() -> FastAPI:
             raise HTTPException(status_code=404, detail="unknown issue")
         raw = {"bank": bank, "kitta": kitta, "crn": crn, "pin": pin}
         clean, errors = validate_apply_form(issue, raw, current_issues())
+        variant = store.read()["variant"]
+        if variant in PREFILL_VARIANTS:
+            raw["referral"] = clean["referral"] = (referral or "").strip()
         if errors:
-            return render(request, "apply_form.html", 422, issue=issue, values=raw, errors=errors)
+            return render(
+                request,
+                "apply_form.html",
+                422,
+                issue=issue,
+                values=raw,
+                errors=errors,
+                **form_extras(variant),
+            )
         with store.mutate() as data:
             app_id = f"{data['next_id']:03d}"
             data["next_id"] += 1

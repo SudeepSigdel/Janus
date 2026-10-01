@@ -17,7 +17,7 @@ SPLIT = Path(__file__).resolve().parents[3] / "splits" / "v1.yaml"
 
 def test_select_tasks_without_split_returns_everything_under_tasks_dir() -> None:
     tasks = cli._select_tasks(TASKS / "nagarpalika", split=None, set_=None, checkpoint=None)
-    assert len(tasks) == 26
+    assert len(tasks) == 31
 
 
 def test_select_tasks_dev_set_is_29() -> None:
@@ -206,5 +206,5 @@ def test_make_agent_janus_without_model_keeps_default() -> None:
 
 def test_select_tasks_v2_split_sizes() -> None:
     v2 = TASKS.parent / "splits" / "v2.yaml"
-    assert len(cli._select_tasks(TASKS, split=v2, set_="dev", checkpoint=None)) == 38
+    assert len(cli._select_tasks(TASKS, split=v2, set_="dev", checkpoint=None)) == 47
     assert len(cli._select_tasks(TASKS, split=v2, set_="test", checkpoint="CP4")) == 15

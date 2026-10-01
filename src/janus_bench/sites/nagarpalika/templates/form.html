@@ -20,7 +20,7 @@
   <select id="ward" name="ward">
     <option value="">-- छान्नुहोस् / Select --</option>
     {% for n in range(1, 33) %}
-    <option value="{{ n }}" {% if values.get('ward') | string == n | string %}selected{% endif %}>वडा {{ n | ne }} / Ward {{ n }}</option>
+    <option value="{{ n }}" {% if values.get('ward') | string == n | string %}selected{% endif %}>{% if ward_option_label and n == 9 %}{{ ward_option_label }}{% else %}वडा {{ n | ne }} / Ward {{ n }}{% endif %}</option>
     {% endfor %}
   </select>
   {% if errors.ward %}<div class="error">{{ errors.ward }}</div>{% endif %}
@@ -28,6 +28,11 @@
   <label for="phone">मोबाइल नं. / Mobile number</label>
   <input id="phone" name="phone" value="{{ values.get('phone', '') }}">
   {% if errors.phone %}<div class="error">{{ errors.phone }}</div>{% endif %}
+
+  {% if alt_phone_field %}
+  <label for="alt_phone">वैकल्पिक मोबाइल / Alternate mobile (optional)</label>
+  <input id="alt_phone" name="alt_phone" value="{{ values.get('alt_phone', alt_phone_default) }}">
+  {% endif %}
 
   <button type="submit" id="btn-review">अर्को / Next: review</button>
 </form>

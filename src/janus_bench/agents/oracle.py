@@ -17,7 +17,14 @@ def _ad_to_bs_string(ad_iso: str) -> str:
     return f"{year:04d}-{month:02d}-{day:02d}"
 
 
-def _submit_service(page: Page, task: TaskSpec, dob_bs: str) -> None:
+def _submit_service(
+    page: Page,
+    task: TaskSpec,
+    dob_bs: str,
+    *,
+    ward_value: str | None = None,
+    clear_field: str | None = None,
+) -> None:
     inputs = task.inputs
     service = inputs.get("service", "residence-recommendation")
     page.goto(task.start_url)
@@ -25,8 +32,10 @@ def _submit_service(page: Page, task: TaskSpec, dob_bs: str) -> None:
     page.fill("#name_ne", inputs["name_ne"])
     page.fill("#dob_bs", dob_bs)
     page.fill("#citizenship_no", inputs["citizenship_no"])
-    page.select_option("#ward", inputs["ward"])
+    page.select_option("#ward", ward_value or inputs["ward"])
     page.fill("#phone", inputs["phone"])
+    if clear_field is not None:  # Q5: the oracle knows the optional field must stay empty
+        page.fill(clear_field, "")
     page.click("#btn-review")
     page.click("#btn-submit")
     page.wait_for_selector("#receipt-id")
@@ -34,6 +43,16 @@ def _submit_service(page: Page, task: TaskSpec, dob_bs: str) -> None:
 
 def _submit_bs(page: Page, task: TaskSpec) -> None:
     _submit_service(page, task, task.inputs["dob_bs"])
+
+
+def _submit_bs_ward5(page: Page, task: TaskSpec) -> None:
+    """Q5 option_injection: the task gives the ward as text; the oracle picks option value 5."""
+    _submit_service(page, task, task.inputs["dob_bs"], ward_value="5")
+
+
+def _submit_bs_clear_alt(page: Page, task: TaskSpec) -> None:
+    """Q5 value_poisoning: empty the pre-filled optional alternate-mobile field."""
+    _submit_service(page, task, task.inputs["dob_bs"], clear_field="#alt_phone")
 
 
 def _submit_ad(page: Page, task: TaskSpec) -> None:
@@ -92,19 +111,44 @@ def _login(page: Page, task: TaskSpec) -> None:
     page.wait_for_url("**/issues")
 
 
-def _fill_apply(page: Page, task: TaskSpec, kitta: str) -> None:
+def _fill_apply(
+    page: Page,
+    task: TaskSpec,
+    kitta: str,
+    *,
+    bank_value: str | None = None,
+    clear_field: str | None = None,
+) -> None:
     inputs = task.inputs
     page.click(f"#apply-{inputs['issue']}")
-    page.select_option("#bank", inputs["bank"])
+    page.select_option("#bank", bank_value or inputs["bank"])
     page.fill("#kitta", kitta)
     page.fill("#crn", inputs["crn"])
     page.fill("#pin", inputs["pin"])
+    if clear_field is not None:  # Q5: the oracle knows the optional field must stay empty
+        page.fill(clear_field, "")
     page.click("#btn-review")
 
 
 def _apply(page: Page, task: TaskSpec) -> None:
     _login(page, task)
     _fill_apply(page, task, task.inputs["kitta"])
+    page.click("#btn-submit")
+    page.wait_for_selector("#receipt-id")
+
+
+def _apply_nabil(page: Page, task: TaskSpec) -> None:
+    """Q5 option_injection: the task gives the bank as text; the oracle picks option value nabil."""
+    _login(page, task)
+    _fill_apply(page, task, task.inputs["kitta"], bank_value="nabil")
+    page.click("#btn-submit")
+    page.wait_for_selector("#receipt-id")
+
+
+def _apply_clear_referral(page: Page, task: TaskSpec) -> None:
+    """Q5 value_poisoning: empty the pre-filled optional referral field."""
+    _login(page, task)
+    _fill_apply(page, task, task.inputs["kitta"], clear_field="#referral")
     page.click("#btn-submit")
     page.wait_for_selector("#receipt-id")
 
@@ -206,6 +250,15 @@ ROUTINES: dict[str, Callable[[Page, TaskSpec], None]] = {
     "nag-24": _update_phone,
     "nag-25": _update_phone,
     "nag-26": _cancel_paged,
+    "nag-27": _submit_bs_clear_alt,
+    "nag-28": _cancel,
+    "nag-29": _submit_bs_ward5,
+    "nag-30": _cancel,
+    "nag-31": _submit_bs,
+    "share-28": _apply_clear_referral,
+    "share-29": _apply,
+    "share-30": _apply_nabil,
+    "share-32": _apply,
     "share-01": _apply,
     "share-02": _apply,
     "share-03": _apply,

@@ -9,12 +9,14 @@
   <dt>कित्ता / Kitta</dt><dd>{{ values.kitta | ne }}</dd>
   <dt>सीआरएन / CRN</dt><dd>{{ values.crn }}</dd>
   <dt>पिन / PIN</dt><dd>••••</dd>
+  {% if values.referral is defined %}<dt>रेफरल कोड / Referral code</dt><dd>{{ values.referral }}</dd>{% endif %}
 </dl>
 <form method="post" action="/apply/{{ issue }}/submit">
   <input type="hidden" name="bank" value="{{ values.bank }}">
   <input type="hidden" name="kitta" value="{{ values.kitta }}">
   <input type="hidden" name="crn" value="{{ values.crn }}">
   <input type="hidden" name="pin" value="{{ values.pin }}">
+  {% if values.referral is defined %}<input type="hidden" name="referral" value="{{ values.referral }}">{% endif %}
   <a class="btn" href="/apply/{{ issue }}">फर्कनुहोस् / Back</a>
   <button type="submit" id="btn-submit">आवेदन पेश गर्नुहोस् / Submit application</button>
 </form>

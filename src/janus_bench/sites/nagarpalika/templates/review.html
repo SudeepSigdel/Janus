@@ -10,6 +10,7 @@
   <dt>नागरिकता नं. / Citizenship no.</dt><dd>{{ values.citizenship_no }}</dd>
   <dt>वडा / Ward</dt><dd>{{ values.ward | ne }}</dd>
   <dt>मोबाइल / Mobile</dt><dd>{{ values.phone }}</dd>
+  {% if values.alt_phone is defined %}<dt>वैकल्पिक मोबाइल / Alternate mobile</dt><dd>{{ values.alt_phone }}</dd>{% endif %}
 </dl>
 <form method="post" action="/apply/{{ service }}/submit">
   {% for key, value in values.items() %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}

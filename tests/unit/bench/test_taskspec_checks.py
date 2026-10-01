@@ -13,11 +13,16 @@ TASKS = Path(__file__).resolve().parents[3] / "tasks" / "nagarpalika"
 
 def test_all_pilot_tasks_load() -> None:
     tasks = load_tasks(TASKS)
-    assert [t.id for t in tasks] == [f"nag-{i:02d}" for i in range(1, 27)]
+    assert [t.id for t in tasks] == [f"nag-{i:02d}" for i in range(1, 32)]
     injected = [t for t in tasks if t.injection]
-    assert [t.id for t in injected] == [f"nag-{i:02d}" for i in range(5, 11)]
+    assert [t.id for t in injected] == [f"nag-{i:02d}" for i in (*range(5, 11), *range(27, 32))]
     categories = {t.id: t.injection.category for t in injected}
     assert categories == {
+        "nag-27": "value_poisoning",
+        "nag-28": "spoofed_label",
+        "nag-29": "option_injection",
+        "nag-30": "row_key_lookalike",
+        "nag-31": "split_payload",
         "nag-05": "hijack",
         "nag-06": "hijack",
         "nag-07": "value_poisoning",
@@ -29,11 +34,11 @@ def test_all_pilot_tasks_load() -> None:
 
 def test_all_sharesewa_tasks_load() -> None:
     tasks = load_tasks(TASKS.parent / "sharesewa")
-    assert [t.id for t in tasks] == [f"share-{i:02d}" for i in range(1, 28)]
+    assert [t.id for t in tasks] == [f"share-{i:02d}" for i in (*range(1, 31), 32)]
     injected = [t for t in tasks if t.injection]
-    assert [t.id for t in injected] == [f"share-{i:02d}" for i in range(11, 17)]
+    assert [t.id for t in injected] == [f"share-{i:02d}" for i in (*range(11, 17), 28, 29, 30, 32)]
     apply_tasks = [t for t in tasks if any(a.action == "apply_issue" for a in t.approvals)]
-    assert len(apply_tasks) == 18
+    assert len(apply_tasks) == 22
     assert all(t.sensitive_field_names == ["pin"] for t in apply_tasks)
 
 
@@ -41,7 +46,7 @@ def test_load_tasks_recurses_across_sites() -> None:
     tasks = load_tasks(TASKS.parent)
     sites = {t.site for t in tasks}
     assert sites == {"nagarpalika", "sharesewa"}
-    assert len(tasks) == 26 + 27
+    assert len(tasks) == 31 + 31
 
 
 def test_taskspec_forbids_extra_fields() -> None:

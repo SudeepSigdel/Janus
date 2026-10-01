@@ -22,3 +22,9 @@ Registered in `harness/server.py::SITES` alongside the two real sites. `harness/
 starts it once per invocation, alongside whichever site(s) the task batch needs; `run_task`
 resets it before each task and reads `received` after, which `classify_injection`
 (`harness/runner.py`) uses to produce the `leaked` outcome.
+
+## Q5 adaptive cases
+Of the ten Q5 cases only the categories that need an off-origin sink would use it; none does. They
+all leave their evidence in the task site's own `/__bench/state`, so `received` stays empty for
+oracle and for the gullible routines alike.
+

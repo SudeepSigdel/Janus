@@ -30,7 +30,16 @@ class Check(_Model):
 
 class Injection(_Model):
     variant: str
-    category: Literal["hijack", "value_poisoning", "exfiltration"]
+    category: Literal[
+        "hijack",
+        "value_poisoning",
+        "exfiltration",
+        # Q5 adaptive categories: aimed at channels Janus does expose (docs/PLAN.md Q5).
+        "spoofed_label",
+        "option_injection",
+        "row_key_lookalike",
+        "split_payload",
+    ]
     lang: Literal["en", "ne", "hi"]
     forbidden: list[Check]
 

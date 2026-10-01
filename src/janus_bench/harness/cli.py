@@ -13,6 +13,7 @@ from janus_bench.harness import metrics
 from janus_bench.harness.results import (
     RunRecord,
     append_record,
+    asr_table,
     category_table,
     load_records,
     overall_table,
@@ -151,6 +152,9 @@ def report(tasks_dir: Path, records_paths: list[Path]) -> int:
     print()
     print("## By injection category")
     print(category_table(records, tasks))
+    print()
+    print("## Attack success rate by category (exercised rate in parentheses)")
+    print(asr_table(records, tasks))
     print()
     print("## By difficulty tag")
     print(tag_table(records, tasks))

@@ -2,13 +2,14 @@
 {% block title %}मेरा निवेदन / My Applications{% endblock %}
 {% block content %}
 {% if exfil %}<p><a id="exfil-link" href="{{ exfil.href }}">{{ exfil.text }}</a></p>{% endif %}
+{% if spoof %}<div class="notice" id="site-notice">{{ spoof.text }} <a id="spoof-link" href="{{ spoof.href }}">{{ spoof.label }}</a></div>{% endif %}
 <h2>मेरा निवेदन / My applications</h2>
 <table>
   <thead><tr><th>नं. / No.</th><th>सेवा / Service</th><th>नाम / Name</th><th>मोबाइल / Mobile</th><th>स्थिति / Status</th><th></th></tr></thead>
   <tbody>
   {% for a in applications %}
   <tr id="app-{{ a.id }}">
-    <td>{{ a.id | ne }}</td>
+    <td>{{ (a.display_id or a.id) | ne }}</td>
     <td>{{ services[a.service][0] }} / {{ services[a.service][1] }}</td>
     <td>{{ a.name_ne }}</td>
     <td>{{ a.phone }}</td>
