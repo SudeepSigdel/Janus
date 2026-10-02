@@ -1724,7 +1724,12 @@ case); cases appended to v2 by the declared rule; per-category dev table in `doc
 `uv run pytest` and ruff green. **v2 is frozen after this milestone.**
 
 ## Q6 — v2 dev reference rows
-Status: todo. Long run: overnight.
+Status: partial (2026-10-02). Janus half done: E18 = 105/141 = 74.5% on v2 dev (nag 60/69, share 45/72), ASR 6/54,
+false-block 3/87, logged in `docs/EXPERIMENTS.md`. browser_use half NOT done: the first attempt (`results/b2-dev.jsonl`,
+11/141) is invalid, about 122 runs died of infrastructure errors (`WinError 1455` paging file too small, Chrome exiting
+before CDP) after roughly the first 20 runs, so it is not logged as B2. Rerun overnight after freeing memory (close other
+apps, raise the paging file, kill stray Chrome between tasks); command in EXPERIMENTS.md E18's sibling form with
+`--agent browser_use` and no `--trace`, `--out results/b2-dev.jsonl`. Q6 stays open until B2 is logged. Long run: overnight.
 Change: none. Run the current best Janus (N=3) and browser_use (N=3) on v2 dev. B1's records may be
 reused for the v1-dev part of browser_use only if no harness scoring code changed since Q0. If
 anything changed (for example Q5's categories), rerun it all. Log them as the v2 baseline rows
