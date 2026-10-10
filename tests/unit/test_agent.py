@@ -171,6 +171,61 @@ def test_loop_guard_rejects_repeating_a_click_that_changed_nothing(
     assert "already clicked on this page and nothing changed" in feedback
 
 
+def test_plan_is_truncated_after_a_page_changing_step(monkeypatch: pytest.MonkeyPatch) -> None:
+    """E23 (AUDIT A1): steps planned past a navigation are dropped and replanned
+    against a fresh snapshot, never executed against the stale one."""
+    calls = itertools.count()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if next(calls) == 0:
+            steps = [{"op": "CLICK", "ref": "e0"}, {"op": "CLICK", "ref": "e0"}]
+        else:
+            steps = [{"op": "DONE", "status": "completed"}]
+        return _chat({"task_id": "t", "steps": steps})
+
+    events: list[tuple[str, dict]] = []
+    _patch_page_primitives(monkeypatch, outcome=StepOutcome(ok=True, caused_post=True))
+    result = agent.run_task(
+        _FakePage(),
+        task_id="t",
+        instruction="Click next.",
+        start_url="http://127.0.0.1:8101/services",
+        inputs={},
+        policy=_policy(),
+        llm=_llm(handler),
+        settings=Settings(),
+        trace=lambda stage, data: events.append((stage, data)),
+    )
+    assert result.steps_run == 1
+    assert result.replans == 1
+    assert result.status == "completed"
+    assert [d for stage, d in events if stage == "plan_truncated"] == [
+        {"leg": 0, "dropped": ["CLICK"]}
+    ]
+
+
+def test_a_trailing_done_after_a_page_changing_step_is_kept(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        steps = [{"op": "CLICK", "ref": "e0"}, {"op": "DONE", "status": "completed"}]
+        return _chat({"task_id": "t", "steps": steps})
+
+    _patch_page_primitives(monkeypatch, outcome=StepOutcome(ok=True, caused_post=True))
+    result = agent.run_task(
+        _FakePage(),
+        task_id="t",
+        instruction="Click next.",
+        start_url="http://127.0.0.1:8101/services",
+        inputs={},
+        policy=_policy(),
+        llm=_llm(handler),
+        settings=Settings(),
+    )
+    assert result.status == "completed"
+    assert result.replans == 0
+
+
 def test_a_blocked_outcome_overrides_a_claimed_done(monkeypatch: pytest.MonkeyPatch) -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         return _chat(

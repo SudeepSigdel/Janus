@@ -270,7 +270,7 @@ def run_task(
                 trace("blocked", {"gate": gate_block, "errors": result.errors})
             break
 
-        for step, decision in zip(plan.steps, result.decisions, strict=True):
+        for index, (step, decision) in enumerate(zip(plan.steps, result.decisions, strict=True)):
             if isinstance(step, DoneStep):
                 claimed = step.status
                 done = True
@@ -377,6 +377,20 @@ def run_task(
                     claimed = "completed"
                     done = True
                     break
+
+            # E23 (docs/AUDIT.md A1): after a step that changed the page, the rest of
+            # this plan targets refs of a page that is gone. Drop it and start a new leg
+            # against a fresh snapshot instead of authorizing it against the stale one.
+            # A trailing DONE is kept: it carries the model's claim, which classify_run
+            # still checks against what actually happened.
+            later = plan.steps[index + 1 :]
+            page_changed = outcome.caused_post or (
+                getattr(page, "url", snapshot.url) != snapshot.url
+            )
+            if page_changed and any(not isinstance(s, DoneStep) for s in later):
+                if trace is not None:
+                    trace("plan_truncated", {"leg": leg, "dropped": [s.op for s in later]})
+                break
 
         if done or blocked:
             break
