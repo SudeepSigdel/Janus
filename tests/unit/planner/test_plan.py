@@ -688,6 +688,10 @@ def _sensitive_field_snapshot() -> PageSnapshot:
     )
 
 
+# Every input the ShareSewa apply example binds (E20 gates the example on these).
+APPLY_INPUTS = {k: "x" for k in ("boid", "password", "bank", "kitta", "crn", "pin")}
+
+
 def test_example_inserted_right_after_system_prompt_on_a_login_shaped_page() -> None:
     seen_bodies: list[dict] = []
 
@@ -698,7 +702,7 @@ def test_example_inserted_right_after_system_prompt_on_a_login_shaped_page() -> 
     commit_plan(
         task_id="share-01",
         instruction="Log in and apply.",
-        inputs={"boid": "x", "password": "y"},
+        inputs=APPLY_INPUTS,
         snapshot=_login_shaped_snapshot(),
         policy=_policy(allowed_ops=frozenset({"FILL_FORM", "CLICK", "DONE"})),
         llm=_client(handler),
@@ -723,7 +727,7 @@ def test_example_inserted_when_a_textbox_is_sensitive() -> None:
     commit_plan(
         task_id="share-01",
         instruction="Fill in the PIN.",
-        inputs={"pin": "1234"},
+        inputs=APPLY_INPUTS,
         snapshot=_sensitive_field_snapshot(),
         policy=Policy(
             allowed_origins=frozenset({"http://127.0.0.1:8102"}),
@@ -764,6 +768,27 @@ def test_example_not_inserted_when_the_sensitive_field_is_not_declared() -> None
     messages = seen_bodies[0]["messages"]
     assert messages[1]["role"] == "user"
     assert json.loads(messages[1]["content"])["task_id"] == "share-01"
+
+
+def test_example_not_inserted_on_login_for_a_task_without_the_example_inputs() -> None:
+    """E20: an edit/withdraw task on the login page is not shown the apply flow."""
+    seen_bodies: list[dict] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen_bodies.append(json.loads(request.content))
+        return _response({"task_id": "share-08", "steps": [{"op": "DONE", "status": "completed"}]})
+
+    commit_plan(
+        task_id="share-08",
+        instruction="Log in and withdraw application 043.",
+        inputs={"boid": "x", "password": "y", "app_no": "043"},
+        snapshot=_login_shaped_snapshot(),
+        policy=_policy(allowed_ops=frozenset({"FILL_FORM", "CLICK", "DONE"})),
+        llm=_client(handler),
+        max_retries=1,
+    )
+    messages = seen_bodies[0]["messages"]
+    assert len(messages) == 2  # system + the page's own outline, nothing spliced in
 
 
 def test_example_not_inserted_on_an_ordinary_page() -> None:
@@ -811,7 +836,7 @@ def test_example_selected_trace_event_only_fires_when_the_example_fires() -> Non
     commit_plan(
         task_id="share-01",
         instruction="Log in.",
-        inputs={"boid": "x", "password": "y"},
+        inputs=APPLY_INPUTS,
         snapshot=_login_shaped_snapshot(),
         policy=_policy(allowed_ops=frozenset({"FILL_FORM", "CLICK", "DONE"})),
         llm=_client(login_handler),

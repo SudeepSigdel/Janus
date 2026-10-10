@@ -27,18 +27,36 @@ know the example was shown. See docs/ARCHITECTURE.md.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import re
+from collections.abc import Collection
+from dataclasses import dataclass, field
 
 from janus.observer.snapshot import PageSnapshot
 from janus.validator.consequential import matches_consequential_keyword
 from janus.validator.policy import Policy
 
+_INPUT_REF_IN_TEXT = re.compile(r"\$inputs\.([A-Za-z_][A-Za-z0-9_]*)")
+
 
 @dataclass(frozen=True)
 class Example:
-    """A worked outline -> plan demonstration, as a sequence of chat turns."""
+    """A worked outline -> plan demonstration, as a sequence of chat turns.
+
+    `required_keys` is derived from the example's own plans (every `$inputs.<key>` an
+    assistant turn binds), so it can never drift from what the example actually teaches.
+    """
 
     messages: tuple[dict[str, str], ...]
+    required_keys: frozenset[str] = field(init=False)
+
+    def __post_init__(self) -> None:
+        keys = {
+            key
+            for m in self.messages
+            if m["role"] == "assistant"
+            for key in _INPUT_REF_IN_TEXT.findall(m["content"])
+        }
+        object.__setattr__(self, "required_keys", frozenset(keys))
 
 
 # Fictional flow: login, an issue list, a multi-field apply form (a combobox plus
@@ -165,14 +183,26 @@ def _has_sensitive_textbox(snapshot: PageSnapshot, policy: Policy) -> bool:
     )
 
 
-def select_example(snapshot: PageSnapshot, policy: Policy) -> Example | None:
+def select_example(
+    snapshot: PageSnapshot, policy: Policy, input_keys: Collection[str] | None = None
+) -> Example | None:
     """The one worked example to show on this leg, or None.
+
+    E20 (overnight 2026-10-10): the example only fires when the task has *every* input
+    the example binds (`Example.required_keys`). The page-shape triggers below fire on
+    every ShareSewa login page, so before this gate an edit/withdraw task was shown the
+    apply flow, followed it into the apply form, and copied `$inputs.bank` (E18
+    share-06). The gate reads only the task's own input *names* (trusted, from the
+    task, never from the page). `input_keys=None` skips the gate (callers that don't
+    know the task's inputs).
 
     Fires on a page shaped like ShareSewa's login form, or holding a textbox the
     task's policy marks sensitive (docs/PLAN.md Q3's two candidate shapes). Reads
     only element roles/`name_attr` and `policy.sensitive_fields` -- trusted
     structure, never `untrusted_text` or the URL (invariant 1).
     """
+    if input_keys is not None and not _EXAMPLE.required_keys <= set(input_keys):
+        return None
     if _is_login_shaped(snapshot):
         return _EXAMPLE
     if _has_sensitive_textbox(snapshot, policy):

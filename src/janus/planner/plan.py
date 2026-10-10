@@ -240,7 +240,7 @@ def commit_plan(
     # (trusted structure only -- see planner/examples.py). Spliced in once, before
     # this leg's own outline, so it reads as a prior demonstration in the same
     # conversation rather than part of the task itself.
-    example = select_example(snapshot, policy)
+    example = select_example(snapshot, policy, list(inputs))
     if example is not None:
         messages.extend(dict(m) for m in example.messages)
         if trace is not None:

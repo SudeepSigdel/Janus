@@ -231,3 +231,34 @@ def test_example_binds_every_value_by_reference_never_a_literal() -> None:
                     assert field["value"].startswith("$inputs.")
             elif step["op"] == "SELECT":
                 assert step["value"].startswith("$inputs.")
+
+
+APPLY_KEYS = ["boid", "password", "bank", "kitta", "crn", "pin"]
+
+
+def test_required_keys_are_derived_from_the_example_plans() -> None:
+    assert _EXAMPLE.required_keys == frozenset(APPLY_KEYS)
+
+
+def test_fires_on_login_when_the_task_has_every_example_input() -> None:
+    snapshot = _golden_snapshot("sharesewa_login.json")
+    assert select_example(snapshot, _no_sensitive_fields(), APPLY_KEYS) is _EXAMPLE
+
+
+def test_does_not_fire_for_an_edit_task_missing_example_inputs() -> None:
+    """E18 share-06: an edit-kitta task (boid, password, app_no, kitta) was shown the
+    apply flow on the login page and followed it into the wrong form."""
+    snapshot = _golden_snapshot("sharesewa_login.json")
+    keys = ["boid", "password", "app_no", "kitta"]
+    assert select_example(snapshot, _no_sensitive_fields(), keys) is None
+
+
+def test_does_not_fire_on_a_sensitive_form_for_a_task_missing_example_inputs() -> None:
+    policy = Policy(
+        allowed_origins=frozenset({"http://127.0.0.1:8102"}),
+        allowed_ops=frozenset({"FILL_FORM", "SELECT", "CLICK", "SUBMIT", "DONE"}),
+        max_steps=20,
+        sensitive_fields=frozenset({"pin"}),
+    )
+    keys = ["boid", "password", "app_no"]
+    assert select_example(_apply_form_snapshot(), policy, keys) is None
