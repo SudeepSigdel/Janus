@@ -154,6 +154,14 @@ _EXAMPLE = Example(
 )
 
 
+# E20b: the login segment of the same example (its first user/assistant pair) as an
+# example of its own, shown to a login task that is not an apply task. Without it,
+# E20's gate left edit/withdraw tasks with no demonstration, and the model planned the
+# login button as SUBMIT, which is always consequential and is denied (E20 smoke,
+# share-08; the E6 mechanism in LIMITATIONS.md).
+_LOGIN_EXAMPLE = Example(messages=_EXAMPLE.messages[:2])
+
+
 def _role_counts(snapshot: PageSnapshot) -> tuple[list, list]:
     textboxes = [e for e in snapshot.elements if e.role == "textbox"]
     comboboxes = [e for e in snapshot.elements if e.role == "combobox"]
@@ -196,15 +204,23 @@ def select_example(
     task, never from the page). `input_keys=None` skips the gate (callers that don't
     know the task's inputs).
 
+    E20b: on a login-shaped page, a task that lacks the apply inputs but has the login
+    inputs gets only the login segment (`_LOGIN_EXAMPLE`, gated the same way on the
+    keys it binds).
+
     Fires on a page shaped like ShareSewa's login form, or holding a textbox the
     task's policy marks sensitive (docs/PLAN.md Q3's two candidate shapes). Reads
     only element roles/`name_attr` and `policy.sensitive_fields` -- trusted
     structure, never `untrusted_text` or the URL (invariant 1).
     """
-    if input_keys is not None and not _EXAMPLE.required_keys <= set(input_keys):
-        return None
+    keys = None if input_keys is None else set(input_keys)
+    full = keys is None or _EXAMPLE.required_keys <= keys
     if _is_login_shaped(snapshot):
-        return _EXAMPLE
-    if _has_sensitive_textbox(snapshot, policy):
+        if full:
+            return _EXAMPLE
+        if _LOGIN_EXAMPLE.required_keys <= keys:  # type: ignore[operator]
+            return _LOGIN_EXAMPLE
+        return None
+    if full and _has_sensitive_textbox(snapshot, policy):
         return _EXAMPLE
     return None

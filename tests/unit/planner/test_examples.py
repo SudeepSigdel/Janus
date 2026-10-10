@@ -15,7 +15,7 @@ from pathlib import Path
 import yaml
 
 from janus.observer.snapshot import Element, Fingerprint, PageSnapshot
-from janus.planner.examples import _EXAMPLE, select_example
+from janus.planner.examples import _EXAMPLE, _LOGIN_EXAMPLE, select_example
 from janus.validator.policy import Policy
 from janus_bench.harness.taskspec import TaskSpec, load_tasks
 
@@ -245,12 +245,25 @@ def test_fires_on_login_when_the_task_has_every_example_input() -> None:
     assert select_example(snapshot, _no_sensitive_fields(), APPLY_KEYS) is _EXAMPLE
 
 
-def test_does_not_fire_for_an_edit_task_missing_example_inputs() -> None:
+def test_edit_task_gets_only_the_login_segment() -> None:
     """E18 share-06: an edit-kitta task (boid, password, app_no, kitta) was shown the
-    apply flow on the login page and followed it into the wrong form."""
+    whole apply flow on the login page and followed it into the wrong form (E20). With
+    no example at all it planned login as SUBMIT and was denied (E20 smoke, share-08),
+    so it gets the login segment only (E20b)."""
     snapshot = _golden_snapshot("sharesewa_login.json")
     keys = ["boid", "password", "app_no", "kitta"]
-    assert select_example(snapshot, _no_sensitive_fields(), keys) is None
+    assert select_example(snapshot, _no_sensitive_fields(), keys) is _LOGIN_EXAMPLE
+
+
+def test_login_segment_is_the_first_turn_pair_and_binds_only_login_inputs() -> None:
+    assert _LOGIN_EXAMPLE.messages == _EXAMPLE.messages[:2]
+    assert _LOGIN_EXAMPLE.required_keys == frozenset({"boid", "password"})
+    assert "SUBMIT" not in _LOGIN_EXAMPLE.messages[1]["content"]
+
+
+def test_no_example_for_a_login_page_when_the_task_lacks_login_inputs() -> None:
+    snapshot = _golden_snapshot("sharesewa_login.json")
+    assert select_example(snapshot, _no_sensitive_fields(), ["username", "pass"]) is None
 
 
 def test_does_not_fire_on_a_sensitive_form_for_a_task_missing_example_inputs() -> None:

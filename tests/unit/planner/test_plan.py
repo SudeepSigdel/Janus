@@ -770,8 +770,9 @@ def test_example_not_inserted_when_the_sensitive_field_is_not_declared() -> None
     assert json.loads(messages[1]["content"])["task_id"] == "share-01"
 
 
-def test_example_not_inserted_on_login_for_a_task_without_the_example_inputs() -> None:
-    """E20: an edit/withdraw task on the login page is not shown the apply flow."""
+def test_only_the_login_segment_is_inserted_for_a_withdraw_task() -> None:
+    """E20/E20b: a withdraw task on the login page gets the login turn pair only,
+    never the apply flow."""
     seen_bodies: list[dict] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -788,7 +789,10 @@ def test_example_not_inserted_on_login_for_a_task_without_the_example_inputs() -
         max_retries=1,
     )
     messages = seen_bodies[0]["messages"]
-    assert len(messages) == 2  # system + the page's own outline, nothing spliced in
+    assert len(messages) == 4  # system + login example pair + the page's own outline
+    assert json.loads(messages[1]["content"])["task_id"] == "example"
+    assert "Apply" not in json.dumps(messages[:3], ensure_ascii=False)
+    assert json.loads(messages[-1]["content"])["task_id"] == "share-08"
 
 
 def test_example_not_inserted_on_an_ordinary_page() -> None:
