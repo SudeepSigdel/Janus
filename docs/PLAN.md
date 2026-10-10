@@ -1739,7 +1739,10 @@ dropped; if v2 is still saturated for both agents, record that and plan more dif
 Accept: both rows logged with commands and records.
 
 ## CP4 — Checkpoint 4 (v2 test split)
-Status: todo. Long run: overnight.
+Status: partial (2026-10-10, overnight session). Janus half done: CP4a (E18 code) and CP4b (E23, the
+night's final build) are both 36/45 = 80.0% on v2 test (nag 21/24, share 15/21), ASR 0/9,
+false-block 3/36 (EXPERIMENTS.md Checkpoints). browser_use half NOT done (no valid B2 row yet).
+Long run: overnight.
 Run the current best Janus and browser_use on v2 test, N=3, `--checkpoint CP4`, no `--trace`.
 Aggregates only (success per site, ASR by category with exercised rates, false-block). Also report
 the v1-test subset on its own for continuity with CP1-CP3. Same overfitting check as before
@@ -1778,6 +1781,14 @@ Run in order, one per session, security first. Long runs are marked.
 - **R10** Generalization at N=3, original vs `p1`, both agents (G1). Status: todo. Long run: overnight.
 
 Accept criteria per milestone: the table in `docs/AUDIT.md` ("Proposed R-milestones").
+
+## Overnight session 2026-10-10 (branch `overnight/2026-10-10`, not pushed)
+E19 (unknown `$inputs` key rejected), E20/E20b (worked example gated on the task's inputs; login
+segment split out), E21 (deterministic loop guard), E23 (plan truncation after a page change, AUDIT
+A1) kept; E22 (step history) reverted (code on branch `e22-history`). v2 dev 105 → 108/141, v2 test
+unchanged at 36/45, perturbation p1 21/24 → 24/24. Rows in EXPERIMENTS.md. Eval worker:
+`scripts/eval_worker.ps1`. Open: confirm E21 at N=5 (its +3 is at the noise bound); a gated E22
+variant; R1's remaining items.
 
 ## Later (not in the Frogtoberfest slice)
 Site 3 (utility or bank transfer), hybrid cloud planner over a privacy-abstracted view, other baselines (Nanobrowser, BrowserOS),

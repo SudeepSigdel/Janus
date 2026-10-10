@@ -67,6 +67,18 @@ larger "ShareSewa capability collapse" gap above, not by row-disambiguation. Who
 that gap should re-check these four tasks specifically once it's fixed, since row-disambiguation
 itself is no longer expected to be their blocker.
 
+### ShareSewa row actions after login (2026-10-10 update)
+
+E18's three ShareSewa losses to browser_use (share-06/08/20) were traced. **share-06** crashed: the
+apply-flow worked example fired on every login page, the model copied `$inputs.bank`, and the
+executor raised `KeyError` (fixed: E19 rejects unknown input keys; E20/E20b show the apply flow
+only to apply tasks). **share-08/20** looped: Janus re-clicked the "Open Issues" nav link on
+`/issues` until the leg budget ran out (E21's loop guard fixes share-08, 0/3 → 3/3). share-06 and
+share-20 still fail. After the guard, the 8B planner picks an "Apply" link instead of "My Report":
+it has no idea where a site keeps existing applications. A step history fixed share-20 and share-24
+but broke nagarpalika review pages (E22, reverted). Flow knowledge per site (workflow memory) is the
+open fix.
+
 ### nag-13 zero-step failure (unexplained)
 
 nag-13 (birth registration, DOB given directly in BS) failed 0/3 with `steps=0` on every M10
