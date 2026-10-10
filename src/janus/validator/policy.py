@@ -17,6 +17,15 @@ from janus.planner.ops import OpKind, Plan
 
 Capability = tuple[str, str | None, str | None]
 
+# Benchmark oracle endpoints (security invariant 7, docs/AUDIT.md S7): never reachable
+# by a plan or by the page, even on an allowed origin.
+DENIED_PATH_PREFIXES: tuple[str, ...] = ("/__bench",)
+
+
+def is_denied_path(path: str, prefixes: tuple[str, ...] = DENIED_PATH_PREFIXES) -> bool:
+    path = path or "/"
+    return any(path == p or path.startswith(p + "/") for p in prefixes)
+
 
 def allowed_ops_for(allow_navigate: bool) -> frozenset[OpKind]:
     """Every op kind, minus `NAVIGATE` unless a task explicitly opts in (docs/PLAN.md
@@ -37,6 +46,7 @@ class Policy(BaseModel):
     allowed_ops: frozenset[OpKind]
     max_steps: int
     sensitive_fields: frozenset[str] = frozenset()
+    denied_path_prefixes: tuple[str, ...] = DENIED_PATH_PREFIXES
 
 
 def origin_of(url: str) -> str:

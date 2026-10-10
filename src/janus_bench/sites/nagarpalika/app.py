@@ -11,6 +11,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 
 from janus_bench.sites.common.digits import to_ascii_digits, to_ne_digits
+from janus_bench.sites.common.perturb import PerturbMiddleware
 from janus_bench.sites.common.state import StateStore, mount_bench
 from janus_bench.sites.nagarpalika.seed import (
     OPTION_WARD_LABEL,
@@ -89,6 +90,8 @@ def create_app() -> FastAPI:
     app = FastAPI(title="Sahayatri Nagarpalika (replica)")
     store = StateStore(seed)
     mount_bench(app, store)
+    # docs/AUDIT.md §4: a no-op unless /__bench/reset set a perturbation.
+    app.add_middleware(PerturbMiddleware, current=store.perturbation)
 
     templates = Jinja2Templates(directory=[HERE / "templates", COMMON_TEMPLATES])
     templates.env.filters["ne"] = to_ne_digits

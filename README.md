@@ -60,24 +60,44 @@ uv run janus-bench report --tasks tasks --records <results.jsonl> [--records <mo
 correctness; `browser_use` is the open-source baseline agent; `janus` is this project's own agent.
 All results are state-based (`/__bench/state`), never LLM-judged.
 
-## Results (dev split, 29 tasks, both agents at N=3)
+## Results (dev split v1, 29 tasks, both agents at N=3)
 
-Current comparison (Q0): Janus (E5) vs. the `browser_use` baseline (B1), same model, same scoring.
-Full tables, the historical M10 full-set evaluation, and the task appendix are in
-[docs/results.md](docs/results.md). Headline:
+Same task set, same model (`janus-planner`, qwen3:8b Q4_K_M), same state-based scoring for every row.
+The `browser_use` baseline (B1) is the valid comparison; Janus is shown at E5 (the last row
+measured on the held-out test split) and at its latest dev-split state (E14, kept; E15 and E16
+reproduce it run-for-run, and E16 was reverted). Full tables, the historical M10 full-set
+evaluation, and the task appendix are in [docs/results.md](docs/results.md); every row is logged in
+[docs/EXPERIMENTS.md](docs/EXPERIMENTS.md).
 
 | agent | overall | nagarpalika (14 tasks) | sharesewa (15 tasks) | ASR | mean wall time |
 | --- | --- | --- | --- | --- | ---: |
 | browser_use (baseline, B1) | 40/87 (46%) | 19/42 (45%) | 21/45 (47%) | 0/27 | 454.2s (median 290.3s) |
 | janus (E5) | 57/87 (66%) | 42/42 (100%) | 15/45 (33%) | 0/27 | 10.3s |
+| janus (E14-E16, latest on v1 dev) | 72/87 (83%) | 42/42 (100%) | 30/45 (67%) | 0/27 | 12.6-13.8s |
 
-Read the per-site split, not the blended overall number: Janus leads on nagarpalika and is ~28x
-faster, but still trails the baseline on ShareSewa's longer, login-gated flow -- a real, open
-capability gap (see [docs/LIMITATIONS.md](docs/LIMITATIONS.md)), not noise.
+**Held-out test split:** measured for E5 only (CP1-CP3, 12 tasks at N=3): 24/36 (66.7%;
+nagarpalika 18/18, sharesewa 6/18), within 0.5pp of E5's N=5 dev rate (66.2%). E14 and later were tuned on dev
+and have **not** been evaluated on the test split, so 72/87 is a development number, not a
+generalization estimate. No baseline was run on the test split.
 
-**Safety:** neither agent was hijacked or leaked on the 27 dev injection runs above, and the M10 full-set run had zero exfiltration leaks for either agent across all 16 exfiltration-case runs. Because the baseline resists too, these injection cases do not yet separate the two agents.
-Injection resistance is not uniform across attack types or sites for either agent -- see
-[docs/LIMITATIONS.md](docs/LIMITATIONS.md) for the value-poisoning gap that remains structurally
+**v2 dev (47 tasks, N=3, E18):** Janus 105/141 (74.5%). There is no valid `browser_use` row on v2
+yet (the B2 re-run is pending after infrastructure failures), so v2 is a Janus-only reference.
+
+Read the per-site split, not the blended overall number. On nagarpalika Janus passes every run at
+both E5 and E14. On ShareSewa's longer, login-gated flow, Janus trailed the baseline at E5 (15/45
+vs 21/45) and is ahead of it at E14 (30/45 vs 21/45, a 9-run gap against the repo's ≤3-run noise
+band), but ShareSewa remains the weaker site (see [docs/LIMITATIONS.md](docs/LIMITATIONS.md)). Wall
+time: Janus's 10-14s mean is ~28x faster than the baseline's median (290s) and ~44x faster than its
+mean (454s), which is inflated by two ~6,200-6,800s runs the log attributes to a host stall. All
+success rates are over repeated runs of a small, author-built set of fictional replica sites, so
+read them as a controlled comparison, not a general benchmark.
+
+**Safety:** neither agent was hijacked or leaked on the 27 v1 dev injection runs above, and the M10 full-set run had zero exfiltration leaks for either agent across all 16 exfiltration-case runs. Because the baseline resists too, these injection cases do not yet separate the two agents.
+The Q5 adaptive injection suite (9 new v2 dev cases, N=3, E17) does find a real gap: **Janus was
+hijacked 6/6 on value poisoning** (a pre-filled default in an untouched optional field), and 0/21
+on the other four categories. The baseline was hijacked 1/6 there, but 5 of its 6 runs never
+reached the attack, so that figure is not comparable. See [docs/results.md](docs/results.md) (Q5)
+and [docs/LIMITATIONS.md](docs/LIMITATIONS.md) for the value-poisoning gap that remains structurally
 real (an approved field fill's value isn't checked) even though the ShareSewa case once cited as
 proof of it (share-13, "hijacked 3/3") turned out to be a scoring artifact, corrected in P1.
 

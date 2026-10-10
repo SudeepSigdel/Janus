@@ -1,0 +1,19 @@
+# Perturbation set (docs/AUDIT.md §4), 2026-10-02. 8 clean v2 DEV tasks that Janus completes
+# reliably on the unperturbed sites (E18), so a drop under `--perturbation p1` measures
+# sensitivity to surface wording/structure rather than an existing failure. Covers both sites
+# and the clean flow types Janus completes (nagarpalika submit/edit/cancel, ShareSewa apply).
+# All 8 are 3/3 in E18 (24/24). ShareSewa edit/withdraw are excluded: Janus fails them unperturbed.
+#
+# Original vs perturbed:
+#   uv run janus-bench run --agent janus --tasks tasks --split splits/perturb.yaml --set dev --repeats 3 --out results/<id>-orig.jsonl
+#   uv run janus-bench run --agent janus --tasks tasks --split splits/perturb.yaml --set dev --repeats 3 --perturbation p1 --out results/<id>-p1.jsonl
+
+version: 2
+dev:
+  nagarpalika:
+    submit: [nag-01, nag-02, nag-13]
+    edit: [nag-03]
+    cancel: [nag-04, nag-19]
+  sharesewa:
+    apply: [share-01, share-05]
+test: {}

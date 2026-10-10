@@ -32,6 +32,8 @@ def doctor() -> int:
     finally:
         client.close()
     print(f"ok    Ollama reachable at {settings.ollama_base_url}")
+    if settings.chat_base_url:
+        print(f"ok    hosted chat {settings.chat_model} at {settings.chat_base_url}")
     missing = 0
     for model in settings.required_models:
         if has_model(installed, model):
@@ -56,7 +58,7 @@ def run(task_path: Path) -> int:
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()
             try:
-                page = browser.new_page()
+                page = browser.new_context(service_workers="block").new_page()
                 result = run_task(
                     page,
                     task_id=task.id,

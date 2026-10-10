@@ -80,7 +80,7 @@ class JanusAgent:
             with sync_playwright() as playwright:
                 browser = playwright.chromium.launch(headless=self.headless)
                 try:
-                    page = browser.new_page()
+                    page = browser.new_context(service_workers="block").new_page()
                     result = run_task(
                         page,
                         task_id=task.id,

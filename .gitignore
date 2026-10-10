@@ -8,3 +8,7 @@ dist/
 results/*
 !results/.gitkeep
 !results/m0-model-smoke.json
+
+.env
+.env.*
+!.env.example

@@ -10,6 +10,7 @@ from pathlib import Path
 from janus.config import Settings
 from janus_bench.agents.base import Agent
 from janus_bench.harness import metrics
+from janus_bench.harness.perturbation import perturb_task
 from janus_bench.harness.results import (
     RunRecord,
     append_record,
@@ -24,6 +25,7 @@ from janus_bench.harness.runner import run_task
 from janus_bench.harness.server import SITES, running_site, serve
 from janus_bench.harness.split import ids_for, load_split
 from janus_bench.harness.taskspec import TaskSpec, load_tasks
+from janus_bench.sites.common.perturb import PERTURBATIONS
 
 AVAILABLE_AGENTS = ("null", "oracle", "browser_use", "janus")
 CHECKPOINTS = ("CP1", "CP2", "CP3")
@@ -81,8 +83,13 @@ def run(
     checkpoint: str | None = None,
     trace: bool = False,
     model: str | None = None,
+    perturbation: str | None = None,
 ) -> int:
     tasks = _select_tasks(tasks_dir, split, set_, checkpoint)
+    # docs/AUDIT.md §4: approvals/sensitive field names follow the perturbed site; checks don't.
+    tasks = [perturb_task(t, perturbation) for t in tasks]
+    if perturbation is not None and agent_name == "janus":
+        print("note: false-block clause 2 matches unperturbed oracle labels; read it as n/a")
     if not tasks:
         print(f"no tasks found in {tasks_dir}")
         return 2
@@ -100,7 +107,7 @@ def run(
             with running_site(site) as base_url:
                 for task in (t for t in tasks if t.site == site):
                     for repeat in range(1, repeats + 1):
-                        result = run_task(task, agent, base_url, attacker_url)
+                        result = run_task(task, agent, base_url, attacker_url, perturbation)
                         record = RunRecord(
                             task=task.id,
                             agent=agent.name,
@@ -215,6 +222,12 @@ def main(argv: list[str] | None = None) -> int:
             "docs/PLAN.md P9 model-selection experiments)"
         ),
     )
+    run_p.add_argument(
+        "--perturbation",
+        choices=sorted(PERTURBATIONS),
+        default=None,
+        help="serve surface-perturbed sites (docs/AUDIT.md section 4)",
+    )
     report_p = sub.add_parser("report", help="print breakdown tables from committed JSONL results")
     report_p.add_argument("--tasks", type=Path, required=True)
     report_p.add_argument(
@@ -253,6 +266,7 @@ def main(argv: list[str] | None = None) -> int:
         args.checkpoint,
         args.trace,
         args.model,
+        args.perturbation,
     )
 
 

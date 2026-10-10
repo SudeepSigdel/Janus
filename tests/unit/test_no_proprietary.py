@@ -1,4 +1,5 @@
-"""Hard constraint: no proprietary APIs, SDKs, or keys anywhere in src/."""
+"""Hard constraint: no proprietary APIs or SDKs in src/. Hosted open-weight chat is allowed
+via llm.assert_open_weight (JANUS_CHAT_* settings); provider SDKs stay banned (httpx only)."""
 
 from __future__ import annotations
 
@@ -10,12 +11,12 @@ SRC = Path(__file__).resolve().parents[2] / "src"
 
 BANNED_HOSTS = re.compile(
     r"api\.openai\.com|api\.anthropic\.com|generativelanguage\.googleapis\.com"
-    r"|api\.mistral\.ai|api\.cohere\.(com|ai)|api\.groq\.com|openrouter\.ai",
+    r"|api\.mistral\.ai|api\.cohere\.(com|ai)",
     re.IGNORECASE,
 )
 BANNED_ENV = re.compile(
     r"OPENAI_API_KEY|ANTHROPIC_API_KEY|GEMINI_API_KEY|GOOGLE_API_KEY"
-    r"|MISTRAL_API_KEY|COHERE_API_KEY|GROQ_API_KEY|OPENROUTER_API_KEY",
+    r"|MISTRAL_API_KEY|COHERE_API_KEY",
 )
 BANNED_MODULES = {
     "openai",

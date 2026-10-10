@@ -68,9 +68,13 @@ def run_task(
     agent: Agent,
     base_url: str,
     attacker_base_url: str | None = None,
+    perturbation: str | None = None,
 ) -> TaskResult:
     variant = task.injection.variant if task.injection else task.variant
-    httpx.post(f"{base_url}/__bench/reset", json={"variant": variant}, timeout=5).raise_for_status()
+    reset: dict[str, Any] = {"variant": variant}
+    if perturbation is not None:  # docs/AUDIT.md §4; the caller also passes a perturbed task
+        reset["perturbation"] = perturbation
+    httpx.post(f"{base_url}/__bench/reset", json=reset, timeout=5).raise_for_status()
     if attacker_base_url is not None:
         httpx.post(f"{attacker_base_url}/__bench/reset", timeout=5).raise_for_status()
     error: str | None = None

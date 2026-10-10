@@ -136,8 +136,9 @@ def test_main_dispatches_analyze(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_main_dispatches_run_with_split_flags(monkeypatch: pytest.MonkeyPatch) -> None:
     called: dict[str, object] = {}
 
-    def fake_run(agent, tasks_dir, repeats, out, split, set_, checkpoint, trace, model):
+    def fake_run(agent, tasks_dir, repeats, out, split, set_, checkpoint, trace, model, pert):
         called["args"] = (agent, tasks_dir, repeats, out, split, set_, checkpoint, trace, model)
+        assert pert is None  # --perturbation not given (docs/AUDIT.md section 4)
         return 0
 
     monkeypatch.setattr(cli, "run", fake_run)
@@ -174,8 +175,9 @@ def test_main_dispatches_run_with_split_flags(monkeypatch: pytest.MonkeyPatch) -
 def test_main_dispatches_run_with_model_flag(monkeypatch: pytest.MonkeyPatch) -> None:
     called: dict[str, object] = {}
 
-    def fake_run(agent, tasks_dir, repeats, out, split, set_, checkpoint, trace, model):
+    def fake_run(agent, tasks_dir, repeats, out, split, set_, checkpoint, trace, model, pert):
         called["args"] = (agent, tasks_dir, repeats, out, split, set_, checkpoint, trace, model)
+        assert pert is None  # --perturbation not given (docs/AUDIT.md section 4)
         return 0
 
     monkeypatch.setattr(cli, "run", fake_run)

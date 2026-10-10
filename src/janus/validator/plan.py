@@ -29,6 +29,7 @@ output still goes through the unchanged `validate_plan` below.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from urllib.parse import urlparse
 
 from janus.observer.snapshot import Element, PageSnapshot
 from janus.planner.ops import FieldValue, FillFormStep, Plan, SelectStep, Step, input_ref_key
@@ -38,6 +39,7 @@ from janus.validator.policy import (
     Policy,
     capabilities_of,
     is_capability_subset,
+    is_denied_path,
     origin_of,
 )
 
@@ -93,6 +95,8 @@ def validate_plan(
         if step.op == "NAVIGATE":
             if origin_of(step.url) not in policy.allowed_origins:
                 errors.append(f"step {i}: NAVIGATE to {step.url!r} is off the origin allowlist")
+            elif is_denied_path(urlparse(step.url).path, policy.denied_path_prefixes):
+                errors.append(f"step {i}: NAVIGATE to {step.url!r} is a denied path")
             decisions.append(StepDecision(i, step.consequential_hint))
             continue
 

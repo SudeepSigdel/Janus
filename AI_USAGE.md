@@ -1,7 +1,9 @@
 # AI usage
 
-Every AI call in this repo goes through `src/janus/llm.py::LLMClient`, which refuses
-any endpoint that isn't a local loopback address (`assert_local_url`). There is no
+Every AI call in this repo goes through `src/janus/llm.py::LLMClient`. Embeddings and
+local chat require a loopback Ollama (`assert_local_url`). Chat may optionally go to a hosted
+OpenAI-compatible endpoint (`JANUS_CHAT_BASE_URL`/`_MODEL`/`_API_KEY`), but only for
+open-weight model families (`assert_open_weight`); the key comes from the environment. There is no
 other AI entry point, and no proprietary API or SDK anywhere in `src/`
 (`tests/unit/test_no_proprietary.py` enforces this).
 

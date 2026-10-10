@@ -1,4 +1,7 @@
-"""The only AI entry point: a local Ollama OpenAI-compatible client.
+"""The only AI entry point: an OpenAI-compatible client for open-weight models.
+
+Embeddings and model listing use local Ollama (loopback only). Chat may optionally use a hosted
+endpoint (`Settings.chat_base_url`), but only for open-weight model families.
 
 Output is returned as raw parsed JSON; callers must validate it (see janus/validator/).
 """
@@ -18,6 +21,34 @@ from janus.config import Settings, get_settings
 
 class NonLocalEndpointError(ValueError):
     """Raised when the configured LLM endpoint is not a loopback address."""
+
+
+class ProprietaryModelError(ValueError):
+    """Raised when a hosted chat model is not on the open-weight allowlist."""
+
+
+# Open-weight families only (hosted chat). Extend deliberately; never add closed models.
+OPEN_WEIGHT_FAMILIES = ("qwen", "gpt-oss", "llama", "gemma", "deepseek", "glm", "kimi", "phi")
+
+
+def assert_open_weight(model: str) -> None:
+    name = model.lower().rsplit("/", 1)[-1]
+    if name.startswith("gpt-oss") or any(name.startswith(f) for f in OPEN_WEIGHT_FAMILIES):
+        return
+    raise ProprietaryModelError(f"refusing model not on the open-weight allowlist: {model!r}")
+
+
+MAX_RATE_LIMIT_RETRIES = 8
+MAX_BACKOFF_S = 65.0
+
+
+def _retry_delay(resp: httpx.Response, attempt: int) -> float:
+    """Seconds to wait after a 429/503: Retry-After if the host gave one, else exponential."""
+    try:
+        wait = float(resp.headers["retry-after"])
+    except (KeyError, ValueError):
+        wait = 2.0**attempt
+    return min(max(wait, 1.0) + 0.5, MAX_BACKOFF_S)
 
 
 class LLMError(RuntimeError):
@@ -51,6 +82,20 @@ class LLMClient:
             timeout=self.settings.request_timeout_s,
             transport=transport,
         )
+        self._chat_http = self._http
+        if self.settings.chat_base_url:
+            if not self.settings.chat_model:
+                raise ValueError("chat_base_url requires chat_model")
+            assert_open_weight(self.settings.chat_model)
+            headers = {}
+            if self.settings.chat_api_key:
+                headers["Authorization"] = f"Bearer {self.settings.chat_api_key}"
+            self._chat_http = httpx.Client(
+                base_url=self.settings.chat_base_url.rstrip("/"),
+                timeout=self.settings.request_timeout_s,
+                transport=transport,
+                headers=headers,
+            )
         # Cumulative usage/latency across every call this client has made (docs/PLAN.md
         # P1: "LLM usage/latency from LLMClient"). A caller reads these off after a run;
         # nothing here changes control flow, so it's safe with or without tracing.
@@ -61,11 +106,27 @@ class LLMClient:
 
     def close(self) -> None:
         self._http.close()
+        if self._chat_http is not self._http:
+            self._chat_http.close()
 
-    def _request(self, method: str, path: str, payload: dict[str, Any] | None) -> dict[str, Any]:
+    def _request(
+        self,
+        method: str,
+        path: str,
+        payload: dict[str, Any] | None,
+        client: httpx.Client | None = None,
+    ) -> dict[str, Any]:
         started = time.monotonic()
         try:
-            resp = self._http.request(method, path, json=payload)
+            http = client or self._http
+            resp = http.request(method, path, json=payload)
+            # Hosted free tiers rate-limit (tokens/minute); wait and retry rather than fail.
+            if http is not self._http:
+                for attempt in range(MAX_RATE_LIMIT_RETRIES):
+                    if resp.status_code not in (429, 503):
+                        break
+                    time.sleep(_retry_delay(resp, attempt))
+                    resp = http.request(method, path, json=payload)
             resp.raise_for_status()
             data = resp.json()
         except (httpx.HTTPError, ValueError) as exc:
@@ -85,21 +146,31 @@ class LLMClient:
         schema_name: str = "response",
     ) -> Any:
         """Chat with a json_schema response_format; returns parsed (unvalidated) JSON."""
-        data = self._request(
-            "POST",
-            "/v1/chat/completions",
-            {
-                "model": model or self.settings.planner_model,
-                "messages": messages,
-                "temperature": 0,
-                "max_tokens": self.settings.max_output_tokens,
-                # Thinking off (PLAN.md): otherwise qwen3 spends the budget on reasoning.
-                "reasoning_effort": "none",
-                "response_format": {
-                    "type": "json_schema",
-                    "json_schema": {"name": schema_name, "schema": schema, "strict": True},
+        s = self.settings
+        payload: dict[str, Any] = {
+            "model": model or s.chat_model or s.planner_model,
+            "messages": messages,
+            "temperature": 0,
+            "max_tokens": s.max_output_tokens,
+            "response_format": {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": schema_name,
+                    "schema": schema,
+                    "strict": s.chat_strict_schema,
                 },
             },
+        }
+        # Thinking off (PLAN.md): otherwise qwen3 spends the budget on reasoning.
+        if s.chat_reasoning_effort:
+            payload["reasoning_effort"] = s.chat_reasoning_effort
+        if s.chat_base_url:
+            assert_open_weight(payload["model"])
+        data = self._request(
+            "POST",
+            "/chat/completions" if s.chat_base_url else "/v1/chat/completions",
+            payload,
+            self._chat_http,
         )
         self.chat_calls += 1
         usage = data.get("usage") or {}

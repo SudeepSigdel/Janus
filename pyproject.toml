@@ -23,6 +23,7 @@ baseline = [
     "browser-use==0.13.10",
 ]
 dev = [
+    "hypothesis>=6.168.3",
     "pytest>=8.0",
     "ruff>=0.5",
 ]

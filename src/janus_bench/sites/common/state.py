@@ -23,11 +23,19 @@ class StateStore:
         self._data: dict[str, Any] = {}
         self.reset(None)
 
-    def reset(self, variant: str | None) -> None:
+    def reset(self, variant: str | None, perturbation: str | None = None) -> None:
         with self._lock:
             self._data = copy.deepcopy(self._seed(variant))
             self._data["variant"] = variant
             self._data["events"] = []
+            # Surface perturbation (sites/common/perturb.py). Only present when set, so an
+            # unperturbed state snapshot is unchanged from before the feature existed.
+            if perturbation is not None:
+                self._data["perturbation"] = perturbation
+
+    def perturbation(self) -> str | None:
+        with self._lock:
+            return self._data.get("perturbation")
 
     def snapshot(self) -> dict[str, Any]:
         with self._lock:
@@ -50,7 +58,9 @@ def mount_bench(app: FastAPI, store: StateStore) -> None:
     def bench_reset(payload: dict[str, Any] | None = _RESET_BODY) -> dict[str, Any]:
         variant = (payload or {}).get("variant")
         variant = variant if isinstance(variant, str) else None
-        store.reset(variant)
+        perturbation = (payload or {}).get("perturbation")
+        perturbation = perturbation if isinstance(perturbation, str) else None
+        store.reset(variant, perturbation)
         return {"ok": True, "variant": variant}
 
     @app.get("/__bench/state")

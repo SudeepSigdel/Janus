@@ -8,7 +8,13 @@ import pytest
 
 import janus.llm as llm_module
 from janus.config import Settings
-from janus.llm import LLMClient, LLMError, NonLocalEndpointError, assert_local_url
+from janus.llm import (
+    LLMClient,
+    LLMError,
+    NonLocalEndpointError,
+    ProprietaryModelError,
+    assert_local_url,
+)
 
 
 def _fake_clock(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -154,3 +160,50 @@ def test_list_models() -> None:
         return httpx.Response(200, json={"models": [{"name": "qwen3:8b"}]})
 
     assert _client(handler).list_models() == ["qwen3:8b"]
+
+
+def test_hosted_chat_uses_remote_endpoint_key_and_open_weight_model() -> None:
+    seen: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["url"] = str(request.url)
+        seen["auth"] = request.headers.get("authorization")
+        seen["body"] = json.loads(request.content)
+        return httpx.Response(200, json={"choices": [{"message": {"content": "{}"}}]})
+
+    settings = Settings(
+        chat_base_url="https://host.example/openai/v1",
+        chat_model="openai/gpt-oss-20b",
+        chat_api_key="k",
+        chat_reasoning_effort="low",
+    )
+    client = LLMClient(settings, transport=httpx.MockTransport(handler))
+    assert client.chat_json([{"role": "user", "content": "x"}], {"type": "object"}) == {}
+    assert seen["url"] == "https://host.example/openai/v1/chat/completions"
+    assert seen["auth"] == "Bearer k"
+    assert seen["body"]["reasoning_effort"] == "low"  # type: ignore[index]
+
+
+def test_hosted_chat_rejects_non_open_weight_model() -> None:
+    with pytest.raises(ProprietaryModelError):
+        LLMClient(Settings(chat_base_url="https://h.example/v1", chat_model="some-closed-model"))
+
+
+def test_hosted_chat_requires_model() -> None:
+    with pytest.raises(ValueError):
+        LLMClient(Settings(chat_base_url="https://h.example/v1"))
+
+
+def test_hosted_chat_retries_on_rate_limit(monkeypatch: pytest.MonkeyPatch) -> None:
+    sleeps: list[float] = []
+    monkeypatch.setattr(llm_module.time, "sleep", sleeps.append)
+    replies = iter(
+        [
+            httpx.Response(429, headers={"retry-after": "3"}),
+            httpx.Response(200, json={"choices": [{"message": {"content": "{}"}}]}),
+        ]
+    )
+    settings = Settings(chat_base_url="https://h.example/v1", chat_model="qwen/qwen3-32b")
+    client = LLMClient(settings, transport=httpx.MockTransport(lambda r: next(replies)))
+    assert client.chat_json([{"role": "user", "content": "x"}], {"type": "object"}) == {}
+    assert sleeps == [3.5]
