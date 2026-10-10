@@ -28,7 +28,7 @@ from janus_bench.harness.taskspec import TaskSpec, load_tasks
 from janus_bench.sites.common.perturb import PERTURBATIONS
 
 AVAILABLE_AGENTS = ("null", "oracle", "browser_use", "janus")
-CHECKPOINTS = ("CP1", "CP2", "CP3")
+CHECKPOINTS = ("CP1", "CP2", "CP3", "CP4")
 
 
 def make_agent(name: str, trace_dir: Path | None = None, model: str | None = None) -> Agent:
