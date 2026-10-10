@@ -220,3 +220,18 @@ def test_unknown_input_key_in_select_is_rejected() -> None:
 def test_known_input_key_is_accepted() -> None:
     plan = Plan(task_id="t", steps=[SelectStep(ref="e4", value="$inputs.ward")])
     assert validate_plan(plan, POLICY, SNAPSHOT, inputs={"ward": "5"}).ok
+
+
+def test_click_on_a_no_effect_ref_is_rejected() -> None:
+    plan = Plan(task_id="t", steps=[ClickStep(ref="e3")])
+    result = validate_plan(plan, POLICY, SNAPSHOT, inputs={}, no_effect_refs=frozenset({"e3"}))
+    assert not result.ok
+    assert any("nothing changed" in e for e in result.errors)
+
+
+def test_no_effect_guard_never_blocks_a_submit_or_other_refs() -> None:
+    """A submit that came back with validation errors must stay retryable."""
+    plan = Plan(task_id="t", steps=[SubmitStep(ref="e2")])
+    assert validate_plan(plan, POLICY, SNAPSHOT, inputs={}, no_effect_refs=frozenset({"e2"})).ok
+    plan = Plan(task_id="t", steps=[ClickStep(ref="e2")])
+    assert validate_plan(plan, POLICY, SNAPSHOT, inputs={}, no_effect_refs=frozenset({"e3"})).ok

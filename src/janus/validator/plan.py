@@ -15,6 +15,10 @@ Checks, all deterministic and model-free:
   - every `$inputs.<key>` reference names a key this task actually has. Without this a
     reference copied from the worked example (e.g. `$inputs.bank` on an edit task) passed
     validation and crashed the executor with a KeyError (E18 share-06, 3/3 runs)
+  - (E21 loop guard) no CLICK targets an element listed in `no_effect_refs`: one
+    this run already clicked on this same page with no effect (same URL and same
+    element outline afterwards, no form POST). E18 share-08/20 clicked the same
+    element on `/issues` six times and ran out of legs
   - when replanning (`committed_capabilities` given), the new plan's capabilities are a
     subset of what was already committed (invariant 2)
 
@@ -94,6 +98,7 @@ def validate_plan(
     snapshot: PageSnapshot,
     inputs: dict[str, str],
     committed_capabilities: frozenset[Capability] | None = None,
+    no_effect_refs: frozenset[str] = frozenset(),
 ) -> ValidationResult:
     errors: list[str] = []
     decisions: list[StepDecision] = []
@@ -139,6 +144,11 @@ def validate_plan(
                 errors.append(f"step {i}: unknown element ref {step.ref!r}")
                 decisions.append(StepDecision(i, step.consequential_hint))
                 continue
+            if step.op == "CLICK" and step.ref in no_effect_refs:
+                errors.append(
+                    f"step {i}: {step.ref!r} ({element.accessible_name!r}) was already "
+                    "clicked on this page and nothing changed; choose a different element"
+                )
             if step.op == "SELECT":
                 if element.role != "combobox":
                     errors.append(

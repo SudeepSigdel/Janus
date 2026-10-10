@@ -215,6 +215,7 @@ def commit_plan(
     completed_ops: list[str] | None = None,
     committed_capabilities: frozenset[Capability] | None = None,
     trace: Callable[[str, dict[str, Any]], None] | None = None,
+    no_effect_refs: frozenset[str] = frozenset(),
 ) -> tuple[Plan, ValidationResult]:
     """Commit a Plan for the current `snapshot`, retrying validator rejections.
 
@@ -298,7 +299,9 @@ def commit_plan(
                     },
                 )
 
-        result = validate_plan(plan, policy, snapshot, inputs, ceiling)
+        result = validate_plan(
+            plan, policy, snapshot, inputs, ceiling, no_effect_refs=no_effect_refs
+        )
         if trace is not None:
             trace(
                 "plan_attempt",

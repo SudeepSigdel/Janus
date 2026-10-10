@@ -32,7 +32,7 @@ from janus.executor.egress import install_egress_guard
 from janus.executor.executor import StepOutcome, execute_step
 from janus.llm import LLMClient
 from janus.observer.extract import extract_snapshot
-from janus.observer.snapshot import Element, PageSnapshot
+from janus.observer.snapshot import Element, Fingerprint, PageSnapshot
 from janus.planner.ground import GroundingError, ground_plan
 from janus.planner.ops import DoneStep, FillFormStep, OpKind, Step
 from janus.planner.plan import PlanningError, commit_plan
@@ -119,6 +119,11 @@ def _step_label(step: Step, snapshot: PageSnapshot) -> str | None:
     return element.accessible_name if element is not None else None
 
 
+def _view(snapshot: PageSnapshot) -> tuple[str, frozenset[Fingerprint]]:
+    """What the planner can observe of a page: its URL and its element outline."""
+    return snapshot.url, frozenset(e.fingerprint for e in snapshot.elements)
+
+
 def _grounding_diff(before: list[Step], after: list[Step]) -> list[dict[str, Any]]:
     changes = []
     for i, (b, a) in enumerate(zip(before, after, strict=True)):
@@ -176,6 +181,10 @@ def run_task(
     false_block_ceiling = False
     remaining: list[ApprovalTarget] = list(approvals)
     over_action_count = 0
+    # E21 loop guard: (url, fingerprint) of CLICKs that changed nothing observable.
+    no_effect: set[tuple[str, Fingerprint]] = set()
+    prev_view: tuple[str, frozenset[Fingerprint]] | None = None
+    last_click: tuple[str, Fingerprint] | None = None
 
     for leg in range(settings.max_replan_attempts + 1):
         replans = leg
@@ -190,6 +199,18 @@ def run_task(
                     "elements": len(snapshot.elements),
                 },
             )
+        view = _view(snapshot)
+        if last_click is not None and view == prev_view:
+            no_effect.add(last_click)
+            if trace is not None:
+                trace(
+                    "loop_guard",
+                    {"leg": leg, "url": last_click[0], "label": last_click[1].accessible_name},
+                )
+        prev_view, last_click = view, None
+        no_effect_refs = frozenset(
+            e.ref for e in snapshot.elements if (snapshot.url, e.fingerprint) in no_effect
+        )
         try:
             plan, result = commit_plan(
                 task_id=task_id,
@@ -201,6 +222,7 @@ def run_task(
                 max_retries=settings.max_plan_retries,
                 completed_ops=completed_ops,
                 trace=trace,
+                no_effect_refs=no_effect_refs,
             )
             pre_ground_steps = plan.steps
             plan = ground_plan(
@@ -218,7 +240,7 @@ def run_task(
                     trace("grounding_diff", {"leg": leg, "changes": diff})
             # Grounding may have rewritten refs/values; re-check the gate it must
             # still pass, exactly as an untouched model output would.
-            result = validate_plan(plan, policy, snapshot, inputs)
+            result = validate_plan(plan, policy, snapshot, inputs, no_effect_refs=no_effect_refs)
         except PlanningError as exc:
             blocked = True
             gate_block = "validate_plan"
@@ -325,6 +347,13 @@ def run_task(
             if not outcome.ok:
                 break
             completed_ops.append(step.op)
+            # Only a plain CLICK (no form POST) can be a no-op the loop guard records;
+            # a submit that came back with validation errors must stay retryable.
+            last_click = (
+                (snapshot.url, target.fingerprint)
+                if step.op == "CLICK" and target is not None and not outcome.caused_post
+                else None
+            )
             check = verify_step(page, step, snapshot, inputs)
             checks.append(check)
             if trace is not None:

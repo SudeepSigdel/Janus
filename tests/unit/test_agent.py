@@ -118,10 +118,11 @@ def test_completes_in_one_leg(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_exhausts_replan_budget_without_done(monkeypatch: pytest.MonkeyPatch) -> None:
     def handler(request: httpx.Request) -> httpx.Response:
-        # Never emits DONE: every leg re-commits the same single CLICK step.
+        # Never emits DONE: every leg re-commits the same single CLICK step. The click
+        # causes a POST, so the E21 loop guard never treats it as a no-op.
         return _chat({"task_id": "t", "steps": [{"op": "CLICK", "ref": "e0"}]})
 
-    _patch_page_primitives(monkeypatch, outcome=StepOutcome(ok=True))
+    _patch_page_primitives(monkeypatch, outcome=StepOutcome(ok=True, caused_post=True))
     result = agent.run_task(
         _FakePage(),
         task_id="t",
@@ -135,6 +136,39 @@ def test_exhausts_replan_budget_without_done(monkeypatch: pytest.MonkeyPatch) ->
     assert result.status == "partial"
     assert result.replans == 2
     assert result.steps_run == 3
+
+
+def test_loop_guard_rejects_repeating_a_click_that_changed_nothing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """E21 (E18 share-08/20): the page is identical after a plain CLICK, so clicking the
+    same element again is rejected by validate_plan with feedback; a model that insists
+    ends the run at the validator instead of burning every leg."""
+    bodies: list[dict] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        bodies.append(json.loads(request.content))
+        return _chat({"task_id": "t", "steps": [{"op": "CLICK", "ref": "e0"}]})
+
+    events: list[tuple[str, dict]] = []
+    _patch_page_primitives(monkeypatch, outcome=StepOutcome(ok=True))
+    result = agent.run_task(
+        _FakePage(),
+        task_id="t",
+        instruction="Click next.",
+        start_url="http://127.0.0.1:8101/services",
+        inputs={},
+        policy=_policy(),
+        llm=_llm(handler),
+        settings=Settings(max_replan_attempts=4),
+        trace=lambda stage, data: events.append((stage, data)),
+    )
+    assert result.status == "blocked"
+    assert result.gate_block == "validate_plan"
+    assert result.steps_run == 1
+    assert sum(stage == "loop_guard" for stage, _ in events) == 1
+    feedback = bodies[-1]["messages"][-1]["content"]
+    assert "already clicked on this page and nothing changed" in feedback
 
 
 def test_a_blocked_outcome_overrides_a_claimed_done(monkeypatch: pytest.MonkeyPatch) -> None:
