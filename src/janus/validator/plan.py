@@ -12,6 +12,9 @@ Checks, all deterministic and model-free:
     combobox's ref in a FILL_FORM step)
   - a sensitive field (by name attribute) is bound via `$inputs.<key>`, never a literal
     the model could have invented (invariant 3)
+  - every `$inputs.<key>` reference names a key this task actually has. Without this a
+    reference copied from the worked example (e.g. `$inputs.bank` on an edit task) passed
+    validation and crashed the executor with a KeyError (E18 share-06, 3/3 runs)
   - when replanning (`committed_capabilities` given), the new plan's capabilities are a
     subset of what was already committed (invariant 2)
 
@@ -75,6 +78,16 @@ def _check_sensitive_binding(
         )
 
 
+def _check_input_ref(errors: list[str], index: int, value: str, inputs: dict[str, str]) -> None:
+    key = input_ref_key(value)
+    if key is not None and key not in inputs:
+        available = ", ".join(sorted(inputs)) or "none"
+        errors.append(
+            f"step {index}: $inputs.{key} is not an input of this task "
+            f"(available input keys: {available})"
+        )
+
+
 def validate_plan(
     plan: Plan,
     policy: Policy,
@@ -116,6 +129,7 @@ def validate_plan(
                 _check_sensitive_binding(
                     errors, i, policy, element, field_value.ref, field_value.value
                 )
+                _check_input_ref(errors, i, field_value.value, inputs)
             decisions.append(StepDecision(i, consequential))
             continue
 
@@ -132,6 +146,7 @@ def validate_plan(
                         "not selectable (expected combobox)"
                     )
                 _check_sensitive_binding(errors, i, policy, element, step.ref, step.value)
+                _check_input_ref(errors, i, step.value, inputs)
             consequential = (
                 is_consequential(step.op, element.accessible_name) or step.consequential_hint
             )

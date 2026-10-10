@@ -195,3 +195,28 @@ def test_select_targeting_a_combobox_is_accepted() -> None:
     plan = Plan(task_id="t", steps=[SelectStep(ref="e4", value="5")])
     result = validate_plan(plan, POLICY, SNAPSHOT, inputs={})
     assert result.ok
+
+
+def test_unknown_input_key_in_fill_form_is_rejected() -> None:
+    """E18 share-06: `$inputs.bank` copied from the worked example on a task without a
+    `bank` input passed validation and crashed the executor with KeyError."""
+    plan = Plan(
+        task_id="t",
+        steps=[FillFormStep(fields=[FieldValue(ref="e1", value="$inputs.bank")])],
+    )
+    result = validate_plan(plan, POLICY, SNAPSHOT, inputs={"ward": "5"})
+    assert not result.ok
+    assert any("$inputs.bank is not an input of this task" in e for e in result.errors)
+    assert any("available input keys: ward" in e for e in result.errors)
+
+
+def test_unknown_input_key_in_select_is_rejected() -> None:
+    plan = Plan(task_id="t", steps=[SelectStep(ref="e4", value="$inputs.bank")])
+    result = validate_plan(plan, POLICY, SNAPSHOT, inputs={"ward": "5"})
+    assert not result.ok
+    assert any("$inputs.bank is not an input of this task" in e for e in result.errors)
+
+
+def test_known_input_key_is_accepted() -> None:
+    plan = Plan(task_id="t", steps=[SelectStep(ref="e4", value="$inputs.ward")])
+    assert validate_plan(plan, POLICY, SNAPSHOT, inputs={"ward": "5"}).ok
