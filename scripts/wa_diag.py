@@ -29,8 +29,15 @@ def get(url: str) -> None:
         print(f"GET {url} -> {type(exc).__name__}: {exc}")
 
 
-sh("docker", "ps", "-a", "--filter", f"name={NAME}",
-   "--format", "{{.Names}} | {{.Status}} | {{.Ports}}")
+sh(
+    "docker",
+    "ps",
+    "-a",
+    "--filter",
+    f"name={NAME}",
+    "--format",
+    "{{.Names}} | {{.Status}} | {{.Ports}}",
+)
 sh("docker", "image", "ls", "am1n3e/webarena-verified-reddit")
 sh("docker", "logs", "--tail", "60", NAME)
 for host in ("127.0.0.1", "localhost"):

@@ -150,9 +150,26 @@ def reset_site(site: Site, timeout_s: float = 300.0) -> float:
     ready_started = time.monotonic()
     while time.monotonic() - ready_started < timeout_s:
         if _status_ok(site):
+            warm_site(site)
             return round(time.monotonic() - started, 1)
         time.sleep(2)
     raise TimeoutError(f"{site.container} not ready after {timeout_s:.0f}s")
+
+
+WARM_PATHS = ("/", "/login", "/registration", "/submit", "/forums", "/messages")
+
+
+def warm_site(site: Site, timeout_s: float = 180.0) -> None:
+    """Request the main pages once, logged in, so the app's first-request cache build
+    (about 34 s on the forum image) happens here and not inside a task's 30 s page load."""
+    headers = {site.login_header: f"{site.username}:{site.password}"}
+    for path in WARM_PATHS:
+        req = urllib.request.Request(f"{site.url}{path}", headers=headers)
+        try:
+            with urllib.request.urlopen(req, timeout=timeout_s) as r:
+                r.read()
+        except urllib.error.HTTPError:
+            pass  # any answer means the page was built
 
 
 def agent_response(task_type: str | None, status: str, data: list[Any] | None) -> dict[str, Any]:

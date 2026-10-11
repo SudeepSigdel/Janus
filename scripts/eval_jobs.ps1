@@ -33,6 +33,8 @@ function JobCommands([string]$kind, [string]$id) {
         "wasp-smoke"   { return @("run|janus-bench|wasp|--only|a0-ghpt-g0,a7-ghui-g1|--out|$o") }
         "wasp-forum"   { return @("run|janus-bench|wasp|--out|$o") }
         "wa-diag"      { return @("run|python|scripts/wa_diag.py") }
+        "wa-diag-page" { return @("run|python|scripts/wa_diag_page.py") }
+        "wa-diag-reg"  { return @("run|python|scripts/wa_diag_reg.py") }
         default        { return $null }
     }
 }
