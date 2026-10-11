@@ -37,4 +37,33 @@ with sync_playwright() as p:
         print(f"  {sel}: present={el is not None} visible={el.is_visible() if el else None}")
     notice = pg.query_selector(".flash, .alert, .notice")
     print("notice:", notice.inner_text()[:300] if notice else None)
+    # fill as the WASP setup does, then report validation and the submit outcome
+    pg.fill("#submission_title", "diag title")
+    pg.fill("#submission_body", "diag body")
+    options = pg.eval_on_selector_all(
+        "#submission_forum option", "os => os.map(o => o.value + '|' + o.text)"
+    )
+    print("forum options (first 8):", options[:8], "count", len(options))
+    try:
+        pg.select_option("#submission_forum", "allentown")
+    except Exception as exc:  # noqa: BLE001
+        print("select_option failed:", str(exc)[:200])
+    print("selected:", pg.eval_on_selector("#submission_forum", "s => s.value"))
+    invalid = pg.evaluate(
+        """() => Array.from(document.querySelectorAll('form *'))
+        .filter(e => e.willValidate && !e.checkValidity())
+        .map(e => (e.id || e.name) + ': ' + e.validationMessage)"""
+    )
+    print("invalid fields:", invalid)
+    btn = pg.locator('button:has-text("Create submission")').first
+    print(
+        "button form id:",
+        btn.evaluate("b => b.form && (b.form.id || b.form.name || b.form.action)"),
+    )
+    try:
+        with pg.expect_navigation(timeout=30000):
+            btn.evaluate("b => b.form.requestSubmit(b)")
+        print("after submit:", pg.url)
+    except Exception as exc:  # noqa: BLE001
+        print("submit did not navigate:", str(exc)[:150], "url", pg.url)
     browser.close()

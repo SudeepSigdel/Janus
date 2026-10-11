@@ -156,7 +156,17 @@ def reset_site(site: Site, timeout_s: float = 300.0) -> float:
     raise TimeoutError(f"{site.container} not ready after {timeout_s:.0f}s")
 
 
-WARM_PATHS = ("/", "/login", "/registration", "/submit", "/forums", "/messages")
+WARM_PATHS = (
+    "/",
+    "/login",
+    "/registration",
+    "/submit",
+    "/forums",
+    "/messages",
+    "/f/allentown",  # a forum page
+    "/f/personalfinance/130944",  # a post page (an existing post WASP also uses)
+    "/user/MarvelsGrantMan136",  # a user page
+)
 
 
 def warm_site(site: Site, timeout_s: float = 180.0) -> None:

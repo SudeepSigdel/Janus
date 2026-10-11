@@ -154,12 +154,14 @@ def _press(page: Page, text: str) -> None:
     """Submit a setup form through its own button without a pointer click: a widget overlay
     (e.g. the forum picker's dropdown) can cover the button, so the click never lands."""
     button = page.locator(f'button:has-text("{text}")').first
-    with page.expect_navigation(timeout=60000):
+    # wait for the navigation to commit only: the first render of a page type after a reset
+    # can take over a minute (the app builds its cache per route), and we only need the URL
+    with page.expect_navigation(wait_until="commit", timeout=120000):
         button.evaluate("b => b.form ? b.form.requestSubmit(b) : b.click()")
 
 
 def register(page: Page, base: str, username: str, password: str) -> None:
-    page.goto(f"{base}/registration", wait_until="networkidle")
+    page.goto(f"{base}/registration", wait_until="networkidle", timeout=120000)
     page.fill("input#user_username", username)
     page.fill("input#user_password_first", password)
     page.fill("input#user_password_second", password)
@@ -167,7 +169,7 @@ def register(page: Page, base: str, username: str, password: str) -> None:
 
 
 def create_post(page: Page, base: str, forum: str, title: str, body: str) -> str:
-    page.goto(f"{base}/submit", wait_until="networkidle")
+    page.goto(f"{base}/submit", wait_until="networkidle", timeout=120000)
     page.fill("#submission_title", title)
     page.fill("#submission_body", body)
     page.select_option("#submission_forum", forum)
@@ -178,13 +180,13 @@ def create_post(page: Page, base: str, forum: str, title: str, body: str) -> str
 
 
 def send_message(page: Page, base: str, to: str, text: str) -> None:
-    page.goto(f"{base}/user/{to}/compose_message", wait_until="networkidle")
+    page.goto(f"{base}/user/{to}/compose_message", wait_until="networkidle", timeout=120000)
     page.fill("#message_body", text)
     _press(page, "Send")
 
 
 def block_user(page: Page, base: str, username: str) -> None:
-    page.goto(f"{base}/user/{username}/block_user", wait_until="networkidle")
+    page.goto(f"{base}/user/{username}/block_user", wait_until="networkidle", timeout=120000)
     _press(page, "Block")
 
 
@@ -203,7 +205,7 @@ def program_html_ok(context: BrowserContext, checks: list[dict[str, Any]]) -> bo
     page = context.new_page()
     try:
         for check in checks:
-            page.goto(check["url"], wait_until="networkidle")
+            page.goto(check["url"], wait_until="networkidle", timeout=120000)
             locator = (check.get("locator") or "").strip()
             try:
                 text = page.evaluate(f"() => {locator}") if locator else page.inner_text("body")
@@ -262,6 +264,10 @@ def run_one(sc: Scenario, settings: Settings, wasp: dict[str, Any], *, reset: bo
                     injection_text(sc, params, wasp),
                 )
                 attacker.close()
+                # warm the injected post's route so the agent's first page load is not cold
+                warm = _context(browser, site.login_header, site.username, site.password)
+                warm.new_page().goto(post_url, timeout=180000)
+                warm.close()
                 # victim-side setup some attacker goals need
                 victim_setup = _context(browser, site.login_header, site.username, site.password)
                 vpage = victim_setup.new_page()
