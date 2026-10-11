@@ -1782,6 +1782,63 @@ Run in order, one per session, security first. Long runs are marked.
 
 Accept criteria per milestone: the table in `docs/AUDIT.md` ("Proposed R-milestones").
 
+# Breadth phase (B-milestones, added 2026-10-11)
+
+Goal: measure Janus on benchmarks we did not build, so results stop depending on two author-built
+sites (the overfitting concern in EXPERIMENTS.md CP4a), and let what breaks there choose the next
+agent changes. Decided with the developer 2026-10-11: B0-B2 before the Frogtoberfest freeze
+(Oct 24); B3/B4 only if time allows, otherwise after Oct 30.
+
+**Phase rules** (P/Q rules still apply):
+- Development benchmarks: MiniWoB++ and X-WebAgentBench. Held-out, never tuned on: WebArena
+  Verified Hard and WASP. Their numbers are reported once per build, aggregates only.
+- Success is the benchmark's own programmatic reward or a state check we write. No LLM judge,
+  and no proprietary model anywhere (WASP's shipped evaluator uses an OpenAI/Azure judge, so B4
+  needs our own deterministic checks).
+- The invariants hold unchanged: in particular, page text still never reaches the planner.
+  Tasks Janus cannot do because of that are reported as such (the capability cost of invariant
+  1), not worked around.
+- New dependencies go in a separate optional extra (`external`), so the runtime install is
+  unchanged.
+
+## B0 — Generic task interface
+Status: in-progress.
+Change: run Janus from a goal string and a start URL, with no task YAML:
+- `janus.goal.extract_inputs`: one schema-constrained call over the *goal text* (trusted, from
+  the user) returns `{key: value}` inputs the planner binds as `$inputs.<key>`;
+- default policy: allowed origin = the start URL's origin, no declared approvals;
+- approvals through `escalate`: `janus run` asks a human; benchmarks use a logging auto-approver
+  and report approvals per task;
+- `run_task(..., navigate=False)` for environments that set up the page themselves;
+- answer channel (`janus.goal.extract_answer`): after the run, a schema-constrained call reads
+  the page text and returns a typed answer to the *caller only*, never to the planner (a
+  quarantined read, as in CaMeL).
+- `janus run --url URL --goal "..." [--headed]` (the U2 item of USABILITY_PLAN.md).
+Accept: unit tests; existing suites unchanged; the smoke split reproduces 5/8.
+
+## B1 — MiniWoB++ (via BrowserGym)
+Status: todo.
+Change: `janus_bench/external/miniwob.py` drives BrowserGym's MiniWoB envs (HTML served from a
+local static server, so the origin is http://127.0.0.1) and scores with the env's own reward.
+Agents: janus, null. Dependency: `browsergym-miniwob` (extra `external`) plus the
+miniwob-plusplus HTML assets (cloned, gitignored).
+Metric: success per task family; which widgets the observer cannot represent.
+Report if: any result; this is the first outside-benchmark number.
+
+## B2 — X-WebAgentBench (Hindi and English)
+Status: todo. Blocked on finding the released code/data (not linked from the paper page).
+Change: adapter for its WebShop-based environment; Janus on the Hindi and English instructions.
+Report if: the en/hi gap for Janus vs the paper's small-model numbers.
+
+## B3 — WebArena Verified Hard (stretch)
+Status: todo. Needs Docker; one site at a time (55 GB free disk; GitLab is RAM-heavy).
+Held-out only.
+
+## B4 — WASP prompt-injection scenarios (stretch)
+Status: todo. Reddit + GitLab from (Visual)WebArena; 84 scenarios. Needs our own state-based
+attack checks (its evaluator calls a proprietary judge). Held-out only. Report intermediate ASR
+(did Janus start following the injection) and end-to-end ASR.
+
 ## Overnight session 2026-10-10 (branch `overnight/2026-10-10`, not pushed)
 E19 (unknown `$inputs` key rejected), E20/E20b (worked example gated on the task's inputs; login
 segment split out), E21 (deterministic loop guard), E23 (plan truncation after a page change, AUDIT
