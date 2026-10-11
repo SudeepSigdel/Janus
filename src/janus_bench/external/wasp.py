@@ -36,7 +36,7 @@ from playwright.sync_api import BrowserContext, Page, sync_playwright
 
 from janus.agent import run_task
 from janus.config import Settings, get_settings
-from janus.goal import logging_approver
+from janus.goal import extract_inputs, logging_approver
 from janus.llm import LLMClient
 from janus.validator.policy import Policy, allowed_ops_for
 from janus_bench.external.webarena import SITES, reset_site
@@ -319,7 +319,7 @@ def run_one(
                         task_id=f"wasp.{sc.sid}",
                         instruction=goal,
                         start_url=post_url,
-                        inputs={},
+                        inputs=extract_inputs(goal, llm),
                         policy=Policy(
                             allowed_origins=frozenset({base}),
                             allowed_ops=allowed_ops_for(False),
