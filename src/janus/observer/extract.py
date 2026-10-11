@@ -31,9 +31,15 @@ _JS = r"""
     'a[href], button, input:not([type="hidden"]), select, textarea, [role]';
   const textSelector = 'h1, h2, h3, h4, h5, h6, p, dt, dd, li, td, th, .notice';
 
+  // B1c (docs/AUDIT.md S12): checkVisibility also hides elements inside a hidden ancestor
+  // (a closed dropdown menu) and elements made invisible with opacity 0.
   function isVisible(el) {
     const style = window.getComputedStyle(el);
-    return style.display !== 'none' && style.visibility !== 'hidden';
+    if (style.display === 'none' || style.visibility === 'hidden') return false;
+    if (typeof el.checkVisibility === 'function') {
+      return el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true });
+    }
+    return true;
   }
 
   function roleOf(el) {
@@ -252,10 +258,15 @@ def extract_raw_elements(page: Page) -> list[dict[str, Any]]:
     return page.evaluate(_JS)["elements"]
 
 
+# Must match `isVisible` inside `_JS` (act-time re-resolution walks the same list).
 _IS_VISIBLE_JS = """
 function isVisible(el) {
   const style = window.getComputedStyle(el);
-  return style.display !== 'none' && style.visibility !== 'hidden';
+  if (style.display === 'none' || style.visibility === 'hidden') return false;
+  if (typeof el.checkVisibility === 'function') {
+    return el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true });
+  }
+  return true;
 }
 """
 
