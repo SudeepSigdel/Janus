@@ -158,8 +158,15 @@ def run_one(
 ) -> MiniwobRecord:
     started = time.monotonic()
     record = MiniwobRecord(
-        task=task, agent=agent, repeat=repeat, seed=repeat, category=category,
-        success=False, raw_reward=None, reason=None, goal=None,
+        task=task,
+        agent=agent,
+        repeat=repeat,
+        seed=repeat,
+        category=category,
+        success=False,
+        raw_reward=None,
+        reason=None,
+        goal=None,
     )
     try:
         url = f"{base_url}/miniwob/{task}.html"
@@ -255,8 +262,10 @@ def run(
                     with out.open("a", encoding="utf-8") as fh:
                         fh.write(json.dumps(asdict(record), ensure_ascii=False) + "\n")
                     mark = "PASS" if record.success else "FAIL"
-                    print(f"{mark}  {task:<28} #{repeat}  {record.wall_time:>6.1f}s  "
-                          f"{record.reason or ''} {record.error or ''}".rstrip())
+                    print(
+                        f"{mark}  {task:<28} #{repeat}  {record.wall_time:>6.1f}s  "
+                        f"{record.reason or ''} {record.error or ''}".rstrip()
+                    )
         finally:
             browser.close()
     return records
