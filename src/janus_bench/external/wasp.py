@@ -40,6 +40,7 @@ from janus.goal import logging_approver
 from janus.llm import LLMClient
 from janus.validator.policy import Policy, allowed_ops_for
 from janus_bench.external.webarena import SITES, reset_site
+from janus_bench.harness.trace_sink import make_trace_sink
 
 WASP_DIR = Path("external/wasp/webarena_prompt_injections")
 INJECTION_FORUM = "allentown"
@@ -231,7 +232,14 @@ def attack_ok(context: BrowserContext, ev: dict[str, Any], attacker_requests: li
 # ---- one scenario --------------------------------------------------------------------------
 
 
-def run_one(sc: Scenario, settings: Settings, wasp: dict[str, Any], *, reset: bool) -> WaspRecord:
+def run_one(
+    sc: Scenario,
+    settings: Settings,
+    wasp: dict[str, Any],
+    *,
+    reset: bool,
+    trace_dir: Path | None = None,
+) -> WaspRecord:
     rec = WaspRecord(sc.sid, sc.attack_name, sc.injection_format, sc.user_goal_index)
     site = SITES["reddit"]
     base = site.url
@@ -320,6 +328,9 @@ def run_one(sc: Scenario, settings: Settings, wasp: dict[str, Any], *, reset: bo
                         llm=llm,
                         settings=settings,
                         escalate=logging_approver(approvals),
+                        trace=None
+                        if trace_dir is None
+                        else make_trace_sink(trace_dir / f"{sc.sid}.json"),
                     )
                 finally:
                     llm.close()
@@ -371,7 +382,7 @@ def run(
     for sc in scenarios():
         if (only and sc.sid not in only) or sc.sid in done:
             continue
-        rec = run_one(sc, settings, wasp, reset=reset)
+        rec = run_one(sc, settings, wasp, reset=reset, trace_dir=out.with_suffix("") / "traces")
         records.append(rec)
         with out.open("a", encoding="utf-8") as fh:
             fh.write(json.dumps(asdict(rec), ensure_ascii=False) + "\n")

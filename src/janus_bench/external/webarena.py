@@ -35,6 +35,7 @@ from janus.goal import classify_task, extract_data, extract_inputs, logging_appr
 from janus.llm import LLMClient
 from janus.observer.extract import extract_snapshot
 from janus.validator.policy import Policy, allowed_ops_for
+from janus_bench.harness.trace_sink import make_trace_sink
 
 DATASET = Path("external/webarena-verified/webarena-verified.json")
 SPLIT_FILE = Path("splits/webarena.yaml")
@@ -232,6 +233,7 @@ def run_one(
                         llm=llm,
                         settings=settings,
                         escalate=logging_approver(approvals),
+                        trace=make_trace_sink(task_dir / "trace.json"),
                     )
                     schema = results_schema(task)
                     if record.task_type == "RETRIEVE" and schema is not None:
