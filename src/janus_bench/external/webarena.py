@@ -142,7 +142,9 @@ def reset_site(site: Site, timeout_s: float = 300.0) -> float:
         capture_output=True,
         check=True,
     )
-    while time.monotonic() - started < timeout_s:
+    # time the readiness wait only: the first `docker run` may first pull the image
+    ready_started = time.monotonic()
+    while time.monotonic() - ready_started < timeout_s:
         if _status_ok(site):
             return round(time.monotonic() - started, 1)
         time.sleep(2)
