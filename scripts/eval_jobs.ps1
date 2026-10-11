@@ -1,6 +1,6 @@
 # Job kinds for scripts\eval_worker.ps1 (re-read before every job). Each kind maps to FIXED
 # commands; a job file only picks a kind and an output id. Arguments are separated by "|".
-$ModelKinds = @("smoke", "dev", "test", "perturb", "perturb-orig", "miniwob", "miniwob-smoke", "wa-smoke", "wa-reddit", "miniwob-1")
+$ModelKinds = @("smoke", "dev", "test", "perturb", "perturb-orig", "miniwob", "miniwob-smoke", "wa-smoke", "wa-reddit", "miniwob-1", "wasp-smoke", "wasp-forum")
 
 function JobCommands([string]$kind, [string]$id) {
     # Each command is ONE string with arguments separated by "|" (strings never get unrolled by
@@ -29,6 +29,9 @@ function JobCommands([string]$kind, [string]$id) {
         # Official deterministic evaluator, in its own uv tool env. Job id "<run id>-eval".
         "wa-eval"      { $run = $id -replace '-eval$', ''
                          return @("tool|run|webarena-verified|eval-tasks|--output-dir|$Out\$run|--config|$Out\$run\eval_config.json") }
+        # WASP forum injection scenarios (docs/PLAN.md B4); needs external\wasp and Docker Desktop.
+        "wasp-smoke"   { return @("run|janus-bench|wasp|--only|a0-ghpt-g0,a7-ghui-g1|--out|$o") }
+        "wasp-forum"   { return @("run|janus-bench|wasp|--out|$o") }
         default        { return $null }
     }
 }

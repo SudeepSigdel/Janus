@@ -277,7 +277,18 @@ def main(argv: list[str] | None = None) -> int:
     wa_p.add_argument(
         "--no-reset", action="store_true", help="reuse the running container between tasks"
     )
+    ws_p = sub.add_parser("wasp", help="WASP injection scenarios on the forum (PLAN.md B4)")
+    ws_p.add_argument("--out", type=Path, required=True, help="JSONL results (resumable)")
+    ws_p.add_argument("--only", default=None, help="comma-separated scenario ids")
     args = parser.parse_args(argv)
+    if args.command == "wasp":
+        from janus_bench.external import wasp
+
+        only = [s.strip() for s in args.only.split(",")] if args.only else None
+        wasp.run(out=args.out, only=only)
+        records = [json.loads(x) for x in args.out.read_text("utf-8").splitlines() if x]
+        print(wasp.summarize(records))
+        return 0
     if args.command == "webarena":
         from janus_bench.external import webarena
 
