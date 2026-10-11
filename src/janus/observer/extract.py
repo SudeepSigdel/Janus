@@ -54,6 +54,25 @@ _JS = r"""
     return 'generic';
   }
 
+  // ARIA roles whose accessible name comes from their content (WAI-ARIA "name from
+  // content"). B1: MiniWoB's tabs, options and tree items had empty names without this.
+  const nameFromContent = new Set([
+    'button', 'cell', 'checkbox', 'columnheader', 'gridcell', 'heading', 'link', 'menuitem',
+    'menuitemcheckbox', 'menuitemradio', 'option', 'radio', 'row', 'rowheader', 'switch',
+    'tab', 'tooltip', 'treeitem',
+  ]);
+
+  function squash(text) {
+    return (text || '').replace(/\s+/g, ' ').trim();
+  }
+
+  // Text of `container` without the text of any interactive control inside it.
+  function ownText(container) {
+    const clone = container.cloneNode(true);
+    clone.querySelectorAll(interactiveSelector).forEach((n) => n.remove());
+    return squash(clone.textContent);
+  }
+
   function labelFor(el) {
     const id = el.getAttribute('id');
     if (id) {
@@ -62,10 +81,45 @@ _JS = r"""
     }
     const ariaLabel = el.getAttribute('aria-label');
     if (ariaLabel && ariaLabel.trim()) return ariaLabel.trim();
+    // B1 fallbacks below only name elements that would otherwise have no name.
+    const labelledBy = el.getAttribute('aria-labelledby');
+    if (labelledBy) {
+      const text = squash(labelledBy.split(/\s+/)
+        .map((ref) => document.getElementById(ref))
+        .filter((n) => n)
+        .map((n) => n.textContent)
+        .join(' '));
+      if (text) return text;
+    }
+    const wrapping = el.closest('label');
+    if (wrapping) {
+      const text = ownText(wrapping);
+      if (text) return text;
+    }
     const placeholder = el.getAttribute('placeholder');
     if (placeholder && placeholder.trim()) return placeholder.trim();
     const tag = el.tagName.toLowerCase();
     if (tag === 'a' || tag === 'button') return el.textContent.trim().replace(/\s+/g, ' ');
+    if (tag === 'input') {
+      const type = (el.getAttribute('type') || 'text').toLowerCase();
+      if (['submit', 'button', 'reset'].includes(type)) {
+        const value = squash(el.getAttribute('value'));
+        if (value) return value;
+      }
+    }
+    const role = el.getAttribute('role');
+    if (role && nameFromContent.has(role)) {
+      const text = squash(el.textContent);
+      if (text) return text;
+    }
+    const title = squash(el.getAttribute('title'));
+    if (title) return title;
+    // Last resort for an unlabelled form control: its name/id attribute, humanized
+    // (name="user_name" -> "user name"). Only for controls, never links/buttons.
+    if (['input', 'select', 'textarea'].includes(tag)) {
+      const attr = el.getAttribute('name') || el.getAttribute('id') || '';
+      return squash(attr.replace(/[_\-]+/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2'));
+    }
     return '';
   }
 
