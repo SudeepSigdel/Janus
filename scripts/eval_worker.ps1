@@ -14,25 +14,9 @@ New-Item -ItemType Directory -Force $Queue, $Out | Out-Null
 Add-Type -Namespace Win32 -Name Power -MemberDefinition '[DllImport("kernel32.dll")] public static extern uint SetThreadExecutionState(uint f);'
 [void][Win32.Power]::SetThreadExecutionState([uint32]"0x80000001")  # ES_CONTINUOUS | ES_SYSTEM_REQUIRED
 
-function JobCommands([string]$kind, [string]$id) {
-    # Each command is ONE string with arguments separated by "|" (strings never get unrolled by
-    # PowerShell's pipeline, unlike nested arrays). The caller splits them.
-    $o = "$Out\$id.jsonl"
-    $janus = "run|janus-bench|run|--agent|janus|--tasks|tasks"
-    $an = "run|janus-bench|analyze|--tasks|tasks|--records|$o"
-    switch ($kind) {
-        "unit"         { return @("run|pytest|-q") }
-        "browser"      { return @("run|pytest|-q|-m|browser and not ollama") }
-        "ruff"         { return @("run|ruff|check|.", "run|ruff|format|--check|.") }
-        "oracle"       { return @("run|janus-bench|run|--agent|oracle|--tasks|tasks|--out|$o") }
-        "smoke"        { return @("$janus|--split|splits/smoke.yaml|--set|dev|--repeats|1|--trace|--out|$o", "$an|--split|splits/smoke.yaml|--set|dev") }
-        "dev"          { return @("$janus|--split|splits/v2.yaml|--set|dev|--repeats|3|--trace|--out|$o", "$an|--split|splits/v2.yaml|--set|dev") }
-        "test"         { return @("$janus|--split|splits/v2.yaml|--set|test|--checkpoint|CP4|--repeats|3|--out|$o", "$an|--split|splits/v2.yaml|--set|test") }
-        "perturb"      { return @("$janus|--split|splits/perturb.yaml|--set|dev|--repeats|3|--perturbation|p1|--trace|--out|$o", "$an|--split|splits/perturb.yaml|--set|dev") }
-        "perturb-orig" { return @("$janus|--split|splits/perturb.yaml|--set|dev|--repeats|3|--trace|--out|$o", "$an|--split|splits/perturb.yaml|--set|dev") }
-        default        { return $null }
-    }
-}
+# The job list lives in scripts\eval_jobs.ps1 and is re-read before every job, so new job kinds
+# work without restarting this window. It still only maps a kind to fixed commands.
+. "$PSScriptRoot\eval_jobs.ps1"
 
 Write-Host "Janus eval worker running in $(Get-Location). Leave this window open. Ctrl+C to stop."
 while ($true) {
@@ -45,12 +29,13 @@ while ($true) {
     $kind = "$($spec.kind)"; $id = "$($spec.id)"
     $status = @{ id = $id; kind = $kind; started = (Get-Date -Format o) }
     $cmds = $null
+    . "$PSScriptRoot\eval_jobs.ps1"
     if ($id -match '^[a-z0-9][a-z0-9-]{0,60}$') { $cmds = @(JobCommands $kind $id) }
     if ($cmds.Count -eq 0) { $cmds = $null }
     if (-not $cmds) {
         $status.result = "rejected (unknown kind or bad id)"
     } else {
-        $needsModel = @("smoke", "dev", "test", "perturb", "perturb-orig") -contains $kind
+        $needsModel = $ModelKinds -contains $kind
         $ollamaOk = $true
         if ($needsModel) {
             try { Invoke-RestMethod "http://127.0.0.1:11434/api/tags" -TimeoutSec 10 | Out-Null } catch { $ollamaOk = $false }

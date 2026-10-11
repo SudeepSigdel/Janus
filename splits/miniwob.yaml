@@ -1,0 +1,44 @@
+# MiniWoB++ split for docs/PLAN.md B1. Task ids are BrowserGym's 125 MiniWoB subdomains.
+# Categories were assigned by the author BEFORE any Janus run, from the task descriptions, so they
+# cannot be tuned to results:
+#   structured: the goal names the target element/values (forms, buttons, tabs, menus, dates)
+#   read: the answer is only in page body text (tables, emails, arithmetic, "find the largest").
+#         Janus's planner never sees body text (invariant 1), so these measure that design cost.
+#   coordinate: needs pointer coordinates, drag or drawing; Janus has no such op.
+# smoke: 8 structured tasks for a quick check. dev: all 125 tasks. Seed = repeat index.
+smoke: [click-test, click-button, enter-text, login-user, choose-list, click-checkboxes, enter-date, use-autocomplete]
+categories:
+  # structured: 55 tasks
+  structured: [
+    choose-date, choose-date-easy, choose-date-medium, choose-date-nodelay, choose-list,
+    click-button, click-button-sequence, click-checkboxes, click-checkboxes-large,
+    click-checkboxes-soft, click-checkboxes-transfer, click-collapsible, click-collapsible-2,
+    click-collapsible-2-nodelay, click-collapsible-nodelay, click-dialog, click-dialog-2,
+    click-link, click-menu, click-menu-2, click-option, click-scroll-list, click-tab,
+    click-tab-2, click-tab-2-easy, click-tab-2-hard, click-tab-2-medium, click-test,
+    click-test-2, click-test-transfer, click-widget, enter-date, enter-password, enter-text,
+    enter-text-2, enter-text-dynamic, enter-time, focus-text, focus-text-2, form-sequence,
+    form-sequence-2, form-sequence-3, login-user, login-user-popup, multi-layouts,
+    multi-orderings, navigate-tree, order-food, search-engine, sign-agreement, text-editor,
+    unicode-test, use-autocomplete, use-autocomplete-nodelay, use-spinner,
+  ]
+  # read: 38 tasks
+  read: [
+    ascending-numbers, book-flight, book-flight-nodelay, buy-ticket, copy-paste, copy-paste-2,
+    daily-calendar, email-inbox, email-inbox-delete, email-inbox-forward,
+    email-inbox-forward-nl, email-inbox-forward-nl-turk, email-inbox-important,
+    email-inbox-nl-turk, email-inbox-noscroll, email-inbox-reply, email-inbox-star-reply,
+    find-greatest, find-midpoint, find-word, generate-number, guess-number, hot-cold,
+    number-checkboxes, odd-or-even, phone-book, read-table, read-table-2, scroll-text,
+    scroll-text-2, simple-algebra, simple-arithmetic, social-media, social-media-all,
+    social-media-some, stock-market, terminal, text-transform,
+  ]
+  # coordinate: 32 tasks
+  coordinate: [
+    bisect-angle, circle-center, click-color, click-pie, click-pie-nodelay, click-shades,
+    click-shape, count-shape, count-sides, drag-box, drag-circle, drag-cube, drag-items,
+    drag-items-grid, drag-shapes, drag-shapes-2, drag-single-shape, drag-sort-numbers,
+    draw-circle, draw-line, grid-coordinate, highlight-text, highlight-text-2, identify-shape,
+    resize-textarea, right-angle, tic-tac-toe, use-colorwheel, use-colorwheel-2, use-slider,
+    use-slider-2, visual-addition,
+  ]

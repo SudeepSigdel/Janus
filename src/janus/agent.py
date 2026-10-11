@@ -148,6 +148,7 @@ def run_task(
     escalate: Callable[[Step, str], bool] | None = None,
     trace: Callable[[str, dict[str, Any]], None] | None = None,
     navigate: bool = True,
+    stop: Callable[[], bool] | None = None,
 ) -> RunResult:
     """`trace`, if given, is called with (stage, data) at each pipeline stage
     (docs/PLAN.md P1: "trace capture as a runtime feature"). It never influences any
@@ -191,6 +192,10 @@ def run_task(
     last_click: tuple[str, Fingerprint] | None = None
 
     for leg in range(settings.max_replan_attempts + 1):
+        # B1: the environment says the episode is over (e.g. MiniWoB scored it); stop
+        # without another planning call. Never consulted by any gate.
+        if stop is not None and stop():
+            break
         replans = leg
         snapshot = extract_snapshot(page, settings)
         if trace is not None:

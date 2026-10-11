@@ -12,3 +12,6 @@ results/*
 .env
 .env.*
 !.env.example
+
+# third-party benchmark assets (docs/PLAN.md B1)
+external/

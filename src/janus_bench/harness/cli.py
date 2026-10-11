@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -191,6 +192,20 @@ def analyze(
     return 0
 
 
+def miniwob_cmd(agent: str, split: str, only: str | None, repeats: int, out: Path) -> int:
+    from janus_bench.external import miniwob
+
+    smoke, category = miniwob.load_split()
+    if only:
+        tasks = [t.strip() for t in only.split(",") if t.strip()]
+    else:
+        tasks = smoke if split == "smoke" else list(category)
+    miniwob.run(agent=agent, tasks=tasks, category=category, repeats=repeats, out=out)
+    records = [json.loads(line) for line in out.read_text(encoding="utf-8").splitlines() if line]
+    print(miniwob.summarize([r for r in records if r["task"] in set(tasks)]))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     if hasattr(sys.stdout, "reconfigure"):  # Windows consoles default to a non-UTF-8 codepage
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -248,7 +263,15 @@ def main(argv: list[str] | None = None) -> int:
     )
     analyze_p.add_argument("--split", type=Path, default=None)
     analyze_p.add_argument("--set", dest="set_", choices=("dev", "test"), default=None)
+    mw_p = sub.add_parser("miniwob", help="run an agent on MiniWoB++ (docs/PLAN.md B1)")
+    mw_p.add_argument("--agent", required=True, choices=("janus", "null"))
+    mw_p.add_argument("--split", choices=("smoke", "dev"), default="smoke")
+    mw_p.add_argument("--only", default=None, help="comma-separated task ids (overrides --split)")
+    mw_p.add_argument("--repeats", type=int, default=1)
+    mw_p.add_argument("--out", type=Path, required=True, help="JSONL results path (resumable)")
     args = parser.parse_args(argv)
+    if args.command == "miniwob":
+        return miniwob_cmd(args.agent, args.split, args.only, args.repeats, args.out)
     if args.command == "serve":
         serve(args.site)
         return 0
