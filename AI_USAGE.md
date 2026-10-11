@@ -60,6 +60,20 @@ re-validated by deterministic code, or both, before anything downstream acts on 
   - A sensitive field's `<select>` value is never rewritten to an invented literal
     (`GroundingError` instead) -- see `ground_select_value`.
 
+- **`goal.py::extract_inputs`** (docs/PLAN.md B0, goal-only runs) -- calls
+  `LLMClient.chat_json` on the *user's goal text* only (trusted, never page content), with the
+  response constrained to `{inputs: [{key, value}]}` (`extra="forbid"`). Deterministic checks
+  then drop any key that isn't short snake_case, any duplicate, and any value that does not occur
+  verbatim in the goal, so the model can name values the user gave but never invent one. The
+  result is used as the run's `inputs`, bound by reference (`$inputs.<key>`) exactly like
+  task-YAML inputs, and every plan using them still passes `validate_plan`.
+
+- **`goal.py::extract_answer`** (B0, the quarantined read) -- calls `LLMClient.chat_json` on
+  the final page's text (untrusted) with the response constrained to `{answer: string|null}`.
+  The answer is printed to the user or returned to the benchmark harness and **never** reaches
+  the planner, a gate, or the executor, so page text still cannot add or change an operation
+  (invariant 1).
+
 - **`validator/plan.py::validate_plan`** and **`validator/action.py::authorize_action`**
   -- the deterministic gates every model-produced `Plan`/`Step` above must pass
   before `executor/executor.py::execute_step` (or `agent.py`'s escalation path) ever

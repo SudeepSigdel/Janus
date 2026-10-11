@@ -147,6 +147,7 @@ def run_task(
     approvals: Sequence[ApprovalTarget] = (),
     escalate: Callable[[Step, str], bool] | None = None,
     trace: Callable[[str, dict[str, Any]], None] | None = None,
+    navigate: bool = True,
 ) -> RunResult:
     """`trace`, if given, is called with (stage, data) at each pipeline stage
     (docs/PLAN.md P1: "trace capture as a runtime feature"). It never influences any
@@ -163,7 +164,10 @@ def run_task(
     `approvals=()` (the default, and every task with no approvals) leaves this
     logic entirely inactive -- behavior is unchanged from before P4/Q2."""
     install_egress_guard(page, policy.allowed_origins)
-    page.goto(start_url)
+    # B0: an environment that sets the page up itself (e.g. BrowserGym's MiniWoB, which
+    # injects the episode after loading) passes navigate=False and an already-open page.
+    if navigate:
+        page.goto(start_url)
 
     inputs = _normalize_inputs(inputs)
     granted = set(granted_ops)

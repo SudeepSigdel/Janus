@@ -11,7 +11,9 @@ from playwright.sync_api import sync_playwright
 from janus.agent import run_task
 from janus.config import get_settings
 from janus.executor.escalation import cli_escalation
+from janus.goal import extract_answer, extract_inputs
 from janus.llm import LLMClient, LLMError
+from janus.observer.extract import extract_snapshot
 from janus.task import load_task_file
 from janus.validator.policy import Policy, allowed_ops_for, origin_of
 
@@ -42,6 +44,46 @@ def doctor() -> int:
             print(f"FAIL  model {model} missing")
             missing += 1
     return 1 if missing else 0
+
+
+def run_goal(url: str, goal: str, *, headed: bool, answer: bool) -> int:
+    """B0: run from a goal string and a start URL, with a human approving every
+    consequential action at the prompt."""
+    settings = get_settings()
+    llm = LLMClient(settings)
+    try:
+        inputs = extract_inputs(goal, llm)
+        if inputs:
+            print("inputs from your goal: " + ", ".join(f"{k}={v!r}" for k, v in inputs.items()))
+        policy = Policy(
+            allowed_origins=frozenset({origin_of(url)}),
+            allowed_ops=allowed_ops_for(False),
+            max_steps=20,
+        )
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch(headless=not headed)
+            try:
+                page = browser.new_context(service_workers="block").new_page()
+                result = run_task(
+                    page,
+                    task_id="goal",
+                    instruction=goal,
+                    start_url=url,
+                    inputs=inputs,
+                    policy=policy,
+                    llm=llm,
+                    settings=settings,
+                    escalate=cli_escalation,
+                )
+                if answer:
+                    found = extract_answer(goal, extract_snapshot(page, settings), llm)
+                    print(f"answer: {found if found is not None else '(not found on the page)'}")
+            finally:
+                browser.close()
+    finally:
+        llm.close()
+    print(f"{result.status}  ({result.steps_run} steps, {result.replans} replans)")
+    return 0 if result.status == "completed" else 1
 
 
 def run(task_path: Path) -> int:
@@ -85,11 +127,22 @@ def main(argv: list[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("doctor", help="check Ollama and required models")
     run_parser = sub.add_parser("run", help="run a task end to end")
-    run_parser.add_argument("--task", required=True, type=Path, help="path to a task YAML file")
+    source = run_parser.add_mutually_exclusive_group(required=True)
+    source.add_argument("--task", type=Path, help="path to a task YAML file")
+    source.add_argument("--goal", help="what to do, in English or Nepali (needs --url)")
+    run_parser.add_argument("--url", help="start URL for --goal; also its only allowed origin")
+    run_parser.add_argument("--headed", action="store_true", help="show the browser window")
+    run_parser.add_argument(
+        "--answer", action="store_true", help="after the run, answer the goal from the page"
+    )
     args = parser.parse_args(argv)
     if args.command == "doctor":
         return doctor()
     if args.command == "run":
+        if args.goal is not None:
+            if not args.url:
+                parser.error("--goal needs --url")
+            return run_goal(args.url, args.goal, headed=args.headed, answer=args.answer)
         return run(args.task)
     return 2
 
