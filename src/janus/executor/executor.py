@@ -24,6 +24,7 @@ from janus.planner.ops import (
     SubmitStep,
     input_ref_key,
 )
+from janus.text.datetime_input import native_input_value
 
 
 @dataclass(frozen=True)
@@ -101,7 +102,9 @@ def execute_step(
             handle, blocked = _resolve_or_block(page, element)
             if blocked is not None:
                 return blocked
-            handle.fill(bind_value(field_value.value, inputs))
+            value = bind_value(field_value.value, inputs)
+            # B1b: native date/time inputs accept only ISO values; convert written forms.
+            handle.fill(native_input_value(handle.get_attribute("type"), value))
         return StepOutcome(ok=True)
 
     if isinstance(step, SelectStep):

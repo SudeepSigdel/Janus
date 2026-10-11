@@ -36,6 +36,9 @@ function JobCommands([string]$kind, [string]$id) {
         "wa-diag-page" { return @("run|python|scripts/wa_diag_page.py") }
         "wa-diag-reg"  { return @("run|python|scripts/wa_diag_reg.py") }
         "wa-diag-submit" { return @("run|python|scripts/wa_diag_submit.py") }
+        # Move the repo to a fixed commit between experiments; the id is the commit hash.
+        "checkout"     { if ($id -notmatch '^[0-9a-f]{7,40}$') { return $null }
+                         return @("run|git|checkout|-q|$id") }
         default        { return $null }
     }
 }
