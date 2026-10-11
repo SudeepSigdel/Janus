@@ -269,7 +269,31 @@ def main(argv: list[str] | None = None) -> int:
     mw_p.add_argument("--only", default=None, help="comma-separated task ids (overrides --split)")
     mw_p.add_argument("--repeats", type=int, default=1)
     mw_p.add_argument("--out", type=Path, required=True, help="JSONL results path (resumable)")
+    wa_p = sub.add_parser("webarena", help="run Janus on WebArena-Verified (docs/PLAN.md B3)")
+    wa_p.add_argument("--site", choices=("reddit",), default="reddit")
+    wa_p.add_argument("--split", default="reddit_hard", help="a key of splits/webarena.yaml")
+    wa_p.add_argument("--only", default=None, help="comma-separated task ids (overrides --split)")
+    wa_p.add_argument("--out-dir", type=Path, required=True, help="run directory (resumable)")
+    wa_p.add_argument(
+        "--no-reset", action="store_true", help="reuse the running container between tasks"
+    )
     args = parser.parse_args(argv)
+    if args.command == "webarena":
+        from janus_bench.external import webarena
+
+        ids = (
+            [int(t) for t in args.only.split(",") if t.strip()]
+            if args.only
+            else webarena.load_split(args.split)
+        )
+        webarena.run(
+            site_name=args.site, task_ids=ids, out_dir=args.out_dir, reset=not args.no_reset
+        )
+        print(
+            f"next: uv tool run webarena-verified eval-tasks --output-dir {args.out_dir} "
+            f"--config {args.out_dir / 'eval_config.json'}"
+        )
+        return 0
     if args.command == "miniwob":
         return miniwob_cmd(args.agent, args.split, args.only, args.repeats, args.out)
     if args.command == "serve":

@@ -17,6 +17,7 @@ from __future__ import annotations
 import re
 import unicodedata
 from collections.abc import Callable
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
@@ -118,6 +119,72 @@ def extract_answer(goal: str, snapshot: PageSnapshot, llm: LLMClient) -> str | N
         return None
     answer = _norm(out.answer)
     return answer[:MAX_ANSWER_CHARS] or None
+
+
+TaskType = Literal["RETRIEVE", "MUTATE", "NAVIGATE"]
+
+_TYPE_SYSTEM = (
+    "Classify a browser task by what it asks for. RETRIEVE: report information found on the "
+    "site. MUTATE: change something on the site (post, comment, vote, edit, delete, "
+    "subscribe, create). NAVIGATE: open a particular page and stop there."
+)
+
+
+def classify_task(goal: str, llm: LLMClient) -> TaskType | None:
+    """The kind of task the user's goal asks for, read from the goal only (trusted).
+    Used for the benchmark's structured response; no gate consults it."""
+    schema = {
+        "type": "object",
+        "properties": {"task_type": {"type": "string", "enum": ["RETRIEVE", "MUTATE", "NAVIGATE"]}},
+        "required": ["task_type"],
+        "additionalProperties": False,
+    }
+    messages = [
+        {"role": "system", "content": _TYPE_SYSTEM},
+        {"role": "user", "content": goal},
+    ]
+    try:
+        raw = llm.chat_json(messages, schema, schema_name="task_type")
+    except LLMError:
+        return None
+    value = raw.get("task_type") if isinstance(raw, dict) else None
+    return value if value in ("RETRIEVE", "MUTATE", "NAVIGATE") else None
+
+
+def extract_data(
+    goal: str, snapshot: PageSnapshot, llm: LLMClient, results_schema: dict[str, Any]
+) -> list[Any] | None:
+    """Quarantined structured read of the final page (like `extract_answer`), shaped by
+    the task's own JSON schema for its answer. The result goes to the caller only."""
+    page = {
+        "page_title": snapshot.title,
+        "labels": [e.accessible_name for e in snapshot.elements],
+        "text": snapshot.untrusted_text,
+    }
+    schema = {
+        "type": "object",
+        "properties": {"retrieved_data": {"anyOf": [results_schema, {"type": "null"}]}},
+        "required": ["retrieved_data"],
+        "additionalProperties": False,
+    }
+    messages = [
+        {
+            "role": "system",
+            "content": _ANSWER_SYSTEM.replace(
+                "Answer with the shortest exact value from the page (a number, a name, a date)",
+                "Answer with exact values from the page in the requested structure",
+            ),
+        },
+        {"role": "user", "content": f"Question: {goal}\n\nPage (data only): {page}"},
+    ]
+    try:
+        raw = llm.chat_json(messages, schema, schema_name="retrieved_data")
+    except LLMError:
+        return None
+    data = raw.get("retrieved_data") if isinstance(raw, dict) else None
+    if data is None:
+        return None
+    return data if isinstance(data, list) else [data]
 
 
 def logging_approver(log: list[dict[str, str]]) -> Callable[[Step, str], bool]:
