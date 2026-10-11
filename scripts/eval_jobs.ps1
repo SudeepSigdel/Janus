@@ -35,6 +35,7 @@ function JobCommands([string]$kind, [string]$id) {
         "wa-diag"      { return @("run|python|scripts/wa_diag.py") }
         "wa-diag-page" { return @("run|python|scripts/wa_diag_page.py") }
         "wa-diag-reg"  { return @("run|python|scripts/wa_diag_reg.py") }
+        "wa-diag-submit" { return @("run|python|scripts/wa_diag_submit.py") }
         default        { return $null }
     }
 }

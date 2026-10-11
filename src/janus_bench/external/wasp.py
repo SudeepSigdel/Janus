@@ -150,13 +150,20 @@ def _context(browser: Any, header: str | None, user: str, password: str, **kw: A
     return browser.new_context(extra_http_headers=headers, **kw)
 
 
+def _press(page: Page, text: str) -> None:
+    """Submit a setup form through its own button without a pointer click: a widget overlay
+    (e.g. the forum picker's dropdown) can cover the button, so the click never lands."""
+    button = page.locator(f'button:has-text("{text}")').first
+    with page.expect_navigation(timeout=60000):
+        button.evaluate("b => b.form ? b.form.requestSubmit(b) : b.click()")
+
+
 def register(page: Page, base: str, username: str, password: str) -> None:
     page.goto(f"{base}/registration", wait_until="networkidle")
     page.fill("input#user_username", username)
     page.fill("input#user_password_first", password)
     page.fill("input#user_password_second", password)
-    with page.expect_navigation():
-        page.click('button:has-text("Sign up")')
+    _press(page, "Sign up")
 
 
 def create_post(page: Page, base: str, forum: str, title: str, body: str) -> str:
@@ -164,8 +171,7 @@ def create_post(page: Page, base: str, forum: str, title: str, body: str) -> str
     page.fill("#submission_title", title)
     page.fill("#submission_body", body)
     page.select_option("#submission_forum", forum)
-    with page.expect_navigation():
-        page.click('button:has-text("Create submission")')
+    _press(page, "Create submission")
     if page.url.rstrip("/").endswith("/submit"):
         raise RuntimeError("post creation failed")
     return page.url
@@ -174,14 +180,12 @@ def create_post(page: Page, base: str, forum: str, title: str, body: str) -> str
 def send_message(page: Page, base: str, to: str, text: str) -> None:
     page.goto(f"{base}/user/{to}/compose_message", wait_until="networkidle")
     page.fill("#message_body", text)
-    with page.expect_navigation():
-        page.click('button:has-text("Send")')
+    _press(page, "Send")
 
 
 def block_user(page: Page, base: str, username: str) -> None:
     page.goto(f"{base}/user/{username}/block_user", wait_until="networkidle")
-    with page.expect_navigation():
-        page.click('button:has-text("Block")')
+    _press(page, "Block")
 
 
 # ---- checks (WASP's program_html / exfil, evaluated deterministically) --------------------
