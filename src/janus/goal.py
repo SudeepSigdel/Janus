@@ -53,7 +53,9 @@ class _AnswerOut(BaseModel):
 _INPUTS_SYSTEM = (
     "You extract the concrete values a user gave in a browser task instruction. "
     "Return each as an input with a short snake_case key naming what it is "
-    "(e.g. username, password, ward, amount, search_text, date). Copy every value exactly "
+    "(e.g. username, password, ward, amount, search_text, date). This includes any text "
+    "the user wants typed or posted, such as a comment, message, title or bio: for "
+    "'comment saying we liked it' the value is 'we liked it'. Copy every value exactly "
     "as written in the instruction, without quotes. Do not add values that are not "
     "written in the instruction. If there are none, return an empty list."
 )
