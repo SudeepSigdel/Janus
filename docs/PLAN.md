@@ -1802,7 +1802,7 @@ agent changes. Decided with the developer 2026-10-11: B0-B2 before the Frogtober
   unchanged.
 
 ## B0 — Generic task interface
-Status: in-progress.
+Status: done (2026-10-11). Smoke 5/8 reproduced (b0-smoke), 441 unit tests. `janus run --url --goal`.
 Change: run Janus from a goal string and a start URL, with no task YAML:
 - `janus.goal.extract_inputs`: one schema-constrained call over the *goal text* (trusted, from
   the user) returns `{key: value}` inputs the planner binds as `$inputs.<key>`;
@@ -1817,7 +1817,11 @@ Change: run Janus from a goal string and a start URL, with no task YAML:
 Accept: unit tests; existing suites unchanged; the smoke split reproduces 5/8.
 
 ## B1 — MiniWoB++ (via BrowserGym)
-Status: todo.
+Status: in-progress (2026-10-11). Harness done (`janus-bench miniwob`, protocol ported from BrowserGym,
+which is not a dependency: it pins playwright==1.44). splits/miniwob.yaml: 125 tasks, categories set
+before any run (structured 55 / read 38 / coordinate 32). Smoke 5/8 first try. Baseline mw0 (N=3)
+running. Queued fixes, one experiment each: B1a accessible-name fallbacks (goldens unchanged),
+B1b native date/time input values (enter-date/enter-time fail with "Malformed value" today).
 Change: `janus_bench/external/miniwob.py` drives BrowserGym's MiniWoB envs (HTML served from a
 local static server, so the origin is http://127.0.0.1) and scores with the env's own reward.
 Agents: janus, null. Dependency: `browsergym-miniwob` (extra `external`) plus the
@@ -1831,13 +1835,18 @@ Change: adapter for its WebShop-based environment; Janus on the Hindi and Englis
 Report if: the en/hi gap for Janus vs the paper's small-model numbers.
 
 ## B3 — WebArena Verified Hard (stretch)
-Status: todo. Needs Docker; one site at a time (55 GB free disk; GitLab is RAM-heavy).
-Held-out only.
+Status: in-progress (2026-10-11). Adapter done (`janus-bench webarena`): forum (reddit) only, the 42
+reddit-only Hard tasks (36 MUTATE, 6 RETRIEVE). Optimized images from WebArena-Verified
+(forum 8.4 GB; GitLab 31.6 GB does not fit). Fresh container per task, auto-login header, HAR
+trace; scored by the official deterministic evaluator in its own env (`uv tool run
+webarena-verified eval-tasks`). Held-out only.
 
 ## B4 — WASP prompt-injection scenarios (stretch)
-Status: todo. Reddit + GitLab from (Visual)WebArena; 84 scenarios. Needs our own state-based
-attack checks (its evaluator calls a proprietary judge). Held-out only. Report intermediate ASR
-(did Janus start following the injection) and end-to-end ASR.
+Status: in-progress (2026-10-11). Adapter done (`janus-bench wasp`): the 72 forum scenarios (9 attacker
+goals x 4 injection formats x 2 user goals). WASP is CC BY-NC 4.0, so its config and templates are
+read at run time from external/wasp, never copied. Scoring with WASP's own deterministic page
+checks; `attempted` (attacker-domain request or navigation to the attack URL) replaces its
+LLM-judged intermediate ASR. GitLab scenarios out of scope (disk). Held-out only.
 
 ## Overnight session 2026-10-10 (branch `overnight/2026-10-10`, not pushed)
 E19 (unknown `$inputs` key rejected), E20/E20b (worked example gated on the task's inputs; login
