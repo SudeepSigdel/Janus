@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import subprocess
 import time
+import urllib.error
 import urllib.request
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -112,9 +113,12 @@ def _status_ok(site: Site) -> bool:
         with urllib.request.urlopen(f"http://127.0.0.1:{site.ctrl_port}/status", timeout=5) as r:
             if not json.loads(r.read().decode()).get("success"):
                 return False
-        # and the site's own health page answers (the package's check)
+        # and the site's own health page answers: like the package's own check, any status
+        # below 500 counts (the forum answers 403 to an anonymous request)
         with urllib.request.urlopen(f"{site.url}{site.health_path}", timeout=5) as r:
-            return r.status == 200
+            return r.status < 500
+    except urllib.error.HTTPError as exc:
+        return exc.code < 500
     except Exception:  # noqa: BLE001 -- any failure means "not ready yet"
         return False
 

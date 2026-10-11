@@ -32,6 +32,7 @@ function JobCommands([string]$kind, [string]$id) {
         # WASP forum injection scenarios (docs/PLAN.md B4); needs external\wasp and Docker Desktop.
         "wasp-smoke"   { return @("run|janus-bench|wasp|--only|a0-ghpt-g0,a7-ghui-g1|--out|$o") }
         "wasp-forum"   { return @("run|janus-bench|wasp|--out|$o") }
+        "wa-diag"      { return @("run|python|scripts/wa_diag.py") }
         default        { return $null }
     }
 }
