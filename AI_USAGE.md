@@ -74,6 +74,15 @@ re-validated by deterministic code, or both, before anything downstream acts on 
   the planner, a gate, or the executor, so page text still cannot add or change an operation
   (invariant 1).
 
+- **`goal.py::classify_task`** (B3, benchmarks) -- `LLMClient.chat_json` on the *goal text*
+  only, constrained to an enum (`RETRIEVE`/`MUTATE`/`NAVIGATE`); anything else becomes `None`.
+  It only labels the benchmark's structured response (`janus_bench/external/webarena.py`); no
+  gate, planner or executor reads it.
+
+- **`goal.py::extract_data`** (B3, the quarantined structured read) -- like `extract_answer`,
+  but the response is constrained to the task's own JSON schema for its answer. The result is
+  written to the benchmark's `agent_response.json` and never reaches the planner or a gate.
+
 - **`validator/plan.py::validate_plan`** and **`validator/action.py::authorize_action`**
   -- the deterministic gates every model-produced `Plan`/`Step` above must pass
   before `executor/executor.py::execute_step` (or `agent.py`'s escalation path) ever
