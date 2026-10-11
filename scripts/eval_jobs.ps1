@@ -1,6 +1,6 @@
 # Job kinds for scripts\eval_worker.ps1 (re-read before every job). Each kind maps to FIXED
 # commands; a job file only picks a kind and an output id. Arguments are separated by "|".
-$ModelKinds = @("smoke", "dev", "test", "perturb", "perturb-orig", "miniwob", "miniwob-smoke")
+$ModelKinds = @("smoke", "dev", "test", "perturb", "perturb-orig", "miniwob", "miniwob-smoke", "wa-smoke", "wa-reddit")
 
 function JobCommands([string]$kind, [string]$id) {
     # Each command is ONE string with arguments separated by "|" (strings never get unrolled by
@@ -22,6 +22,12 @@ function JobCommands([string]$kind, [string]$id) {
         "miniwob-smoke" { return @("run|janus-bench|miniwob|--agent|janus|--split|smoke|--repeats|1|--out|$o") }
         "miniwob"      { return @("run|janus-bench|miniwob|--agent|janus|--split|dev|--repeats|3|--out|$o") }
         "miniwob-null" { return @("run|janus-bench|miniwob|--agent|null|--split|dev|--repeats|1|--out|$o") }
+        # WebArena-Verified (docs/PLAN.md B3). Run dir = results\overnight\<id>. Needs Docker Desktop.
+        "wa-smoke"     { return @("run|janus-bench|webarena|--site|reddit|--only|399,580,28|--out-dir|$Out\$id") }
+        "wa-reddit"    { return @("run|janus-bench|webarena|--site|reddit|--split|reddit_hard|--out-dir|$Out\$id") }
+        # Official deterministic evaluator, in its own uv tool env. Job id "<run id>-eval".
+        "wa-eval"      { $run = $id -replace '-eval$', ''
+                         return @("tool|run|webarena-verified|eval-tasks|--output-dir|$Out\$run|--config|$Out\$run\eval_config.json") }
         default        { return $null }
     }
 }
