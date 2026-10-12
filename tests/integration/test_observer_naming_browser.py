@@ -21,6 +21,8 @@ HTML = """
 <input title="Search box">
 <label><input type="checkbox"> <button>inner</button> Keep me</label>
 <input name="user_name"><input id="emailAddress">
+<button title="Upvote"><svg width="8" height="8"></svg></button>
+<a href="/home"><img src="data:," alt="Home page"></a>
 """
 
 
@@ -48,3 +50,5 @@ def test_fallback_names() -> None:
     assert ("checkbox", "Keep me") in names  # wrapping label minus nested control text
     assert ("textbox", "user name") in names  # humanized name attribute
     assert ("textbox", "email Address") in names  # humanized id
+    assert ("button", "Upvote") in names  # icon-only button falls through to title (B1d)
+    assert ("link", "Home page") in names  # icon-only link named by its image alt (B1d)

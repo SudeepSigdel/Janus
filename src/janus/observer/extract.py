@@ -105,7 +105,15 @@ _JS = r"""
     const placeholder = el.getAttribute('placeholder');
     if (placeholder && placeholder.trim()) return placeholder.trim();
     const tag = el.tagName.toLowerCase();
-    if (tag === 'a' || tag === 'button') return el.textContent.trim().replace(/\s+/g, ' ');
+    if (tag === 'a' || tag === 'button') {
+      const text = el.textContent.trim().replace(/\s+/g, ' ');
+      if (text) return text;
+      // B1d: an icon-only link/button is named by its image's alt text, else falls
+      // through to title below (the forum's upvote button: title="Upvote", icon only).
+      const alt = squash(Array.from(el.querySelectorAll('img[alt]'))
+        .map((i) => i.getAttribute('alt')).join(' '));
+      if (alt) return alt;
+    }
     if (tag === 'input') {
       const type = (el.getAttribute('type') || 'text').toLowerCase();
       if (['submit', 'button', 'reset'].includes(type)) {
