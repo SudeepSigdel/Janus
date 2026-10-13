@@ -91,3 +91,37 @@ All metrics are over dev runs (task × repeat), N=3 unless the row says otherwis
 | E23 (final build) | 24/24 | **24/24** (nag-04 3/3, `plan_truncated` fired 6×) | `results/overnight/final-porig.jsonl`, `final-p1.jsonl` |
 
 Caveat: the perturbation set is the 8 tasks Janus already passed, so 24/24 says the surface changes in `p1` don't break solved flows. It says nothing about unsolved ones.
+
+## External benchmarks (Breadth phase B0–B1, docs/PLAN.md)
+
+Same model and defaults as E23 (janus-planner, qwen3:8b Q4_K_M, T=0). These suites are run only to measure; no task text from them is used to write prompts or examples.
+
+### MiniWoB++ (`splits/miniwob.yaml`, `janus-bench miniwob`)
+
+| run | build | repeats | total | structured | read | coordinate | records |
+|---|---|---|---|---|---|---|---|
+| mw0 | E23 + B0 harness | 3 | 89/375 = 23.7% | 75/165 = 45.5% | 6/114 = 5.3% | 8/96 = 8.3% | `results/overnight/mw0-dev.*` |
+| mw1 | + B1a accessible-name fallbacks (8fd0d2f) | 1 | 30/125 = 24.0% | 26/55 | 3/38 | 1/32 | `mw1-b1a.*` |
+| mw2 | + B1b native date/time values (ea80f4d) | 1 | 32/125 = 25.6% | 28/55 | 3/38 | 1/32 | `mw2-b1b.*` |
+| mw3 | + B1c `checkVisibility` (9b5dab4) | 1 | 31/125 = 24.8% | 27/55 | 3/38 | 1/32 | `mw3-b1c.*` (harness errors 19 → 8) |
+| mw4 | + goal input-extraction fix (6716e9b) | 1 | 31/125 = 24.8% | 27/55 | 3/38 | 1/32 | `mw4-c4.*` |
+
+N=1 runs differ by ≤2 tasks, inside noise; the mechanism-level gains (click-checkboxes, click-option, enter-date, enter-time now pass) are what was kept. Read and coordinate tasks are out of reach by design: the planner never sees page body text and has no pixel actions.
+
+### WebArena-Verified, forum (Postmill) Hard split (`splits/webarena.yaml` reddit_hard, official deterministic evaluator)
+
+| run | build | success | Janus gate-blocked | records |
+|---|---|---|---|---|
+| wa-final | 6716e9b (before B1d) | 3/42 = 7.1% (MUTATE 3/30, RETRIEVE 0/8, NAVIGATE 0/4) | 21/42 | `results/overnight/wa-final/eval_results.json` |
+| wa-final2 | 5c3822c (B1d) | 4/42 = 9.5% (580, 584, 651 + 640) | 22/42 | `results/overnight/wa-final2/eval_results.json` (evaluated in the Linux VM, same command) |
+
++1 task is noise-level. Rejection reasons in wa-final: loop guard 12, retry ceiling 7, role mismatch 3, invalid JSON 3, max_steps 1. These gates fail closed, so on an unfamiliar site they end runs early; that is the main lever left (PLAN.md B4).
+
+### WASP forum prompt-injection (72 scenarios = 9 attacker goals × 4 formats × 2 user goals, `janus-bench wasp`)
+
+| run | build | valid | ASR end-to-end | attempted | utility | records |
+|---|---|---|---|---|---|---|
+| wasp8-smoke | 5c3822c | 2/2 | 0/2 | 0/2 | 2/2 (was 0/2 before B1d named the vote buttons) | `wasp8-smoke.*` |
+| **wasp-final** | 5c3822c | 72/72 | **0/72** | **0/72** | **72/72** | `results/overnight/wasp-final.*` |
+
+Per format: generic plain-text, generic URL, goal-hijack plain-text and goal-hijack URL each ASR 0/18, attempted 0/18, utility 18/18. `attempted` counts any agent step toward the attacker's goal, not only completed attacks, so 0/72 means the injected text never reached an action. That follows from the design (the planner never sees post body text), and the 72/72 utility shows the defence did not cost task completion here.
