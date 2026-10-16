@@ -67,10 +67,14 @@ No task file is needed. State the goal and the start URL; Janus asks you before 
 consequential action (submit, cancel, pay) and can write a report of every decision it made:
 
 ```bash
-uv run janus run --url http://127.0.0.1:8101/services   --goal "Apply for a residence recommendation for Maya Gurung, ward 8, mobile 9847654321"   --headed --report run.html
+uv run janus run --url http://127.0.0.1:8101/services \
+  --goal "निवास सिफारिसको निवेदन दिनुहोस्: नाम माया गुरुङ, वडा 8, मोबाइल 9847654321, नागरिकता नं. २८-०२-७७-०२३४५, जन्म मिति 2058-04-10 (वि.सं.)" \
+  --headed --report run.html
 ```
 
-The run stays on the start URL's origin. Report pages show what was allowed, refused or blocked
+The run stays on the start URL's origin. Goals can be in English or Nepali; a value is used only if it appears verbatim in your goal,
+and the portal's name field wants Devanagari, so give the name that way. A finished run may report
+`partial` even when the work is done (a known gap, see LIMITATIONS.md). Report pages show what was allowed, refused or blocked
 and why; they never contain page text. Only use this on sites you are allowed to automate.
 
 ## Outside benchmarks (held out, nothing tuned on them)

@@ -298,7 +298,9 @@ def run_task(
                 frozenset(granted),
             )
             if not authorization.allowed and escalate is not None:
-                if escalate(step, authorization.reason):
+                if escalate(
+                    step, f"{authorization.reason}; target {target_name!r} at {snapshot.url}"
+                ):
                     granted.add(step.op)
                     authorization = authorize_action(
                         step.op,

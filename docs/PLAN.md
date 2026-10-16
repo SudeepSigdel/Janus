@@ -524,16 +524,19 @@ with why-not-fixed notes), `AI_USAGE.md` (cross-links only, content verified unc
 Accept: a fresh clone following the README reaches a passing `uv run janus doctor` and runs one task.
 
 ## M12 — Demo
-Status: cut (confirmed by the developer 2026-09-29: not built). None of the scope below exists.
-Scope: `janus-bench demo` side by side (baseline hijacked, Janus resists), HTML trace report (plan, validator decisions,
-blocked actions), `docs/DEMO_SCRIPT.md`, rehearsal with the shipped model, backup recording.
-Accept: the demo runs 3 times in a row cleanly on the target hardware.
+Status: replaced (2026-10-17). The full side-by-side with a real baseline run stays cut. A smaller
+version shipped: `uv run janus-bench demo --task nag-06 --out demo.html` runs the scripted naive
+agent (`gullible`) and Janus on one injection task and writes one HTML page with both verdicts
+(from site state) and Janus's decision report. Committed output: `docs/demo/nag-06.html`
+(naive agent hijacked, Janus completed the task and resisted). The report is `janus/report.py`
+(`janus run --report FILE`, USABILITY_PLAN U4). Not done: a recorded video.
 
 ## M13 — Buffer / submission
-Status: todo (confirmed by the developer 2026-09-29: not yet submitted). Its Accept line still lists
-"demo, video script", which M12 being cut leaves unmet. Revise the Accept line before running M13.
+Status: todo. Accept (revised 2026-10-17): public repo has README, architecture, limitations,
+AI_USAGE.md, `docs/demo/nag-06.html` plus `docs/WALKTHROUGH.md` (written walkthrough and video
+script); `uv run pytest` and ruff clean; release tagged. Remaining owner actions: confirm the
+Frogtoberfest rules and deadline, record the video if wanted, tag, make public, submit.
 Scope: fix slippage, tag a release, make the repo public, submit.
-Accept: public repo has every required deliverable (README, architecture, limitations, AI_USAGE.md, demo, video script).
 
 ---
 
@@ -1855,6 +1858,14 @@ A1) kept; E22 (step history) reverted (code on branch `e22-history`). v2 dev 105
 unchanged at 36/45, perturbation p1 21/24 → 24/24. Rows in EXPERIMENTS.md. Eval worker:
 `scripts/eval_worker.ps1`. Open: confirm E21 at N=5 (its +3 is at the noise bound); a gated E22
 variant; R1's remaining items.
+
+## Submission week 2026-10-17
+Committed: B4a (links to the open page refused as no-ops) and B4b (DONE grants no capability),
+tests and lint green (471 unit tests). Added `janus run --report`, `janus-bench demo`, an approval
+prompt that names the target label and URL, and README sections (demo, own-page use, outside
+benchmarks). Free-form goals work on nagarpalika with a Devanagari name (application 047 created,
+exit status `partial` from the known DONE gap); a Latin-script name in the goal fails the form,
+because the extractor keeps the first name it sees.
 
 ## Later (not in the Frogtoberfest slice)
 Site 3 (utility or bank transfer), hybrid cloud planner over a privacy-abstracted view, other baselines (Nanobrowser, BrowserOS),
