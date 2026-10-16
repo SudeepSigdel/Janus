@@ -64,7 +64,7 @@ def test_main_dispatches_run_with_the_task_path(
 ) -> None:
     called: dict[str, Path] = {}
 
-    def fake_run(task_path: Path) -> int:
+    def fake_run(task_path: Path, report: Path | None = None) -> int:
         called["path"] = task_path
         return 0
 

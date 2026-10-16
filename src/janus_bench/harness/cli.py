@@ -280,7 +280,14 @@ def main(argv: list[str] | None = None) -> int:
     ws_p = sub.add_parser("wasp", help="WASP injection scenarios on the forum (PLAN.md B4)")
     ws_p.add_argument("--out", type=Path, required=True, help="JSONL results (resumable)")
     ws_p.add_argument("--only", default=None, help="comma-separated scenario ids")
+    demo_p = sub.add_parser("demo", help="naive agent vs Janus on one injection task, as HTML")
+    demo_p.add_argument("--task", default="nag-06", help="an injection task id (default nag-06)")
+    demo_p.add_argument("--out", type=Path, default=Path("demo.html"))
     args = parser.parse_args(argv)
+    if args.command == "demo":
+        from janus_bench.demo import build_demo
+
+        return build_demo(args.task, args.out)
     if args.command == "wasp":
         from janus_bench.external import wasp
 

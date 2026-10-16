@@ -314,8 +314,10 @@ def run_task(
                     "authorize",
                     {
                         "op": step.op,
+                        "label": target_name,
                         "consequential": decision.consequential,
                         "allowed": authorization.allowed,
+                        "reason": authorization.reason,
                     },
                 )
             if not authorization.allowed:
@@ -342,6 +344,7 @@ def run_task(
                     "execute",
                     {
                         "op": step.op,
+                        "label": target_name,
                         "ok": outcome.ok,
                         "blocked": outcome.blocked,
                         "reason": outcome.reason,

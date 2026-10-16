@@ -14,6 +14,7 @@ from janus.executor.escalation import cli_escalation
 from janus.goal import extract_answer, extract_inputs
 from janus.llm import LLMClient, LLMError
 from janus.observer.extract import extract_snapshot
+from janus.report import render_report
 from janus.task import load_task_file
 from janus.validator.policy import Policy, allowed_ops_for, origin_of
 
@@ -46,11 +47,31 @@ def doctor() -> int:
     return 1 if missing else 0
 
 
-def run_goal(url: str, goal: str, *, headed: bool, answer: bool) -> int:
+def _recorder(report: Path | None):
+    """A `trace` callback that keeps events, or None when no report was asked for."""
+    events: list[dict] = []
+    if report is None:
+        return events, None
+
+    def trace(stage: str, data: dict) -> None:
+        events.append({"stage": stage, "data": data})
+
+    return events, trace
+
+
+def _write_report(report: Path | None, events: list[dict], title: str, subtitle: str) -> None:
+    if report is None:
+        return
+    report.write_text(render_report(events, title=title, subtitle=subtitle), encoding="utf-8")
+    print(f"report: {report}")
+
+
+def run_goal(url: str, goal: str, *, headed: bool, answer: bool, report: Path | None = None) -> int:
     """B0: run from a goal string and a start URL, with a human approving every
     consequential action at the prompt."""
     settings = get_settings()
     llm = LLMClient(settings)
+    events, trace = _recorder(report)
     try:
         inputs = extract_inputs(goal, llm)
         if inputs:
@@ -74,6 +95,7 @@ def run_goal(url: str, goal: str, *, headed: bool, answer: bool) -> int:
                     llm=llm,
                     settings=settings,
                     escalate=cli_escalation,
+                    trace=trace,
                 )
                 if answer:
                     found = extract_answer(goal, extract_snapshot(page, settings), llm)
@@ -82,14 +104,16 @@ def run_goal(url: str, goal: str, *, headed: bool, answer: bool) -> int:
                 browser.close()
     finally:
         llm.close()
+    _write_report(report, events, "Janus run", goal)
     print(f"{result.status}  ({result.steps_run} steps, {result.replans} replans)")
     return 0 if result.status == "completed" else 1
 
 
-def run(task_path: Path) -> int:
+def run(task_path: Path, report: Path | None = None) -> int:
     task = load_task_file(task_path)
     settings = get_settings()
     llm = LLMClient(settings)
+    events, trace = _recorder(report)
     policy = Policy(
         allowed_origins=frozenset({origin_of(task.start_url)}),
         allowed_ops=allowed_ops_for(task.allow_navigate),
@@ -112,12 +136,14 @@ def run(task_path: Path) -> int:
                     settings=settings,
                     approvals=task.approvals,
                     escalate=cli_escalation,
+                    trace=trace,
                 )
             finally:
                 browser.close()
     finally:
         llm.close()
 
+    _write_report(report, events, task.id, task.instruction.en)
     print(f"{result.status}  ({result.steps_run} steps, {result.replans} replans)")
     return 0 if result.status == "completed" else 1
 
@@ -135,6 +161,9 @@ def main(argv: list[str] | None = None) -> int:
     run_parser.add_argument(
         "--answer", action="store_true", help="after the run, answer the goal from the page"
     )
+    run_parser.add_argument(
+        "--report", type=Path, help="write an HTML report of every decision to this file"
+    )
     args = parser.parse_args(argv)
     if args.command == "doctor":
         return doctor()
@@ -142,8 +171,14 @@ def main(argv: list[str] | None = None) -> int:
         if args.goal is not None:
             if not args.url:
                 parser.error("--goal needs --url")
-            return run_goal(args.url, args.goal, headed=args.headed, answer=args.answer)
-        return run(args.task)
+            return run_goal(
+                args.url,
+                args.goal,
+                headed=args.headed,
+                answer=args.answer,
+                report=args.report,
+            )
+        return run(args.task, report=args.report)
     return 2
 
 
