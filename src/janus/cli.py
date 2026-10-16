@@ -95,6 +95,7 @@ def run_goal(url: str, goal: str, *, headed: bool, answer: bool, report: Path | 
                     llm=llm,
                     settings=settings,
                     escalate=cli_escalation,
+                    stop_after_approved_commit=True,
                     trace=trace,
                 )
                 if answer:

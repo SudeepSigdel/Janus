@@ -709,3 +709,40 @@ def test_trace_is_a_noop_when_none_and_run_is_byte_identical(
         "verify",
         "run_result",
     ]
+
+
+def test_human_approved_commit_completes_the_run_without_done(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        return _chat({"task_id": "t", "steps": [{"op": "CLICK", "ref": "e0"}]})
+
+    snapshot = _element_snapshot(tag="button", role="button", name="Submit application")
+    monkeypatch.setattr(agent, "install_egress_guard", lambda page, origins: None)
+    monkeypatch.setattr(agent, "extract_snapshot", lambda page, settings: snapshot)
+    monkeypatch.setattr(
+        agent,
+        "execute_step",
+        lambda page, step, snapshot, inputs: StepOutcome(ok=True, caused_post=True),
+    )
+    monkeypatch.setattr(agent, "verify_step", lambda page, step, snapshot, inputs: StepCheck(True))
+    kwargs = {
+        "task_id": "t",
+        "instruction": "Submit it.",
+        "start_url": "http://127.0.0.1:8101/services",
+        "inputs": {},
+        "policy": _policy(),
+        "settings": Settings(),
+        "escalate": lambda step, reason: True,
+    }
+    result = agent.run_task(
+        _FakePage(), llm=_llm(handler), stop_after_approved_commit=True, **kwargs
+    )
+    assert result.status == "completed"
+    assert calls["n"] == 1
+    # Without the flag the model's missing DONE leaves the run partial, as before.
+    plain = agent.run_task(_FakePage(), llm=_llm(handler), **kwargs)
+    assert plain.status == "partial"

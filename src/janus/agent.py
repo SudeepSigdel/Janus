@@ -149,6 +149,7 @@ def run_task(
     trace: Callable[[str, dict[str, Any]], None] | None = None,
     navigate: bool = True,
     stop: Callable[[], bool] | None = None,
+    stop_after_approved_commit: bool = False,
 ) -> RunResult:
     """`trace`, if given, is called with (stage, data) at each pipeline stage
     (docs/PLAN.md P1: "trace capture as a runtime feature"). It never influences any
@@ -163,7 +164,13 @@ def run_task(
     immediately instead of waiting for the model to self-report DONE, and every
     remaining live grant is revoked so a later consequential step is denied.
     `approvals=()` (the default, and every task with no approvals) leaves this
-    logic entirely inactive -- behavior is unchanged from before P4/Q2."""
+    logic entirely inactive -- behavior is unchanged from before P4/Q2.
+
+    `stop_after_approved_commit` is the same idea for a run with no declared approvals
+    (`janus run --goal`): a consequential step that a human approved through `escalate`,
+    caused a real POST navigation and verified ends the run `completed` at once, so it no
+    longer depends on the model self-reporting DONE from a receipt page it cannot read.
+    The cost is that a goal needing two separate consequential actions needs two runs."""
     install_egress_guard(page, policy.allowed_origins)
     # B0: an environment that sets the page up itself (e.g. BrowserGym's MiniWoB, which
     # injects the episode after loading) passes navigate=False and an already-open page.
@@ -297,11 +304,13 @@ def run_task(
                 remaining,
                 frozenset(granted),
             )
+            human_approved = False
             if not authorization.allowed and escalate is not None:
                 if escalate(
                     step, f"{authorization.reason}; target {target_name!r} at {snapshot.url}"
                 ):
                     granted.add(step.op)
+                    human_approved = True
                     authorization = authorize_action(
                         step.op,
                         decision.consequential,
@@ -391,6 +400,18 @@ def run_task(
                     claimed = "completed"
                     done = True
                     break
+
+            if (
+                stop_after_approved_commit
+                and human_approved
+                and decision.consequential
+                and outcome.caused_post
+                and check.ok
+            ):
+                granted.clear()
+                claimed = "completed"
+                done = True
+                break
 
             # E23 (docs/AUDIT.md A1): after a step that changed the page, the rest of
             # this plan targets refs of a page that is gone. Drop it and start a new leg
