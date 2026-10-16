@@ -11,6 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from playwright.sync_api import ElementHandle, Page, Request
+from playwright.sync_api import Error as PlaywrightError
 
 from janus.executor.resolve import ResolutionError, resolve_element
 from janus.observer.snapshot import Element, PageSnapshot
@@ -80,16 +81,30 @@ def _click_and_detect_post(page: Page, handle: ElementHandle) -> bool:
 
     page.on("request", _on_request)
     try:
-        handle.click()
+        handle.click(timeout=ACTION_TIMEOUT_MS)
         page.wait_for_load_state("load")
     finally:
         page.remove_listener("request", _on_request)
     return bool(posts)
 
 
+ACTION_TIMEOUT_MS = 5000
+
+
 def execute_step(
     page: Page, step: Step, snapshot: PageSnapshot, inputs: dict[str, str]
 ) -> StepOutcome:
+    """Run one step. A Playwright failure (element not editable, covered, detached, timed
+    out) is a failed step the agent can replan from, not an exception that ends the run
+    (docs/AUDIT.md R7). Egress-guard and fingerprint blocks keep their own outcomes."""
+    try:
+        return _execute(page, step, snapshot, inputs)
+    except PlaywrightError as exc:
+        first_line = str(exc).strip().splitlines()[0] if str(exc).strip() else type(exc).__name__
+        return StepOutcome(ok=False, reason=f"action failed: {first_line[:200]}")
+
+
+def _execute(page: Page, step: Step, snapshot: PageSnapshot, inputs: dict[str, str]) -> StepOutcome:
     if isinstance(step, NavigateStep):
         page.goto(step.url)
         return StepOutcome(ok=True)
@@ -104,7 +119,9 @@ def execute_step(
                 return blocked
             value = bind_value(field_value.value, inputs)
             # B1b: native date/time inputs accept only ISO values; convert written forms.
-            handle.fill(native_input_value(handle.get_attribute("type"), value))
+            handle.fill(
+                native_input_value(handle.get_attribute("type"), value), timeout=ACTION_TIMEOUT_MS
+            )
         return StepOutcome(ok=True)
 
     if isinstance(step, SelectStep):
@@ -114,7 +131,7 @@ def execute_step(
         handle, blocked = _resolve_or_block(page, element)
         if blocked is not None:
             return blocked
-        handle.select_option(bind_value(step.value, inputs))
+        handle.select_option(bind_value(step.value, inputs), timeout=ACTION_TIMEOUT_MS)
         return StepOutcome(ok=True)
 
     if isinstance(step, (ClickStep, SubmitStep)):

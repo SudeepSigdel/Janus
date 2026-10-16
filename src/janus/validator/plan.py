@@ -88,7 +88,8 @@ def _check_input_ref(errors: list[str], index: int, value: str, inputs: dict[str
         available = ", ".join(sorted(inputs)) or "none"
         errors.append(
             f"step {index}: $inputs.{key} is not an input of this task "
-            f"(available input keys: {available})"
+            f"(available input keys: {available}); for text that is not a secret, write "
+            "the value itself, copied from the task"
         )
 
 

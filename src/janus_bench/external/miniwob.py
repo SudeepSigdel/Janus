@@ -146,6 +146,16 @@ def episode_state(page: Page) -> tuple[float | None, str | None, bool]:
     return (None if raw is None else float(raw)), reason, bool(done)
 
 
+def _trace_for(task: str, repeat: int):
+    """A per-run JSON trace sink when JANUS_TRACE_DIR is set, else None."""
+    directory = os.environ.get("JANUS_TRACE_DIR")
+    if not directory:
+        return None
+    from janus_bench.harness.trace_sink import make_trace_sink
+
+    return make_trace_sink(Path(directory) / f"{task}-{repeat}.json")
+
+
 def run_one(
     page: Page,
     *,
@@ -193,6 +203,7 @@ def run_one(
                     escalate=logging_approver(approvals),
                     navigate=False,
                     stop=lambda: episode_state(page)[2],
+                    trace=_trace_for(task, repeat),
                 )
             finally:
                 llm.close()

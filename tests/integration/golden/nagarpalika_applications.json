@@ -17,7 +17,8 @@
         "tag": "a",
         "row_key": null
       },
-      "row_key": null
+      "row_key": null,
+      "current_page": false
     },
     {
       "ref": "e1",
@@ -34,7 +35,8 @@
         "tag": "a",
         "row_key": null
       },
-      "row_key": null
+      "row_key": null,
+      "current_page": true
     },
     {
       "ref": "e2",
@@ -51,7 +53,8 @@
         "tag": "a",
         "row_key": "041"
       },
-      "row_key": "041"
+      "row_key": "041",
+      "current_page": false
     },
     {
       "ref": "e3",
@@ -68,7 +71,8 @@
         "tag": "a",
         "row_key": "042"
       },
-      "row_key": "042"
+      "row_key": "042",
+      "current_page": false
     },
     {
       "ref": "e4",
@@ -85,7 +89,8 @@
         "tag": "a",
         "row_key": "042"
       },
-      "row_key": "042"
+      "row_key": "042",
+      "current_page": false
     },
     {
       "ref": "e5",
@@ -102,7 +107,8 @@
         "tag": "a",
         "row_key": "043"
       },
-      "row_key": "043"
+      "row_key": "043",
+      "current_page": false
     },
     {
       "ref": "e6",
@@ -119,7 +125,8 @@
         "tag": "a",
         "row_key": "043"
       },
-      "row_key": "043"
+      "row_key": "043",
+      "current_page": false
     },
     {
       "ref": "e7",
@@ -136,7 +143,8 @@
         "tag": "a",
         "row_key": "044"
       },
-      "row_key": "044"
+      "row_key": "044",
+      "current_page": false
     },
     {
       "ref": "e8",
@@ -153,7 +161,8 @@
         "tag": "a",
         "row_key": "045"
       },
-      "row_key": "045"
+      "row_key": "045",
+      "current_page": false
     },
     {
       "ref": "e9",
@@ -170,7 +179,8 @@
         "tag": "a",
         "row_key": "045"
       },
-      "row_key": "045"
+      "row_key": "045",
+      "current_page": false
     },
     {
       "ref": "e10",
@@ -187,7 +197,8 @@
         "tag": "a",
         "row_key": "046"
       },
-      "row_key": "046"
+      "row_key": "046",
+      "current_page": false
     },
     {
       "ref": "e11",
@@ -204,7 +215,8 @@
         "tag": "a",
         "row_key": "046"
       },
-      "row_key": "046"
+      "row_key": "046",
+      "current_page": false
     }
   ],
   "untrusted_text": [

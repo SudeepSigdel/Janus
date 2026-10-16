@@ -17,7 +17,8 @@
         "tag": "a",
         "row_key": null
       },
-      "row_key": null
+      "row_key": null,
+      "current_page": false
     },
     {
       "ref": "e1",
@@ -34,7 +35,8 @@
         "tag": "a",
         "row_key": null
       },
-      "row_key": null
+      "row_key": null,
+      "current_page": false
     },
     {
       "ref": "e2",
@@ -51,7 +53,8 @@
         "tag": "input",
         "row_key": null
       },
-      "row_key": null
+      "row_key": null,
+      "current_page": false
     },
     {
       "ref": "e3",
@@ -68,7 +71,8 @@
         "tag": "input",
         "row_key": null
       },
-      "row_key": null
+      "row_key": null,
+      "current_page": false
     },
     {
       "ref": "e4",
@@ -85,7 +89,8 @@
         "tag": "input",
         "row_key": null
       },
-      "row_key": null
+      "row_key": null,
+      "current_page": false
     },
     {
       "ref": "e5",
@@ -102,7 +107,8 @@
         "tag": "select",
         "row_key": null
       },
-      "row_key": null
+      "row_key": null,
+      "current_page": false
     },
     {
       "ref": "e6",
@@ -119,7 +125,8 @@
         "tag": "input",
         "row_key": null
       },
-      "row_key": null
+      "row_key": null,
+      "current_page": false
     },
     {
       "ref": "e7",
@@ -136,7 +143,8 @@
         "tag": "button",
         "row_key": null
       },
-      "row_key": null
+      "row_key": null,
+      "current_page": false
     }
   ],
   "untrusted_text": [

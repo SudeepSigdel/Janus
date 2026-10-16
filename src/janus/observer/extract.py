@@ -22,28 +22,59 @@ from janus.text.nepali import normalize_row_key
 # list for act-time fingerprint re-resolution (security invariant 5).
 INTERACTIVE_SELECTOR = 'a[href], button, input:not([type="hidden"]), select, textarea, [role]'
 
+# Shared by the snapshot and act-time re-resolution so both walk the same ordered list.
+# Besides semantic controls it picks up "click targets": a span/div/li/img whose cursor is
+# `pointer` while its parent's is not, with no semantic control inside or around it. Real pages
+# build menus, tabs and cards this way; they get role `button` and a name from their text.
+_COLLECT_JS = r"""
+const interactiveSelector =
+  'a[href], button, input:not([type="hidden"]), select, textarea, [role]';
+const clickTargetTags = 'span, div, li, img, td, p';
+const clickTargets = new WeakSet();
+function isVisible(el) {
+  const style = window.getComputedStyle(el);
+  if (style.display === 'none' || style.visibility === 'hidden') return false;
+  if (typeof el.checkVisibility === 'function') {
+    return el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true });
+  }
+  return true;
+}
+function isClickTarget(el) {
+  if (el.matches(interactiveSelector)) return false;
+  if (window.getComputedStyle(el).cursor !== 'pointer') return false;
+  const parent = el.parentElement;
+  if (!parent || window.getComputedStyle(parent).cursor === 'pointer') return false;
+  if (el.querySelector(interactiveSelector) || el.parentElement.closest(interactiveSelector)) {
+    return false;
+  }
+  return (el.textContent || '').trim() !== '' || el.getAttribute('alt') || el.getAttribute('title');
+}
+function collectInteractive() {
+  const all = document.querySelectorAll(interactiveSelector + ', ' + clickTargetTags);
+  const out = [];
+  for (const el of all) {
+    if (!isVisible(el)) continue;
+    if (el.matches(interactiveSelector)) { out.push(el); continue; }
+    if (isClickTarget(el)) { clickTargets.add(el); out.push(el); }
+  }
+  return out;
+}
+"""
+
 # Interactive elements become trusted, short-labelled Elements. Everything else
 # visible (headings, paragraphs, notices, table cells, review values) is untrusted
 # text: the planner never sees it (CLAUDE.md: page text is data, never instructions).
-_JS = r"""
-() => {
-  const interactiveSelector =
-    'a[href], button, input:not([type="hidden"]), select, textarea, [role]';
+_JS = (
+    "() => {"
+    + _COLLECT_JS
+    + r"""
   const textSelector = 'h1, h2, h3, h4, h5, h6, p, dt, dd, li, td, th, .notice';
 
-  // B1c (docs/AUDIT.md S12): checkVisibility also hides elements inside a hidden ancestor
-  // (a closed dropdown menu) and elements made invisible with opacity 0.
-  function isVisible(el) {
-    const style = window.getComputedStyle(el);
-    if (style.display === 'none' || style.visibility === 'hidden') return false;
-    if (typeof el.checkVisibility === 'function') {
-      return el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true });
-    }
-    return true;
-  }
-
   function roleOf(el) {
+    if (clickTargets.has(el)) return 'button';
     const explicit = el.getAttribute('role');
+    // A spinbutton or searchbox is a text field for the planner's purposes.
+    if (explicit === 'spinbutton' || explicit === 'searchbox') return 'textbox';
     if (explicit) return explicit;
     const tag = el.tagName.toLowerCase();
     if (tag === 'a') return 'link';
@@ -80,6 +111,10 @@ _JS = r"""
   }
 
   function labelFor(el) {
+    if (clickTargets.has(el)) {
+      return squash(el.textContent) || squash(el.getAttribute('alt'))
+        || squash(el.getAttribute('title'));
+    }
     const id = el.getAttribute('id');
     if (id) {
       const label = document.querySelector(`label[for="${CSS.escape(id)}"]`);
@@ -164,7 +199,7 @@ _JS = r"""
     } catch (e) { return false; }
   };
 
-  const interactive = Array.from(document.querySelectorAll(interactiveSelector)).filter(isVisible);
+  const interactive = collectInteractive();
   const elements = interactive.map((el) => {
     const form = el.closest('form');
     return {
@@ -193,6 +228,7 @@ _JS = r"""
   return { elements, text_blocks: blocks };
 }
 """
+)
 
 
 def cap_elements(
@@ -284,26 +320,14 @@ def extract_raw_elements(page: Page) -> list[dict[str, Any]]:
     return page.evaluate(_JS)["elements"]
 
 
-# Must match `isVisible` inside `_JS` (act-time re-resolution walks the same list).
-_IS_VISIBLE_JS = """
-function isVisible(el) {
-  const style = window.getComputedStyle(el);
-  if (style.display === 'none' || style.visibility === 'hidden') return false;
-  if (typeof el.checkVisibility === 'function') {
-    return el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true });
-  }
-  return true;
-}
-"""
-
-_HANDLE_AT_INDEX_JS = f"""
-(args) => {{
-  {_IS_VISIBLE_JS}
-  const [selector, index] = args;
-  const list = Array.from(document.querySelectorAll(selector)).filter(isVisible);
-  return list[index] ?? null;
-}}
-"""
+_HANDLE_AT_INDEX_JS = (
+    "(args) => {"
+    + _COLLECT_JS
+    + """
+  const index = args[1];
+  return collectInteractive()[index] ?? null;
+}"""
+)
 
 
 def handle_at_index(page: Page, index: int) -> ElementHandle | None:
