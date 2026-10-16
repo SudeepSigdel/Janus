@@ -17,7 +17,9 @@ with sync_playwright() as p:
     page.goto(URL, timeout=180000)
     snap = extract_snapshot(page, Settings())
     for e in snap.elements:
-        print(f"{e.ref:<4} {e.role:<10} {e.tag:<8} name_attr={e.name_attr!s:<20} {e.accessible_name!r}")
+        print(
+            f"{e.ref:<4} {e.role:<10} {e.tag:<8} name_attr={e.name_attr!s:<20} {e.accessible_name!r}"  # noqa: E501
+        )
     print("---- raw vote controls")
     for el in page.query_selector_all(".submission__vote *, .vote *, [class*=vote]")[:25]:
         print(el.evaluate("e => e.outerHTML.slice(0, 260)"))

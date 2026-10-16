@@ -6,6 +6,7 @@ from janus.observer.fingerprint import compute_fingerprint
 from janus.observer.snapshot import Element, PageSnapshot
 from janus.planner.ops import (
     ClickStep,
+    DoneStep,
     FieldValue,
     FillFormStep,
     NavigateStep,
@@ -235,3 +236,27 @@ def test_no_effect_guard_never_blocks_a_submit_or_other_refs() -> None:
     assert validate_plan(plan, POLICY, SNAPSHOT, inputs={}, no_effect_refs=frozenset({"e2"})).ok
     plan = Plan(task_id="t", steps=[ClickStep(ref="e2")])
     assert validate_plan(plan, POLICY, SNAPSHOT, inputs={}, no_effect_refs=frozenset({"e3"})).ok
+
+
+def test_click_on_a_current_page_link_is_rejected() -> None:
+    """B4a: a link to the page already open is a no-op; reject it before acting."""
+    here = make_element("e5", "Forums", None, form_id=None, role="link")
+    snapshot = SNAPSHOT.model_copy(
+        update={"elements": [*SNAPSHOT.elements, here.model_copy(update={"current_page": True})]}
+    )
+    result = validate_plan(
+        Plan(task_id="t", steps=[ClickStep(ref="e5")]), POLICY, snapshot, inputs={}
+    )
+    assert not result.ok
+    assert any("already open" in e for e in result.errors)
+    assert validate_plan(
+        Plan(task_id="t", steps=[ClickStep(ref="e3")]), POLICY, snapshot, inputs={}
+    ).ok
+
+
+def test_done_grants_no_capability() -> None:
+    """B4b: a replan that only adds DONE stays inside a ceiling committed without it."""
+    committed = capabilities_of(Plan(task_id="t", steps=[ClickStep(ref="e3")]), SNAPSHOT)
+    replan = Plan(task_id="t", steps=[ClickStep(ref="e3"), DoneStep(status="completed")])
+    assert all(op != "DONE" for op, _, _ in capabilities_of(replan, SNAPSHOT))
+    assert validate_plan(replan, POLICY, SNAPSHOT, inputs={}, committed_capabilities=committed).ok

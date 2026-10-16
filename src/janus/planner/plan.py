@@ -118,6 +118,8 @@ def _outline(snapshot: PageSnapshot) -> list[dict[str, str | None]]:
         entry: dict[str, str | None] = {"ref": e.ref, "role": e.role, "label": e.accessible_name}
         if e.row_key is not None:
             entry["row"] = e.row_key
+        if e.current_page:
+            entry["state"] = "current page"
         outline.append(entry)
     return outline
 

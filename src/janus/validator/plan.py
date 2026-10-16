@@ -144,6 +144,11 @@ def validate_plan(
                 errors.append(f"step {i}: unknown element ref {step.ref!r}")
                 decisions.append(StepDecision(i, step.consequential_hint))
                 continue
+            if step.op == "CLICK" and element.current_page:
+                errors.append(
+                    f"step {i}: {step.ref!r} ({element.accessible_name!r}) links to the page "
+                    "that is already open; choose a different element"
+                )
             if step.op == "CLICK" and step.ref in no_effect_refs:
                 errors.append(
                     f"step {i}: {step.ref!r} ({element.accessible_name!r}) was already "

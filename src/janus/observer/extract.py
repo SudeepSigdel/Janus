@@ -148,6 +148,22 @@ _JS = r"""
     return cell.textContent.replace(/\s+/g, ' ').trim();
   }
 
+  // B4a: a link to the page that is already open (aria-current, or an href equal
+  // to the current URL ignoring the fragment). Hash-only and javascript: hrefs are
+  // excluded: those usually open a menu or run a handler, so clicking them can matter.
+  const isCurrentPageLink = (el) => {
+    if (el.tagName.toLowerCase() !== 'a') return false;
+    const ac = el.getAttribute('aria-current');
+    if (ac && ac !== 'false') return true;
+    const raw = (el.getAttribute('href') || '').trim();
+    if (!raw || raw.startsWith('#') || raw.toLowerCase().startsWith('javascript:')) return false;
+    try {
+      const u = new URL(el.href); const here = new URL(location.href);
+      u.hash = ''; here.hash = '';
+      return u.href === here.href;
+    } catch (e) { return false; }
+  };
+
   const interactive = Array.from(document.querySelectorAll(interactiveSelector)).filter(isVisible);
   const elements = interactive.map((el) => {
     const form = el.closest('form');
@@ -158,6 +174,7 @@ _JS = r"""
       name_attr: el.getAttribute('name'),
       form_id: form ? form.getAttribute('id') : null,
       row_cell: firstCellText(el),
+      current_page: isCurrentPageLink(el),
     };
   });
 
@@ -239,6 +256,7 @@ def extract_snapshot(page: Page, settings: Settings | None = None) -> PageSnapsh
                 form_id=raw_el["form_id"],
                 fingerprint=fingerprint,
                 row_key=row_key,
+                current_page=bool(raw_el.get("current_page", False)),
             )
         )
 

@@ -48,6 +48,9 @@ class Element(_Model):
     form_id: str | None
     fingerprint: Fingerprint
     row_key: str | None = None
+    # B4a: a link to the page already open (aria-current or same URL). Not part of
+    # the fingerprint: it describes where the link points, not which element it is.
+    current_page: bool = False
 
 
 class SelectOption(_Model):
