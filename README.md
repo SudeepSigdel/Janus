@@ -73,8 +73,8 @@ uv run janus run --url http://127.0.0.1:8101/services \
 ```
 
 The run stays on the start URL's origin. Goals can be in English or Nepali; a value is used only if it appears verbatim in your goal,
-and the portal's name field wants Devanagari, so give the name that way. A finished run may report
-`partial` even when the work is done (a known gap, see LIMITATIONS.md). Report pages show what was allowed, refused or blocked
+and the portal's name field wants Devanagari, so give the name that way. After you approve a consequential action that goes through, the run ends `completed`; a goal
+that needs two such actions needs two runs. Report pages show what was allowed, refused or blocked
 and why; they never contain page text. Only use this on sites you are allowed to automate.
 
 ## Outside benchmarks (held out, nothing tuned on them)

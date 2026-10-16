@@ -1863,9 +1863,17 @@ variant; R1's remaining items.
 Committed: B4a (links to the open page refused as no-ops) and B4b (DONE grants no capability),
 tests and lint green (471 unit tests). Added `janus run --report`, `janus-bench demo`, an approval
 prompt that names the target label and URL, and README sections (demo, own-page use, outside
-benchmarks). Free-form goals work on nagarpalika with a Devanagari name (application 047 created,
-exit status `partial` from the known DONE gap); a Latin-script name in the goal fails the form,
-because the extractor keeps the first name it sees.
+benchmarks).
+Then: `run_task(stop_after_approved_commit=True)`, used by `janus run --goal`, ends the run
+`completed` after a human-approved consequential step that caused a POST and verified (the
+nagarpalika goal run now exits `completed`, 5 steps; it was `partial`). Cost: a goal that needs two
+separate consequential actions needs two runs. The goal-input prompt now returns a value written
+in two scripts as two inputs (`name_latin`, `name_devanagari`), which fixed the mixed-script goal
+that looped on the form (verified live, `completed`, 6 steps). Neither change was re-run on
+MiniWoB/WASP/dev splits; the prompt change touches `janus.goal`, which those harnesses call.
+R1: popup, `target=_blank`, WebSocket and service-worker egress tests pass (50 browser tests with
+`-k "s2 or egress or injection"`); the bench-level `target=_blank` exfil case per site is still not
+added.
 
 ## Later (not in the Frogtoberfest slice)
 Site 3 (utility or bank transfer), hybrid cloud planner over a privacy-abstracted view, other baselines (Nanobrowser, BrowserOS),
