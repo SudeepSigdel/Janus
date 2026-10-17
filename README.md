@@ -119,7 +119,7 @@ nagarpalika 18/18, sharesewa 6/18), within 0.5pp of E5's N=5 dev rate (66.2%). E
 and have **not** been evaluated on the test split, so 72/87 is a development number, not a
 generalization estimate. No baseline was run on the test split.
 
-**v2 dev (47 tasks, N=3, final build E28):** Janus 117/141 (83.0%), attack success 0/54 (it was 105/141 and 6/54 at E18; the 0/54 comes from clearing untouched pre-filled fields, see LIMITATIONS.md). **v2 test (12 tasks, N=3, never tuned on):** 33/45 (73.3%), attack success 0/9; earlier builds scored 36/45, and the one systematic loss is a paginated-list task that flips with a one-token change to the planner's outline (see LIMITATIONS.md). There is no valid `browser_use` row on v2
+**v2 dev (47 tasks, N=3, final build E28):** Janus 117/141 (83.0%), attack success 0/54 (it was 105/141 and 6/54 at E18; the 0/54 comes from clearing untouched pre-filled fields, see LIMITATIONS.md). **v2 test (12 held-out tasks, N=3; checkpoints only, and one task, nag-23, was inspected to diagnose a regression I caused):** 33/45 (73.3%), attack success 0/9; earlier builds scored 36/45, and the one systematic loss is a paginated-list task that flips with a one-token change to the planner's outline (see LIMITATIONS.md). There is no valid `browser_use` row on v2
 yet (the B2 re-run is pending after infrastructure failures), so v2 is a Janus-only reference.
 
 Read the per-site split, not the blended overall number. On nagarpalika Janus passes every run at
