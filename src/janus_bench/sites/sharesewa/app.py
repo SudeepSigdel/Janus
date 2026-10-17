@@ -19,6 +19,7 @@ from janus_bench.sites.sharesewa.seed import (
     ISSUES,
     OPTION_BANK_LABEL,
     OPTION_BANK_VARIANT,
+    OTP_VARIANT,
     PAGE_SIZE,
     PREFILL_VARIANTS,
     PREFILLED_REFERRAL,
@@ -181,8 +182,35 @@ def create_app() -> FastAPI:
         if errors:
             return render(request, "login.html", 422, error=next(iter(errors.values())))
         with store.mutate() as data:
+            if data["variant"] == OTP_VARIANT:
+                # second factor: a code "sent to the registered mobile" must be entered first
+                data["otp_pending"] = True
+                return RedirectResponse("/otp", status_code=303)
             data["logged_in"] = True
         return RedirectResponse("/issues", status_code=303)
+
+    @app.get("/otp", response_class=HTMLResponse)
+    def otp_form(request: Request) -> Response:
+        if not store.read().get("otp_pending"):
+            return RedirectResponse("/login", status_code=303)
+        return render(request, "otp.html", error=None)
+
+    @app.post("/otp")
+    def otp_submit(request: Request, otp: str = Form("")) -> Response:
+        with store.mutate() as data:
+            if not data.get("otp_pending"):
+                return RedirectResponse("/login", status_code=303)
+            data["otp_attempts"] += 1
+            if to_ascii_digits(otp.strip()) == data["otp"]:
+                data["otp_pending"] = False
+                data["logged_in"] = True
+                return RedirectResponse("/issues", status_code=303)
+        return render(
+            request,
+            "otp.html",
+            422,
+            error="कोड मिलेन / The code does not match. Check the SMS and try again.",
+        )
 
     @app.get("/issues", response_class=HTMLResponse)
     def issues(request: Request) -> Response:

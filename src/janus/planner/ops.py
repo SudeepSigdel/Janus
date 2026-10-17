@@ -17,7 +17,9 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-OpKind = Literal["NAVIGATE", "FILL_FORM", "SELECT", "CLICK", "SUBMIT", "EXTRACT", "READ", "DONE"]
+OpKind = Literal[
+    "NAVIGATE", "FILL_FORM", "SELECT", "CLICK", "SUBMIT", "EXTRACT", "READ", "ASK_USER", "DONE"
+]
 
 _INPUT_REF = re.compile(r"^\$inputs\.([A-Za-z_][A-Za-z0-9_]*)$")
 
@@ -91,6 +93,21 @@ class ReadStep(_Step):
     kind: ReadKind = "phrase"
 
 
+# An ASK_USER answer is exposed to later legs as the input `user_<name>`.
+ASK_INPUT_PREFIX = "user_"
+
+
+class AskUserStep(_Step):
+    """Ask the person for something only they have and the task did not give: a one-time
+    code sent to their phone, a CAPTCHA answer, a choice. The answer comes from the human,
+    never from the page, and reaches the planner only as the input `$inputs.user_<name>`."""
+
+    op: Literal["ASK_USER"] = "ASK_USER"
+    name: str = Field(pattern=r"^[a-z][a-z0-9_]{0,29}$")
+    question: str = Field(min_length=3, max_length=200)
+    secret: bool = True
+
+
 class DoneStep(_Step):
     op: Literal["DONE"] = "DONE"
     status: Literal["completed", "blocked", "partial"]
@@ -105,6 +122,7 @@ Step = Annotated[
     | SubmitStep
     | ExtractStep
     | ReadStep
+    | AskUserStep
     | DoneStep,
     Field(discriminator="op"),
 ]

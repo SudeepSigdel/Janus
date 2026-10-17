@@ -44,6 +44,8 @@ def test_ids_for_flattens_categories(tmp_path: Path) -> None:
 
 
 SPLIT_V2 = Path(__file__).resolve().parents[3] / "splits" / "v2.yaml"
+# Task families added after v2 was frozen live in their own split files.
+EXTENSION_SPLITS = [Path(__file__).resolve().parents[3] / "splits" / "auth.yaml"]
 TASKS_DIR = Path(__file__).resolve().parents[3] / "tasks"
 NEW_IDS = {
     "nagarpalika": [f"nag-{i}" for i in (*range(21, 27), *range(27, 32))],
@@ -69,10 +71,14 @@ def test_v2_covers_every_task_exactly_once() -> None:
     from janus_bench.harness.taskspec import load_tasks
 
     split = load_split(SPLIT_V2)
+    extensions: set[str] = set()
+    for path in EXTENSION_SPLITS:
+        extensions |= ids_for(load_split(path), "dev") | ids_for(load_split(path), "test")
     all_ids = [t.id for t in load_tasks(TASKS_DIR)]
     in_split = ids_for(split, "dev") | ids_for(split, "test")
-    assert sorted(all_ids) == sorted(in_split)
-    assert len(ids_for(split, "dev")) + len(ids_for(split, "test")) == len(all_ids)
+    assert not in_split & extensions
+    assert sorted(all_ids) == sorted(in_split | extensions)
+    assert len(in_split) + len(extensions) == len(all_ids)
 
 
 def test_v2_new_tasks_follow_the_declared_assignment_rule() -> None:

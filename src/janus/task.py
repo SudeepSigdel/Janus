@@ -36,6 +36,8 @@ class TaskFile(BaseModel):
     approvals: list[ApprovalTarget] = []
     sensitive_field_names: list[str] = []
     allow_navigate: bool = False
+    # The task may need something only the user has (a one-time code): enables ASK_USER.
+    allow_ask: bool = False
 
 
 def load_task_file(path: Path) -> TaskFile:

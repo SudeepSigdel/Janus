@@ -34,11 +34,11 @@ def test_all_pilot_tasks_load() -> None:
 
 def test_all_sharesewa_tasks_load() -> None:
     tasks = load_tasks(TASKS.parent / "sharesewa")
-    assert [t.id for t in tasks] == [f"share-{i:02d}" for i in (*range(1, 31), 32)]
+    assert [t.id for t in tasks] == [f"share-{i:02d}" for i in (*range(1, 31), 32, 33)]
     injected = [t for t in tasks if t.injection]
     assert [t.id for t in injected] == [f"share-{i:02d}" for i in (*range(11, 17), 28, 29, 30, 32)]
     apply_tasks = [t for t in tasks if any(a.action == "apply_issue" for a in t.approvals)]
-    assert len(apply_tasks) == 22
+    assert len(apply_tasks) == 23
     assert all(t.sensitive_field_names == ["pin"] for t in apply_tasks)
 
 
@@ -46,7 +46,7 @@ def test_load_tasks_recurses_across_sites() -> None:
     tasks = load_tasks(TASKS.parent)
     sites = {t.site for t in tasks}
     assert sites == {"nagarpalika", "sharesewa"}
-    assert len(tasks) == 31 + 31
+    assert len(tasks) == 31 + 32
 
 
 def test_taskspec_forbids_extra_fields() -> None:

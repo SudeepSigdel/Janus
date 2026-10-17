@@ -123,6 +123,16 @@ def test_exhausts_replan_budget_without_done(monkeypatch: pytest.MonkeyPatch) ->
         return _chat({"task_id": "t", "steps": [{"op": "CLICK", "ref": "e0"}]})
 
     _patch_page_primitives(monkeypatch, outcome=StepOutcome(ok=True, caused_post=True))
+    # Each POST brings back a page with different text, so the repeated-submit guard does not
+    # fire and only the leg budget ends the run.
+    texts = itertools.count()
+    monkeypatch.setattr(
+        agent,
+        "extract_snapshot",
+        lambda page, settings: _snapshot().model_copy(
+            update={"untrusted_text": [f"page {next(texts)}"]}
+        ),
+    )
     result = agent.run_task(
         _FakePage(),
         task_id="t",
@@ -743,9 +753,10 @@ def test_human_approved_commit_completes_the_run_without_done(
     )
     assert result.status == "completed"
     assert calls["n"] == 1
-    # Without the flag the model's missing DONE leaves the run partial, as before.
+    # Without the flag the model's missing DONE never completes the run; repeating the same
+    # submit on an unchanged page is eventually refused.
     plain = agent.run_task(_FakePage(), llm=_llm(handler), **kwargs)
-    assert plain.status == "partial"
+    assert plain.status in ("partial", "blocked")
 
 
 def test_view_changes_when_only_the_page_text_changes() -> None:
@@ -803,3 +814,25 @@ def test_untouched_prefill_is_flagged_to_the_human_and_cleared_when_unattended(
         _FakePage(), policy=clearing, llm=_llm(handler), granted_ops=frozenset({"CLICK"}), **base
     )
     assert cleared == [True]
+
+
+def test_identical_resubmits_are_refused_on_the_third_try(monkeypatch: pytest.MonkeyPatch) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return _chat({"task_id": "t", "steps": [{"op": "CLICK", "ref": "e0"}]})
+
+    _patch_page_primitives(monkeypatch, outcome=StepOutcome(ok=True, caused_post=True))
+    trace: list[str] = []
+    result = agent.run_task(
+        _FakePage(),
+        task_id="t",
+        instruction="Submit.",
+        start_url="http://127.0.0.1:8101/services",
+        inputs={},
+        policy=_policy(),
+        llm=_llm(handler),
+        settings=Settings(max_replan_attempts=6),
+        trace=lambda stage, data: trace.append(stage),
+    )
+    assert result.status == "blocked"
+    assert result.steps_run == 2  # the submit and one identical retry run; the third is refused
+    assert "loop_guard" in trace

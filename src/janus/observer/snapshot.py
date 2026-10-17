@@ -51,6 +51,11 @@ class Element(_Model):
     # B4a: a link to the page already open (aria-current or same URL). Not part of
     # the fingerprint: it describes where the link points, not which element it is.
     current_page: bool = False
+    # The <input> type ("password", "text", ...), None for other tags. Used by the validator's
+    # secret-input rule; left out of dumps so the pinned golden snapshots do not change.
+    input_type: str | None = Field(default=None, exclude=True)
+    # The autocomplete hint ("one-time-code", "current-password", ...), also excluded from dumps.
+    autocomplete: str | None = Field(default=None, exclude=True)
 
 
 class SelectOption(_Model):

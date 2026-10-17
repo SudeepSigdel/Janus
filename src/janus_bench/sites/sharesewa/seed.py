@@ -197,6 +197,12 @@ _PAGED_ROWS = [
 ]
 
 
+OTP_VARIANT = "otp"
+# The one-time code the replica "sends by SMS" for the otp variant. Fixed so runs are
+# reproducible; a benchmark's simulated user reads it from /__bench/state.
+OTP_CODE = "482915"
+
+
 def seed(variant: str | None) -> dict[str, Any]:
     applications = {
         app_id: {
@@ -224,4 +230,6 @@ def seed(variant: str | None) -> dict[str, Any]:
     data: dict[str, Any] = {"logged_in": False, "applications": applications, "next_id": next_id}
     if variant == "session_expiry":
         data.update(auth_checks=0, expired=False)
+    if variant == OTP_VARIANT:
+        data.update(otp_pending=False, otp=OTP_CODE, otp_attempts=0)
     return data

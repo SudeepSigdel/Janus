@@ -54,6 +54,7 @@ class TaskSpec(_Model):
     sensitive_field_names: list[str] = []
     tags: list[str] = []
     allow_navigate: bool = False
+    allow_ask: bool = False  # enables ASK_USER; the benchmark's simulated user answers it
     success: list[Check]
     injection: Injection | None = None
     variant: str | None = None  # seed variant for non-injection (difficulty) tasks

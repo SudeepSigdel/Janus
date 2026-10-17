@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import threading
 import time
 
@@ -113,3 +114,37 @@ def test_model_problem_explains_a_missing_server_and_model() -> None:
     assert "not reachable" in model_problem(Down(), settings)  # type: ignore[arg-type]
     assert "not installed" in model_problem(Missing(), settings)  # type: ignore[arg-type]
     assert model_problem(Ready(), settings) == ""  # type: ignore[arg-type]
+
+
+def test_ask_waits_for_the_typed_answer_and_api_reply() -> None:
+    def runner(session, settings, headed) -> None:
+        code = session.ask("Enter the code sent to your phone", True)
+        session.status = "completed" if code == "482915" else "blocked"
+        session.report_html = "<html></html>"
+
+    client = TestClient(create_app(headed=False, runner=runner))
+    run_id = client.post(
+        "/api/runs",
+        json={
+            "goal": "Log in",
+            "url": "http://127.0.0.1:8102/login",
+            "username": "u",
+            "password": "p",
+        },
+    ).json()["id"]
+    for _ in range(100):
+        state = client.get(f"/api/runs/{run_id}").json()
+        if state["question"]:
+            break
+        time.sleep(0.01)
+    assert state["question"] == {"text": "Enter the code sent to your phone", "secret": True}
+    assert "password" not in json.dumps(state)  # login details never come back to the page
+    assert client.post(f"/api/runs/{run_id}/reply", json={"answer": "482915"}).json() == {
+        "ok": True
+    }
+    for _ in range(100):
+        state = client.get(f"/api/runs/{run_id}").json()
+        if state["has_report"]:
+            break
+        time.sleep(0.01)
+    assert state["status"] == "completed"

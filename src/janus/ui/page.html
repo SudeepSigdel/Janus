@@ -69,6 +69,9 @@ ol.timeline li:first-child { border-top: 0; }
 .result { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
 .result a { color: var(--teal); font-weight: 600; }
 .hidden { display: none; }
+details summary { cursor: pointer; margin-bottom: 8px; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 560px) { .two { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
@@ -186,12 +189,22 @@ ol.timeline li:first-child { border-top: 0; }
         <button class="chip" type="button" data-goal="निवास सिफारिसको निवेदन दिनुहोस्: नाम माया गुरुङ, वडा 8, मोबाइल 9847654321, नागरिकता नं. २८-०२-७७-०२३४५, जन्म मिति 2058-04-10 (वि.सं.)">निवास सिफारिस (नेपाली)</button>
         <button class="chip" type="button" data-goal="Apply for a residence recommendation for Sita Tamang (सीता तामाङ), ward 5, mobile 9841234567, citizenship no. २७-०१-७६-०१२३४, date of birth (BS) 2056-09-17.">Residence recommendation (English)</button>
         <button class="chip" type="button" data-goal="Update the mobile number on application 045 (०४५) to 9841055555." data-url="http://127.0.0.1:8101/applications">Update a phone number</button>
+        <button class="chip" type="button" data-goal="Log in and apply for the NIC Asia Debenture 2083 issue: bank Nabil Bank, 200 kitta, CRN CRN-482901." data-url="http://127.0.0.1:8102/login" data-user="१२३४५६७८" data-pass="Sajilo@123" data-pin="१२३४">Share application (login + OTP)</button>
       </div>
     </div>
     <div class="row">
       <label for="url">Start page <small>Janus stays on this site</small></label>
       <input id="url" value="__DEFAULT_URL__">
     </div>
+    <details class="row" id="login">
+      <summary><strong>लगइन विवरण · Login details</strong> <small class="note">optional, for sites that need you to sign in</small></summary>
+      <div class="two">
+        <div><label for="username">Username / ID <small>e.g. BOID</small></label><input id="username" autocomplete="off"></div>
+        <div><label for="password">Password</label><input id="password" type="password" autocomplete="off"></div>
+        <div><label for="pin">PIN <small>e.g. transaction PIN</small></label><input id="pin" type="password" autocomplete="off"></div>
+      </div>
+      <p class="note">These go straight to the browser, never to the AI model. The password and PIN can only be typed into password boxes.</p>
+    </details>
     <div class="actions">
       <button class="primary" id="start">Start / सुरु गर्नुहोस्</button>
       <span class="note">Runs on your computer with an open-weight model. Janus asks you before anything that submits, cancels or pays.</span>
@@ -206,6 +219,16 @@ ol.timeline li:first-child { border-top: 0; }
     <div class="actions">
       <button class="yes" id="ap-yes">Approve / स्वीकृत</button>
       <button class="no" id="ap-no">Deny / अस्वीकार</button>
+    </div>
+  </section>
+
+  <section class="card approval hidden" id="ask" aria-live="assertive">
+    <h2>Janus तपाईंलाई सोध्दैछ · Janus needs something from you</h2>
+    <div class="what" id="ask-text"></div>
+    <div class="row"><input id="ask-input" autocomplete="one-time-code"></div>
+    <div class="actions">
+      <button class="yes" id="ask-send">Send / पठाउनुहोस्</button>
+      <button class="no" id="ask-skip">I can't / रद्द</button>
     </div>
   </section>
 
@@ -226,6 +249,10 @@ for (const chip of document.querySelectorAll('.chip')) {
   chip.addEventListener('click', () => {
     $('goal').value = chip.dataset.goal;
     $('url').value = chip.dataset.url || '__DEFAULT_URL__';
+    $('username').value = chip.dataset.user || '';
+    $('password').value = chip.dataset.pass || '';
+    $('pin').value = chip.dataset.pin || '';
+    $('login').open = Boolean(chip.dataset.user);
   });
 }
 
@@ -274,6 +301,8 @@ function render(ev) {
       break;
     case 'approval_requested': item('warn', '?', 'Asked you to approve: ' + (OPS[d.op] || d.op) + ' ' + d.label); break;
     case 'approval_answered': item(d.ok ? 'ok' : 'bad', d.ok ? '✓' : '✕', d.ok ? 'You approved it' : 'You denied it'); break;
+    case 'ask_user': item(d.answered ? 'ok' : 'bad', d.answered ? '✓' : '✕', 'Asked you: ' + d.question, d.answered ? 'you answered (the answer is not shown or stored)' : 'no answer, so Janus stopped'); break;
+    case 'login_details': item('ok', '✓', 'Using the login details you gave', 'kept out of the AI model; the password only goes into a password field'); break;
     case 'loop_guard': item('warn', '!', 'That click changed nothing; not trying it again', d.label); break;
     case 'blocked': item('bad', '✕', 'Stopped by a safety check (' + d.gate + ')', (d.errors || [d.error || ''])[0]); break;
     case 'run_result': item(d.status === 'completed' ? 'ok' : 'warn', '■', 'Finished: ' + (STATUS[d.status] || d.status), d.steps_run + ' steps'); break;
@@ -290,6 +319,27 @@ function showApproval(p) {
   } else { $('ap-prefill').classList.add('hidden'); }
   $('approval').classList.remove('hidden');
 }
+
+let askedFor = null;
+function showQuestion(q) {
+  if (!q) { $('ask').classList.add('hidden'); askedFor = null; return; }
+  if (askedFor === q.text) return;
+  askedFor = q.text;
+  $('ask-text').textContent = q.text;
+  $('ask-input').value = '';
+  $('ask-input').type = q.secret ? 'password' : 'text';
+  $('ask').classList.remove('hidden');
+  $('ask-input').focus();
+}
+async function reply(answer) {
+  $('ask-send').disabled = $('ask-skip').disabled = true;
+  await fetch('/api/runs/' + runId + '/reply', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ answer }) });
+  $('ask-send').disabled = $('ask-skip').disabled = false;
+  showQuestion(null);
+}
+$('ask-send').onclick = () => reply($('ask-input').value.trim() || null);
+$('ask-skip').onclick = () => reply(null);
+$('ask-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('ask-send').click(); });
 
 async function answer(approved) {
   $('ap-yes').disabled = $('ap-no').disabled = true;
@@ -308,6 +358,7 @@ async function poll() {
   const el = $('status'); el.textContent = STATUS[s.status] || s.status; el.className = 'status s-' + s.status;
   $('error').textContent = s.error || '';
   showApproval(s.pending);
+  showQuestion(s.question);
   if (s.has_report) { const a = $('report'); a.href = '/runs/' + runId + '/report'; a.classList.remove('hidden'); }
   if (['completed', 'partial', 'blocked', 'error'].includes(s.status) && s.has_report) {
     clearInterval(timer); $('start').disabled = false;
@@ -322,7 +373,7 @@ $('start').onclick = async () => {
   const goal = $('goal').value.trim(), url = $('url').value.trim();
   if (goal.length < 3) { $('goal').focus(); return; }
   $('start').disabled = true;
-  const r = await fetch('/api/runs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ goal, url }) });
+  const r = await fetch('/api/runs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ goal, url, username: $('username').value.trim(), password: $('password').value, pin: $('pin').value }) });
   if (!r.ok) { $('start').disabled = false; alert((await r.json()).detail || 'Could not start'); return; }
   runId = (await r.json()).id; next = 0;
   $('timeline').innerHTML = ''; $('report').classList.add('hidden');

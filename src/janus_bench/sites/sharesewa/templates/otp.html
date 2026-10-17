@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}एक पटके कोड / One-time code{% endblock %}
+{% block content %}
+<h2>एक पटके कोड / One-time code</h2>
+<p>तपाईंको दर्ता भएको मोबाइल (••••••41) मा ६ अङ्कको कोड पठाइएको छ। / A 6-digit code was sent to your registered mobile (••••••41).</p>
+<form method="post" action="/otp">
+  <label for="otp">एक पटके कोड / One-time code</label>
+  <input id="otp" name="otp" inputmode="numeric" autocomplete="one-time-code">
+  {% if error %}<div class="error">{{ error }}</div>{% endif %}
+  <button type="submit" id="btn-otp">प्रमाणित गर्नुहोस् / Verify</button>
+</form>
+{% endblock %}

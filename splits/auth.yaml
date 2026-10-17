@@ -1,0 +1,12 @@
+# Login with a second factor (2026-10-18). Kept outside v2 so v2's reported numbers stay
+# comparable across builds. share-33 = share-01 behind a one-time-code step: the agent must
+# ask the user for the code (ASK_USER); the benchmark's simulated user reads the code the
+# replica "sent by SMS". Not a held-out split: there are no test ids.
+#
+#   uv run janus-bench run --agent janus --tasks tasks --split splits/auth.yaml --set dev --repeats 3
+
+version: 2
+dev:
+  sharesewa:
+    apply: [share-33]
+test: {}

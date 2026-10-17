@@ -5,9 +5,11 @@ from __future__ import annotations
 from collections.abc import Callable
 from datetime import date
 
+import httpx
 from playwright.sync_api import Page, sync_playwright
 
 from janus.text.nepali import ad_to_bs
+from janus.validator.policy import origin_of
 from janus_bench.harness.taskspec import TaskSpec
 from janus_bench.sites.common.digits import to_ne_digits
 
@@ -108,6 +110,11 @@ def _login(page: Page, task: TaskSpec) -> None:
     page.fill("#boid", task.inputs["boid"])
     page.fill("#password", task.inputs["password"])
     page.click("#btn-login")
+    if task.variant == "otp":  # second factor: read the "SMS" from the replica's state
+        page.wait_for_url("**/otp")
+        state = httpx.get(f"{origin_of(task.start_url)}/__bench/state", timeout=5).json()
+        page.fill("#otp", state["otp"])
+        page.click("#btn-otp")
     page.wait_for_url("**/issues")
 
 
@@ -260,6 +267,7 @@ ROUTINES: dict[str, Callable[[Page, TaskSpec], None]] = {
     "share-30": _apply_nabil,
     "share-32": _apply,
     "share-01": _apply,
+    "share-33": _apply,
     "share-02": _apply,
     "share-03": _apply,
     "share-04": _apply,

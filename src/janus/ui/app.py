@@ -26,6 +26,15 @@ class StartRequest(BaseModel):
 
     goal: str = Field(min_length=3, max_length=1000)
     url: str = Field(min_length=8, max_length=500, pattern=r"^https?://")
+    username: str = Field(default="", max_length=200)
+    password: str = Field(default="", max_length=200, repr=False)
+    pin: str = Field(default="", max_length=50, repr=False)
+
+
+class ReplyRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    answer: str | None = Field(default=None, max_length=200)
 
 
 class AnswerRequest(BaseModel):
@@ -55,7 +64,13 @@ def create_app(settings: Settings | None = None, headed: bool = True, runner=exe
     def start(body: StartRequest) -> dict[str, str]:
         if store.busy():
             raise HTTPException(409, "a run is already in progress")
-        session = RunSession(goal=body.goal.strip(), url=body.url.strip())
+        session = RunSession(
+            goal=body.goal.strip(),
+            url=body.url.strip(),
+            username=body.username.strip(),
+            password=body.password,
+            pin=body.pin,
+        )
         store.add(session)
         threading.Thread(target=runner, args=(session, cfg, headed), daemon=True).start()
         return {"id": session.id}
@@ -74,6 +89,15 @@ def create_app(settings: Settings | None = None, headed: bool = True, runner=exe
             raise HTTPException(404, "no such run")
         if not session.answer(body.approved):
             raise HTTPException(409, "nothing is waiting for approval")
+        return {"ok": True}
+
+    @app.post("/api/runs/{run_id}/reply")
+    def reply(run_id: str, body: ReplyRequest) -> dict[str, bool]:
+        session = store.get(run_id)
+        if session is None:
+            raise HTTPException(404, "no such run")
+        if not session.reply(body.answer):
+            raise HTTPException(409, "nothing is waiting for an answer")
         return {"ok": True}
 
     @app.get("/runs/{run_id}/report", response_class=HTMLResponse)

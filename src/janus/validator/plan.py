@@ -40,6 +40,7 @@ from urllib.parse import urlparse
 
 from janus.observer.snapshot import Element, PageSnapshot
 from janus.planner.ops import (
+    ASK_INPUT_PREFIX,
     READ_INPUT_PREFIX,
     FieldValue,
     FillFormStep,
@@ -84,6 +85,24 @@ def _check_sensitive_binding(
     errors: list[str], index: int, policy: Policy, element: Element, ref: str, value: str
 ) -> None:
     key = input_ref_key(value)
+    if element.autocomplete == "one-time-code" and (
+        key is None or key.startswith(READ_INPUT_PREFIX)
+    ):
+        errors.append(
+            f"step {index}: field {ref!r} takes a one-time code, which only the user has; "
+            "bind a value they gave (ask them with ASK_USER if it is not an input yet)"
+        )
+    if element.input_type == "password" and (key is None or key not in policy.secret_inputs):
+        if policy.secret_inputs:
+            errors.append(
+                f"step {index}: field {ref!r} is a password field; it only takes one of "
+                f"{', '.join('$inputs.' + k for k in sorted(policy.secret_inputs))}"
+            )
+    if key is not None and key in policy.secret_inputs and element.input_type != "password":
+        errors.append(
+            f"step {index}: $inputs.{key} is a secret and may only be typed into a password "
+            f"field, not {ref!r} ({element.accessible_name!r})"
+        )
     if element.name_attr in policy.sensitive_fields and key is not None:
         if key.startswith(READ_INPUT_PREFIX):
             errors.append(
@@ -97,6 +116,10 @@ def _check_sensitive_binding(
         )
 
 
+_ASK_HINT = (
+    "; if only the user has it (a one-time code sent to their phone), plan a single ASK_USER "
+    "step to ask them"
+)
 _READ_HINT = (
     "; if the value is shown on the page instead (a result, a cell, a word to copy), "
     "plan a single READ step to look it up"
@@ -109,6 +132,7 @@ def _check_input_ref(
     value: str,
     inputs: dict[str, str],
     can_read: bool = False,
+    can_ask: bool = False,
 ) -> None:
     key = input_ref_key(value)
     if key is not None and key not in inputs:
@@ -116,8 +140,39 @@ def _check_input_ref(
         errors.append(
             f"step {index}: $inputs.{key} is not an input of this task "
             f"(available input keys: {available}); for text that is not a secret, write "
-            "the value itself, copied from the task" + (_READ_HINT if can_read else "")
+            "the value itself, copied from the task"
+            + (_READ_HINT if can_read else "")
+            + (_ASK_HINT if can_ask else "")
         )
+
+
+def _check_secret_fields_filled(
+    errors: list[str], plan: Plan, policy: Policy, snapshot: PageSnapshot
+) -> None:
+    """A plan that clicks a button in a form with a password field it leaves empty, while the
+    user gave a secret, is missing that field (the transaction PIN, typically)."""
+    if not policy.secret_inputs:
+        return
+    filled = {f.ref for step in plan.steps if isinstance(step, FillFormStep) for f in step.fields}
+    for step in plan.steps:
+        if step.op not in ("CLICK", "SUBMIT"):
+            continue
+        target = _element_by_ref(snapshot, step.ref)
+        if target is None or target.role != "button":
+            continue
+        for element in snapshot.elements:
+            if (
+                element.input_type == "password"
+                and element.form_id == target.form_id
+                and element.ref not in filled
+            ):
+                errors.append(
+                    f"field {element.ref!r} ({element.accessible_name!r}) is a password field "
+                    "this plan leaves empty before clicking "
+                    f"{step.ref!r}; fill it with one of "
+                    + ", ".join("$inputs." + k for k in sorted(policy.secret_inputs))
+                )
+        return
 
 
 def validate_plan(
@@ -162,7 +217,14 @@ def validate_plan(
                 _check_sensitive_binding(
                     errors, i, policy, element, field_value.ref, field_value.value
                 )
-                _check_input_ref(errors, i, field_value.value, inputs, "READ" in policy.allowed_ops)
+                _check_input_ref(
+                    errors,
+                    i,
+                    field_value.value,
+                    inputs,
+                    "READ" in policy.allowed_ops,
+                    "ASK_USER" in policy.allowed_ops,
+                )
             decisions.append(StepDecision(i, consequential))
             continue
 
@@ -196,6 +258,17 @@ def validate_plan(
             decisions.append(StepDecision(i, consequential))
             continue
 
+        if step.op == "ASK_USER":
+            if len(plan.steps) != 1:
+                errors.append(
+                    f"step {i}: ASK_USER must be the only step in its plan; the answer is "
+                    "available on the next page view"
+                )
+            if f"{ASK_INPUT_PREFIX}{step.name}" in inputs:
+                errors.append(f"step {i}: ASK_USER name {step.name!r} was already answered")
+            decisions.append(StepDecision(i, False))
+            continue
+
         if step.op == "READ":
             if len(plan.steps) != 1:
                 errors.append(
@@ -204,11 +277,21 @@ def validate_plan(
                 )
             if f"{READ_INPUT_PREFIX}{step.name}" in inputs:
                 errors.append(f"step {i}: READ name {step.name!r} was already read")
+            if any(e.autocomplete == "one-time-code" for e in snapshot.elements) and not any(
+                k.startswith(ASK_INPUT_PREFIX) for k in inputs
+            ):
+                errors.append(
+                    f"step {i}: this page asks for a one-time code, which is never shown on the "
+                    "page; only the user has it"
+                    + (": plan a single ASK_USER step" if "ASK_USER" in policy.allowed_ops else "")
+                )
             decisions.append(StepDecision(i, False))
             continue
 
         # EXTRACT, DONE: no element ref; only a hint can mark these consequential.
         decisions.append(StepDecision(i, step.consequential_hint))
+
+    _check_secret_fields_filled(errors, plan, policy, snapshot)
 
     capabilities = capabilities_of(plan, snapshot)
     if committed_capabilities is not None and not is_capability_subset(
@@ -354,6 +437,30 @@ def _build_repaired_steps(
                 continue
         new_steps.append(step)
     return new_steps, repairs
+
+
+def repair_input_refs(plan: Plan, inputs: dict[str, str]) -> Plan:
+    """Deterministic pre-pass: `$inputs.otp` when only `user_otp` (an ASK_USER answer) or
+    `page_otp` (a READ value) exists is rewritten to that key. Only an unambiguous match is
+    rewritten, and the result still goes through `validate_plan` like any other plan."""
+
+    def fix(value: str) -> str:
+        key = input_ref_key(value)
+        if key is None or key in inputs:
+            return value
+        matches = [p + key for p in (ASK_INPUT_PREFIX, READ_INPUT_PREFIX) if p + key in inputs]
+        return f"$inputs.{matches[0]}" if len(matches) == 1 else value
+
+    steps: list[Step] = []
+    for step in plan.steps:
+        if isinstance(step, FillFormStep):
+            fields = [FieldValue(ref=f.ref, value=fix(f.value)) for f in step.fields]
+            steps.append(step.model_copy(update={"fields": fields}))
+        elif isinstance(step, SelectStep):
+            steps.append(step.model_copy(update={"value": fix(step.value)}))
+        else:
+            steps.append(step)
+    return plan.model_copy(update={"steps": steps})
 
 
 def repair_roles(

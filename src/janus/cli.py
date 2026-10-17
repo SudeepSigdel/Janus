@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import getpass
 import sys
 from pathlib import Path
 
@@ -66,7 +67,26 @@ def _write_report(report: Path | None, events: list[dict], title: str, subtitle:
     print(f"report: {report}")
 
 
-def run_goal(url: str, goal: str, *, headed: bool, answer: bool, report: Path | None = None) -> int:
+def cli_ask(question: str, secret: bool) -> str | None:
+    """Ask the person at the terminal (a one-time code, say). Secrets are not echoed."""
+    prompt = f"Janus asks: {question} "
+    try:
+        reply = getpass.getpass(prompt) if secret else input(prompt)
+    except EOFError:
+        return None
+    return reply.strip() or None
+
+
+def run_goal(
+    url: str,
+    goal: str,
+    *,
+    headed: bool,
+    answer: bool,
+    report: Path | None = None,
+    username: str | None = None,
+    secrets: tuple[str, ...] = (),
+) -> int:
     """B0: run from a goal string and a start URL, with a human approving every
     consequential action at the prompt."""
     settings = get_settings()
@@ -76,11 +96,16 @@ def run_goal(url: str, goal: str, *, headed: bool, answer: bool, report: Path | 
         inputs = extract_inputs(goal, llm)
         if inputs:
             print("inputs from your goal: " + ", ".join(f"{k}={v!r}" for k, v in inputs.items()))
+        if username:
+            inputs["username"] = username
+        for key in secrets:  # typed here, never part of the goal, so no model sees them
+            inputs[key] = getpass.getpass(f"{key} (not shown, not sent to the model): ")
         policy = Policy(
             allowed_origins=frozenset({origin_of(url)}),
-            allowed_ops=allowed_ops_for(False, allow_read=True),
+            allowed_ops=allowed_ops_for(False, allow_read=True, allow_ask=True),
             max_steps=20,
             prefill="flag",
+            secret_inputs=frozenset(secrets),
         )
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch(headless=not headed)
@@ -94,10 +119,13 @@ def run_goal(url: str, goal: str, *, headed: bool, answer: bool, report: Path | 
                     inputs=inputs,
                     policy=policy,
                     llm=llm,
-                    settings=settings,
+                    settings=settings.model_copy(
+                        update={"max_replan_attempts": settings.interactive_max_replan_attempts}
+                    ),
                     escalate=cli_escalation,
                     stop_after_approved_commit=True,
                     trace=trace,
+                    ask_user=cli_ask,
                 )
                 if answer:
                     found = extract_answer(goal, extract_snapshot(page, settings), llm)
@@ -118,7 +146,7 @@ def run(task_path: Path, report: Path | None = None) -> int:
     events, trace = _recorder(report)
     policy = Policy(
         allowed_origins=frozenset({origin_of(task.start_url)}),
-        allowed_ops=allowed_ops_for(task.allow_navigate),
+        allowed_ops=allowed_ops_for(task.allow_navigate, allow_ask=task.allow_ask),
         max_steps=20,
         prefill="flag",
         sensitive_fields=frozenset(task.sensitive_field_names),
@@ -139,6 +167,7 @@ def run(task_path: Path, report: Path | None = None) -> int:
                     settings=settings,
                     approvals=task.approvals,
                     escalate=cli_escalation,
+                    ask_user=cli_ask,
                     trace=trace,
                 )
             finally:
@@ -167,6 +196,14 @@ def main(argv: list[str] | None = None) -> int:
     run_parser.add_argument(
         "--report", type=Path, help="write an HTML report of every decision to this file"
     )
+    run_parser.add_argument("--username", help="login name for --goal runs (e.g. a BOID)")
+    run_parser.add_argument(
+        "--secret",
+        action="append",
+        default=[],
+        choices=["password", "pin"],
+        help="ask for this secret at a hidden prompt (repeatable); it is never sent to a model",
+    )
     ui_parser = sub.add_parser("ui", help="open the local web UI (needs the `ui` extra)")
     ui_parser.add_argument("--port", type=int, default=8300)
     ui_parser.add_argument(
@@ -193,6 +230,8 @@ def main(argv: list[str] | None = None) -> int:
                 headed=args.headed,
                 answer=args.answer,
                 report=args.report,
+                username=args.username,
+                secrets=tuple(dict.fromkeys(args.secret)),
             )
         return run(args.task, report=args.report)
     return 2

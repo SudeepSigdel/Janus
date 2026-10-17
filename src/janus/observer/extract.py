@@ -210,6 +210,9 @@ _JS = (
       form_id: form ? form.getAttribute('id') : null,
       row_cell: firstCellText(el),
       current_page: isCurrentPageLink(el),
+      input_type: el.tagName.toLowerCase() === 'input'
+        ? (el.getAttribute('type') || 'text').toLowerCase() : null,
+      autocomplete: (el.getAttribute('autocomplete') || '').toLowerCase() || null,
     };
   });
 
@@ -306,6 +309,8 @@ def extract_snapshot(page: Page, settings: Settings | None = None) -> PageSnapsh
                 fingerprint=fingerprint,
                 row_key=row_key,
                 current_page=bool(raw_el.get("current_page", False)),
+                input_type=raw_el.get("input_type"),
+                autocomplete=raw_el.get("autocomplete"),
             )
         )
 

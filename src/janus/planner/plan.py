@@ -60,7 +60,12 @@ from janus.llm import LLMClient, LLMError
 from janus.observer.snapshot import PageSnapshot
 from janus.planner.examples import select_example
 from janus.planner.ops import Plan
-from janus.validator.plan import ValidationResult, repair_roles, validate_plan
+from janus.validator.plan import (
+    ValidationResult,
+    repair_input_refs,
+    repair_roles,
+    validate_plan,
+)
 from janus.validator.policy import Capability, Policy
 
 _SYSTEM_PROMPT = (
@@ -131,13 +136,27 @@ _READ_RULE = (
     '{"op":"READ","name":"<snake_case>","question":"<what to look up, from the task>",'
     '"kind":"number|word|phrase"}, and nothing else in that plan. You never see the page '
     "text; the value is looked up for you and appears on your next view as the input key "
-    "page_<name>, which you then bind as $inputs.page_<name>. Never READ a password or "
-    "other secret."
+    "page_<name>, which you then bind as $inputs.page_<name>. Never READ a password, a "
+    "one-time code or other secret: those come from the user, never from the page."
+)
+
+
+_ASK_RULE = (
+    "\n- ASK_USER: if the page needs something only the user can give and it is not one of "
+    "your input keys (a one-time code sent to their phone, a verification answer), output "
+    'exactly one step, {"op":"ASK_USER","name":"<snake_case>","question":"<short question '
+    'for the user>"}, and nothing else in that plan. The answer appears on your next view as '
+    "the input key user_<name>; bind it as $inputs.user_<name>. Never ask for something "
+    "already among your input keys."
 )
 
 
 def _system_prompt(policy: Policy) -> str:
-    return _SYSTEM_PROMPT + (_READ_RULE if "READ" in policy.allowed_ops else "")
+    return (
+        _SYSTEM_PROMPT
+        + (_READ_RULE if "READ" in policy.allowed_ops else "")
+        + (_ASK_RULE if "ASK_USER" in policy.allowed_ops else "")
+    )
 
 
 def _plan_schema(policy: Policy) -> dict:
@@ -312,6 +331,7 @@ def commit_plan(
         # what was committed" against a ceiling a role mismatch shouldn't have set
         # in the first place. Pure pre-pass: never authorizes anything itself, and
         # the repaired plan still goes through the unchanged validate_plan below.
+        plan = repair_input_refs(plan, inputs)
         plan, repairs = repair_roles(plan, snapshot, policy, ceiling)
         if trace is not None:
             for repair in repairs:

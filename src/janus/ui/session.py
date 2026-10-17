@@ -47,6 +47,14 @@ def describe(step: Step, reason: str) -> Approval:
 
 
 @dataclass
+class Question:
+    text: str
+    secret: bool
+    decided: threading.Event = field(default_factory=threading.Event)
+    answer: str | None = None
+
+
+@dataclass
 class RunSession:
     goal: str
     url: str
@@ -54,6 +62,11 @@ class RunSession:
     status: str = "starting"  # starting | running | waiting | completed | partial | blocked | error
     events: list[dict[str, Any]] = field(default_factory=list)
     pending: Approval | None = None
+    question: Question | None = None
+    # Login details typed into the UI, never into the goal, so no model ever sees them.
+    username: str = ""
+    password: str = field(default="", repr=False)
+    pin: str = field(default="", repr=False)
     error: str = ""
     report_html: str = ""
     _lock: threading.Lock = field(default_factory=threading.Lock)
@@ -86,6 +99,27 @@ class RunSession:
             )
         return approval.approved
 
+    def ask(self, text: str, secret: bool) -> str | None:
+        """Block the run until the person types an answer (a one-time code, say)."""
+        question = Question(text=text, secret=secret)
+        with self._lock:
+            self.question = question
+            self.status = "waiting"
+        question.decided.wait(APPROVAL_TIMEOUT_S)
+        with self._lock:
+            self.question = None
+            self.status = "running"
+        return question.answer
+
+    def reply(self, answer: str | None) -> bool:
+        with self._lock:
+            question = self.question
+        if question is None:
+            return False
+        question.answer = answer
+        question.decided.set()
+        return True
+
     def answer(self, approved: bool) -> bool:
         with self._lock:
             pending = self.pending
@@ -98,7 +132,11 @@ class RunSession:
     def snapshot(self, since: int = 0) -> dict[str, Any]:
         with self._lock:
             pending = self.pending
+            question = self.question
             return {
+                "question": None
+                if question is None
+                else {"text": question.text, "secret": question.secret},
                 "id": self.id,
                 "status": self.status,
                 "error": self.error,

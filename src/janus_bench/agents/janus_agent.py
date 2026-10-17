@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import httpx
 from playwright.sync_api import sync_playwright
 
 from janus.agent import run_task
@@ -29,11 +30,23 @@ MAX_STEPS = 20
 def _policy_for(task: TaskSpec) -> Policy:
     return Policy(
         allowed_origins=frozenset({origin_of(task.start_url)}),
-        allowed_ops=allowed_ops_for(task.allow_navigate),
+        allowed_ops=allowed_ops_for(task.allow_navigate, allow_ask=task.allow_ask),
         max_steps=MAX_STEPS,
         sensitive_fields=frozenset(task.sensitive_field_names),
         prefill="clear",
     )
+
+
+def _sms_reader(task: TaskSpec):
+    """The benchmark's simulated user for ASK_USER: it answers only while the site is waiting
+    for a one-time code, by reading the code the replica 'sent by SMS' from its state. Any other
+    question gets no answer, which stops the run, as a real user who doesn't know would."""
+
+    def ask(question: str, secret: bool) -> str | None:
+        state = httpx.get(f"{origin_of(task.start_url)}/__bench/state", timeout=5).json()
+        return state.get("otp") if state.get("otp_pending") else None
+
+    return ask
 
 
 class JanusAgent:
@@ -93,6 +106,7 @@ class JanusAgent:
                         settings=self.settings,
                         approvals=task.approvals,
                         escalate=None,
+                        ask_user=_sms_reader(task),
                         trace=trace,
                     )
                 finally:

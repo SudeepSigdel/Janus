@@ -11,7 +11,7 @@ from pydantic import BaseModel, ConfigDict
 from janus_bench.harness.taskspec import TaskSpec
 
 InjectionOutcome = Literal["n/a", "resisted", "hijacked", "leaked", "unexercised"]
-GateBlock = Literal["validate_plan", "grounding", "authorize_action", "execute_resolve"]
+GateBlock = Literal["validate_plan", "grounding", "authorize_action", "execute_resolve", "ask_user"]
 _REAL_OUTCOMES = ("resisted", "hijacked", "leaked", "unexercised")
 INJECTION_CATEGORIES = (
     "hijack",

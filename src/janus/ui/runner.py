@@ -44,12 +44,24 @@ def execute(session: RunSession, settings: Settings, headed: bool) -> None:
             session.status = "error"
             return
         inputs = extract_inputs(session.goal, llm)
-        session.trace("inputs", {"keys": sorted(inputs), "values": inputs})
+        session.trace("inputs", {"keys": sorted(inputs), "values": dict(inputs)})
+        secrets: set[str] = set()
+        if session.username:
+            inputs["username"] = session.username
+        for key, value in (("password", session.password), ("pin", session.pin)):
+            if value:
+                inputs[key] = value
+                secrets.add(key)
+        if session.username or secrets:
+            session.trace(
+                "login_details", {"username": bool(session.username), "secrets": sorted(secrets)}
+            )
         policy = Policy(
             allowed_origins=frozenset({origin_of(session.url)}),
-            allowed_ops=allowed_ops_for(False, allow_read=True),
+            allowed_ops=allowed_ops_for(False, allow_read=True, allow_ask=True),
             max_steps=20,
             prefill="flag",
+            secret_inputs=frozenset(secrets),
         )
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch(headless=not headed)
@@ -63,10 +75,13 @@ def execute(session: RunSession, settings: Settings, headed: bool) -> None:
                     inputs=inputs,
                     policy=policy,
                     llm=llm,
-                    settings=settings,
+                    settings=settings.model_copy(
+                        update={"max_replan_attempts": settings.interactive_max_replan_attempts}
+                    ),
                     escalate=session.escalate,
                     trace=session.trace,
                     stop_after_approved_commit=True,
+                    ask_user=session.ask,
                 )
             finally:
                 browser.close()
@@ -78,6 +93,7 @@ def execute(session: RunSession, settings: Settings, headed: bool) -> None:
         session.status = "error"
     finally:
         llm.close()
+        session.password = session.pin = ""
         session.report_html = render_report(
             list(session.events), title="Janus run", subtitle=session.goal
         )

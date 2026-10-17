@@ -27,7 +27,9 @@ def is_denied_path(path: str, prefixes: tuple[str, ...] = DENIED_PATH_PREFIXES) 
     return any(path == p or path.startswith(p + "/") for p in prefixes)
 
 
-def allowed_ops_for(allow_navigate: bool, allow_read: bool = False) -> frozenset[OpKind]:
+def allowed_ops_for(
+    allow_navigate: bool, allow_read: bool = False, allow_ask: bool = False
+) -> frozenset[OpKind]:
     """Every op kind, minus `NAVIGATE` unless a task explicitly opts in (docs/PLAN.md
     P3): the runtime already opens `start_url` itself, and no dev task needs a
     mid-task NAVIGATE. Dropping it from the caller's `Policy.allowed_ops` also drops
@@ -38,6 +40,8 @@ def allowed_ops_for(allow_navigate: bool, allow_read: bool = False) -> frozenset
         ops.discard("NAVIGATE")
     if not allow_read:
         ops.discard("READ")
+    if not allow_ask:
+        ops.discard("ASK_USER")
     return frozenset(ops)
 
 
@@ -54,6 +58,11 @@ class Policy(BaseModel):
     # the approval prompt and in the trace; "clear" also empties them before a consequential
     # click (for unattended runs, where there is no human to ask).
     prefill: Literal["allow", "flag", "clear"] = "allow"
+    # Input keys holding the user's secrets (a password typed into the UI or at a prompt,
+    # never in the goal text, so never seen by a model). A secret may only be typed into a
+    # password field, and a password field only takes a secret: a page cannot get the
+    # password typed into a search box, and the model cannot put a guess in a password box.
+    secret_inputs: frozenset[str] = frozenset()
 
 
 def origin_of(url: str) -> str:
