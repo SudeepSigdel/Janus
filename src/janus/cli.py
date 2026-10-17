@@ -167,7 +167,20 @@ def main(argv: list[str] | None = None) -> int:
     run_parser.add_argument(
         "--report", type=Path, help="write an HTML report of every decision to this file"
     )
+    ui_parser = sub.add_parser("ui", help="open the local web UI (needs the `ui` extra)")
+    ui_parser.add_argument("--port", type=int, default=8300)
+    ui_parser.add_argument(
+        "--headless", action="store_true", help="hide the browser window Janus drives"
+    )
     args = parser.parse_args(argv)
+    if args.command == "ui":
+        try:
+            from janus.ui.app import serve
+        except ImportError:
+            print("The web UI needs FastAPI: uv sync --extra ui")
+            return 2
+        serve(port=args.port, headed=not args.headless)
+        return 0
     if args.command == "doctor":
         return doctor()
     if args.command == "run":

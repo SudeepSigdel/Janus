@@ -19,6 +19,10 @@ bench = [
     "uvicorn>=0.30",
     "python-multipart>=0.0.9",
 ]
+ui = [
+    "fastapi>=0.111",
+    "uvicorn>=0.30",
+]
 baseline = [
     "browser-use==0.13.10",
 ]

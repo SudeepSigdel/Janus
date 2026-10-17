@@ -1285,11 +1285,16 @@ dev = [
     { name = "pytest" },
     { name = "ruff" },
 ]
+ui = [
+    { name = "fastapi" },
+    { name = "uvicorn" },
+]
 
 [package.metadata]
 requires-dist = [
     { name = "browser-use", marker = "extra == 'baseline'", specifier = "==0.13.10" },
     { name = "fastapi", marker = "extra == 'bench'", specifier = ">=0.111" },
+    { name = "fastapi", marker = "extra == 'ui'", specifier = ">=0.111" },
     { name = "httpx", specifier = ">=0.27" },
     { name = "hypothesis", marker = "extra == 'dev'", specifier = ">=6.168.3" },
     { name = "jinja2", marker = "extra == 'bench'", specifier = ">=3.1" },
@@ -1300,8 +1305,9 @@ requires-dist = [
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.5" },
     { name = "uvicorn", marker = "extra == 'bench'", specifier = ">=0.30" },
+    { name = "uvicorn", marker = "extra == 'ui'", specifier = ">=0.30" },
 ]
-provides-extras = ["bench", "baseline", "dev"]
+provides-extras = ["bench", "ui", "baseline", "dev"]
 
 [[package]]
 name = "jinja2"

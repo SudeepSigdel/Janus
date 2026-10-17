@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Janus</title>
+<style>
+:root {
+  --bg: #f4f6fa; --card: #ffffff; --ink: #0d1726; --muted: #5b6b80; --line: #dde3ec;
+  --navy: #0d1726; --gold: #c8922e; --gold-soft: #fbf3e2; --teal: #1f9d87; --teal-soft: #e3f5f1;
+  --red: #c4383f; --red-soft: #fbe9ea; --shadow: 0 1px 2px rgba(13,23,38,.06), 0 8px 24px rgba(13,23,38,.06);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a121e; --card: #111c2d; --ink: #e8eef6; --muted: #91a3b9; --line: #22324a;
+    --gold: #e7b65a; --gold-soft: #2a2214; --teal: #3ec9b0; --teal-soft: #11302b;
+    --red: #f2545b; --red-soft: #33171a; --shadow: none;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.55 system-ui, -apple-system, "Segoe UI", "Noto Sans Devanagari", "Nirmala UI", sans-serif; }
+main { max-width: 880px; margin: 0 auto; padding: 24px 16px 64px; }
+header { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
+header h1 { margin: 0; font-size: 1.5rem; letter-spacing: .14em; }
+header p { margin: 0; color: var(--muted); font-size: .92rem; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px;
+  box-shadow: var(--shadow); margin-bottom: 16px; }
+label { display: block; font-weight: 600; margin: 0 0 6px; }
+label small { color: var(--muted); font-weight: 400; }
+input, textarea { width: 100%; font: inherit; color: var(--ink); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+textarea { min-height: 92px; resize: vertical; }
+input:focus, textarea:focus { outline: 2px solid var(--teal); outline-offset: 1px; }
+.row { margin-bottom: 14px; }
+.examples { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.chip { border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 99px;
+  padding: 4px 12px; font: inherit; font-size: .85rem; cursor: pointer; }
+.chip:hover { border-color: var(--teal); }
+.actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+button.primary { background: var(--navy); color: #fff; border: 0; border-radius: 10px; padding: 10px 18px;
+  font: inherit; font-weight: 600; cursor: pointer; }
+@media (prefers-color-scheme: dark) { button.primary { background: var(--teal); color: #06231e; } }
+button:disabled { opacity: .5; cursor: default; }
+.note { color: var(--muted); font-size: .85rem; }
+.status { display: inline-block; padding: 2px 10px; border-radius: 99px; font-size: .82rem; font-weight: 600;
+  border: 1px solid currentColor; }
+.s-running, .s-starting { color: var(--teal); } .s-waiting { color: var(--gold); }
+.s-completed { color: var(--teal); } .s-partial { color: var(--gold); }
+.s-blocked, .s-error { color: var(--red); }
+.approval { border: 2px solid var(--gold); background: var(--gold-soft); }
+.approval h2 { margin: 0 0 6px; font-size: 1.05rem; }
+.approval .what { font-size: 1.15rem; font-weight: 700; margin: 6px 0; }
+.approval .where { color: var(--muted); font-size: .85rem; overflow-wrap: anywhere; }
+.warn { margin-top: 10px; padding: 8px 10px; border-radius: 8px; background: var(--red-soft); color: var(--red); }
+.approval .actions { margin-top: 14px; }
+button.yes { background: var(--teal); color: #fff; border: 0; border-radius: 10px; padding: 10px 18px; font: inherit; font-weight: 700; cursor: pointer; }
+button.no { background: transparent; color: var(--red); border: 2px solid var(--red); border-radius: 10px; padding: 8px 16px; font: inherit; font-weight: 700; cursor: pointer; }
+ol.timeline { list-style: none; margin: 0; padding: 0; }
+ol.timeline li { display: grid; grid-template-columns: 26px 1fr; gap: 8px; padding: 8px 0; border-top: 1px solid var(--line); }
+ol.timeline li:first-child { border-top: 0; }
+.ico { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: .75rem; font-weight: 700; }
+.i-ok { background: var(--teal-soft); color: var(--teal); }
+.i-page { background: var(--bg); color: var(--muted); border: 1px solid var(--line); }
+.i-warn { background: var(--gold-soft); color: var(--gold); }
+.i-bad { background: var(--red-soft); color: var(--red); }
+.t-main { font-weight: 600; }
+.t-sub { color: var(--muted); font-size: .85rem; overflow-wrap: anywhere; }
+.result { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.result a { color: var(--teal); font-weight: 600; }
+.hidden { display: none; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <svg width="48" height="48" viewBox="-80 -80 160 160" aria-hidden="true">
+      <circle r="76" fill="#10203a" stroke="#e7b65a" stroke-width="5"/>
+      <path fill="#e7b65a" d="M0 -70 C -30 -70 -52 -52 -56 -28 L -74 -12 L -58 -4 L -60 8 L -54 12 L -58 24 C -50 46 -28 70 0 70 Z"/>
+      <path fill="#3ec9b0" d="M0 -70 C 30 -70 52 -52 56 -28 L 74 -12 L 58 -4 L 60 8 L 54 12 L 58 24 C 50 46 28 70 0 70 Z"/>
+      <line x1="0" y1="-74" x2="0" y2="74" stroke="#10203a" stroke-width="6"/>
+    </svg>
+    <div>
+      <h1>JANUS</h1>
+      <p>सुरक्षित वेब सहायक · A browser assistant that acts only on your plan</p>
+    </div>
+  </header>
+
+  <div class="card warn hidden" id="health"></div>
+
+  <section class="card" id="form-card">
+    <div class="row">
+      <label for="goal">के गर्नुपर्छ? <small>What should Janus do? (नेपाली, हिन्दी or English)</small></label>
+      <textarea id="goal" placeholder="निवास सिफारिसको निवेदन दिनुहोस्: नाम ..., वडा ..., मोबाइल ..."></textarea>
+      <div class="examples">
+        <button class="chip" type="button" data-goal="निवास सिफारिसको निवेदन दिनुहोस्: नाम माया गुरुङ, वडा 8, मोबाइल 9847654321, नागरिकता नं. २८-०२-७७-०२३४५, जन्म मिति 2058-04-10 (वि.सं.)">निवास सिफारिस (नेपाली)</button>
+        <button class="chip" type="button" data-goal="Apply for a residence recommendation for Sita Tamang (सीता तामाङ), ward 5, mobile 9841234567, citizenship no. २७-०१-७६-०१२३४, date of birth (BS) 2056-09-17.">Residence recommendation (English)</button>
+        <button class="chip" type="button" data-goal="Update the mobile number on application 045 (०४५) to 9841055555." data-url="http://127.0.0.1:8101/applications">Update a phone number</button>
+      </div>
+    </div>
+    <div class="row">
+      <label for="url">Start page <small>Janus stays on this site</small></label>
+      <input id="url" value="__DEFAULT_URL__">
+    </div>
+    <div class="actions">
+      <button class="primary" id="start">Start / सुरु गर्नुहोस्</button>
+      <span class="note">Runs on your computer with an open-weight model. Janus asks you before anything that submits, cancels or pays.</span>
+    </div>
+  </section>
+
+  <section class="card approval hidden" id="approval" aria-live="assertive">
+    <h2>तपाईंको अनुमति चाहिन्छ · Your approval is needed</h2>
+    <div class="what" id="ap-what"></div>
+    <div class="where" id="ap-where"></div>
+    <div class="warn hidden" id="ap-prefill"></div>
+    <div class="actions">
+      <button class="yes" id="ap-yes">Approve / स्वीकृत</button>
+      <button class="no" id="ap-no">Deny / अस्वीकार</button>
+    </div>
+  </section>
+
+  <section class="card hidden" id="live">
+    <div class="result">
+      <div><strong>Progress</strong> <span class="status" id="status"></span></div>
+      <a id="report" class="hidden" target="_blank" rel="noopener">Open the full decision report</a>
+    </div>
+    <p class="note" id="error"></p>
+    <ol class="timeline" id="timeline"></ol>
+  </section>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+let runId = null, next = 0, timer = null;
+
+for (const chip of document.querySelectorAll('.chip')) {
+  chip.addEventListener('click', () => {
+    $('goal').value = chip.dataset.goal;
+    $('url').value = chip.dataset.url || '__DEFAULT_URL__';
+  });
+}
+
+const STATUS = {
+  starting: 'starting', running: 'working', waiting: 'waiting for you',
+  completed: 'done', partial: 'stopped before the end', blocked: 'stopped by a safety check', error: 'error'
+};
+
+function item(kind, icon, main, sub) {
+  const li = document.createElement('li');
+  const ico = document.createElement('span');
+  ico.className = 'ico i-' + kind; ico.textContent = icon;
+  const body = document.createElement('div');
+  const m = document.createElement('div'); m.className = 't-main'; m.textContent = main;
+  body.appendChild(m);
+  if (sub) { const s = document.createElement('div'); s.className = 't-sub'; s.textContent = sub; body.appendChild(s); }
+  li.append(ico, body);
+  $('timeline').appendChild(li);
+}
+
+const OPS = { CLICK: 'Click', SUBMIT: 'Submit', FILL_FORM: 'Fill in', SELECT: 'Choose', NAVIGATE: 'Open', READ: 'Look up', EXTRACT: 'Read' };
+
+function render(ev) {
+  const d = ev.data;
+  switch (ev.stage) {
+    case 'inputs': {
+      const vals = Object.entries(d.values || {}).map(([k, v]) => k + ' = ' + v).join(' · ');
+      item('ok', '✓', 'Understood your goal', vals || 'No values found in the goal'); break;
+    }
+    case 'snapshot': item('page', '▸', 'Opened: ' + (d.title || 'page'), d.url); break;
+    case 'plan_attempt':
+      if (!d.ok) item('warn', '!', 'A proposed step was refused by the checks; Janus re-planned', (d.errors || [])[0] || 'the plan was not valid');
+      break;
+    case 'authorize':
+      if (!d.allowed) item('bad', '✕', 'Refused: ' + (OPS[d.op] || d.op) + ' ' + (d.label || ''), d.reason);
+      break;
+    case 'execute':
+      if (d.blocked) item('bad', '✕', 'Blocked: ' + (OPS[d.op] || d.op) + ' ' + (d.label || ''), d.reason);
+      else if (!d.ok) item('warn', '!', 'Did not work: ' + (OPS[d.op] || d.op) + ' ' + (d.label || ''), d.reason);
+      else item('ok', '✓', (OPS[d.op] || d.op) + ' ' + (d.label || ''));
+      break;
+    case 'verify': if (!d.ok) item('warn', '!', 'Check after the step failed', d.reason); break;
+    case 'read': item(d.value ? 'ok' : 'warn', d.value ? '✓' : '!', 'Looked up on the page: ' + d.question, d.value ? 'found: ' + d.value : 'not found'); break;
+    case 'prefill_untouched':
+      item('warn', '!', 'The page pre-filled fields you did not ask for', d.fields.map((f) => f.label + ' = ' + f.value).join(' · '));
+      break;
+    case 'approval_requested': item('warn', '?', 'Asked you to approve: ' + (OPS[d.op] || d.op) + ' ' + d.label); break;
+    case 'approval_answered': item(d.ok ? 'ok' : 'bad', d.ok ? '✓' : '✕', d.ok ? 'You approved it' : 'You denied it'); break;
+    case 'loop_guard': item('warn', '!', 'That click changed nothing; not trying it again', d.label); break;
+    case 'blocked': item('bad', '✕', 'Stopped by a safety check (' + d.gate + ')', (d.errors || [d.error || ''])[0]); break;
+    case 'run_result': item(d.status === 'completed' ? 'ok' : 'warn', '■', 'Finished: ' + (STATUS[d.status] || d.status), d.steps_run + ' steps'); break;
+  }
+}
+
+function showApproval(p) {
+  if (!p) { $('approval').classList.add('hidden'); return; }
+  $('ap-what').textContent = (OPS[p.op] || p.op) + ': “' + (p.label || 'this element') + '”';
+  $('ap-where').textContent = 'on ' + (p.url || 'this page') + ' · this step can submit, cancel or change something on the site, so Janus waits for you.';
+  if (p.prefilled) {
+    $('ap-prefill').textContent = 'Careful: the page pre-filled fields you did not set: ' + p.prefilled;
+    $('ap-prefill').classList.remove('hidden');
+  } else { $('ap-prefill').classList.add('hidden'); }
+  $('approval').classList.remove('hidden');
+}
+
+async function answer(approved) {
+  $('ap-yes').disabled = $('ap-no').disabled = true;
+  await fetch('/api/runs/' + runId + '/answer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ approved }) });
+  $('ap-yes').disabled = $('ap-no').disabled = false;
+  showApproval(null);
+}
+$('ap-yes').onclick = () => answer(true);
+$('ap-no').onclick = () => answer(false);
+
+async function poll() {
+  const r = await fetch('/api/runs/' + runId + '?since=' + next);
+  if (!r.ok) return;
+  const s = await r.json();
+  s.events.forEach(render); next = s.next;
+  const el = $('status'); el.textContent = STATUS[s.status] || s.status; el.className = 'status s-' + s.status;
+  $('error').textContent = s.error || '';
+  showApproval(s.pending);
+  if (s.has_report) { const a = $('report'); a.href = '/runs/' + runId + '/report'; a.classList.remove('hidden'); }
+  if (['completed', 'partial', 'blocked', 'error'].includes(s.status) && s.has_report) {
+    clearInterval(timer); $('start').disabled = false;
+  }
+}
+
+fetch('/api/health').then((r) => r.json()).then((h) => {
+  if (h.problem) { $('health').textContent = h.problem; $('health').classList.remove('hidden'); }
+}).catch(() => {});
+
+$('start').onclick = async () => {
+  const goal = $('goal').value.trim(), url = $('url').value.trim();
+  if (goal.length < 3) { $('goal').focus(); return; }
+  $('start').disabled = true;
+  const r = await fetch('/api/runs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ goal, url }) });
+  if (!r.ok) { $('start').disabled = false; alert((await r.json()).detail || 'Could not start'); return; }
+  runId = (await r.json()).id; next = 0;
+  $('timeline').innerHTML = ''; $('report').classList.add('hidden');
+  $('live').classList.remove('hidden');
+  timer = setInterval(poll, 600); poll();
+};
+</script>
+</body>
+</html>

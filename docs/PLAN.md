@@ -1875,6 +1875,14 @@ R1: popup, `target=_blank`, WebSocket and service-worker egress tests pass (50 b
 `-k "s2 or egress or injection"`); the bench-level `target=_blank` exfil case per site is still not
 added.
 
+## Submission polish 2026-10-18
+README rebuilt around an animated hero (`docs/assets/janus-hero.svg`), a reviewer guide and
+honest limits; `docs/BENCHMARK.md` and `CONTRIBUTING.md` added. New local web UI, `janus ui`
+(`src/janus/ui/`): goal in, live steps, Approve/Deny buttons, decision report; one run at a time,
+127.0.0.1 only, an unanswered approval is a denial, and a model-server check before each run.
+Dependency added: extra `ui` = `fastapi`, `uvicorn` (already used by the `bench` extra). Verified
+live: a Nepali goal on nagarpalika submitted application 047 after approval.
+
 ## Later (not in the Frogtoberfest slice)
 Site 3 (utility or bank transfer), hybrid cloud planner over a privacy-abstracted view, other baselines (Nanobrowser, BrowserOS),
 manual closed-agent evals, public leaderboard, paper, vLLM/LM Studio backends.

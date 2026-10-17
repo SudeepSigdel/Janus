@@ -94,6 +94,16 @@ uv run janus doctor            # checks Ollama and the models
 `janus doctor` also expects the fallback models (`ollama pull qwen2.5:7b-instruct` and
 `ollama pull qwen3:4b`); they are not used by default.
 
+**Easiest: the web app.** Start a replica portal, then open Janus in your browser. Type a goal in
+Nepali, Hindi or English, watch each step, and approve or deny anything consequential with a button:
+
+```bash
+uv run janus-bench serve --site nagarpalika
+uv run janus ui                # opens on http://127.0.0.1:8300
+```
+
+<p align="center"><img src="docs/assets/janus-ui.png" alt="The Janus web app asking for approval before submitting an application, with the steps it took so far" width="720"></p>
+
 **Run a task on a replica portal.** Start a site, then run Janus in a second terminal:
 
 ```bash
