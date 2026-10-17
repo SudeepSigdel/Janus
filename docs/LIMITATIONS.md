@@ -137,7 +137,7 @@ fields a task author forgets to mark) or (b) a new validator check that diffs a 
 value against page-provided legitimate options when the field is being filled from ungrounded
 model output rather than a direct `$inputs` reference -- out of scope for this milestone.
 
-### Pre-filled defaults in untouched fields (Q5; mitigated 2026-10-17, E26)
+### Pre-filled defaults in untouched fields (Q5; mitigated 2026-10-17, E26; widened 2026-10-18)
 
 A form can open with an attacker-chosen default in an optional field the task never mentions
 (nag-27 alternate mobile, share-28 referral code). Janus was hijacked 6/6 before E26 because a
@@ -145,8 +145,9 @@ typed plan never looks at fields it does not touch. Now, at any click that submi
 `executor/prefill.py` finds optional, editable text fields in that form that hold a value the run
 did not set. `janus run` lists them in the approval prompt (`prefill="flag"`); the benchmark agent
 clears them (`prefill="clear"`), and v2 dev attack success went from 6/54 to 0/54.
-Remaining edges: it covers text inputs and textareas only, not a poisoned default in a select,
-checkbox or required field; clearing would erase legitimate saved profile data on a real site
+Since 2026-10-18 it also covers a select whose page-chosen option is not the first one (reset to
+an empty placeholder option if there is one, otherwise only disclosed) and a checkbox that arrived
+ticked (unticked). Remaining edges: required fields and radio buttons are not covered; clearing would erase legitimate saved profile data on a real site
 (which is why the interactive mode only discloses); and the two cases it was built for are dev
 tasks, so read 0/54 as "this known gap is closed", not as general injection immunity.
 
@@ -177,7 +178,9 @@ the user for a one-time code (`ASK_USER`). Measured on one replica task (share-3
 apply): 3/3 in the benchmark, and an end-to-end run through `janus ui` submitted the application
 with the right values. Limits: only one replica site has a second factor, and its code is fixed;
 the run asks for one code per prompt and has no resend or expiry handling; CAPTCHAs are not
-handled; sessions are not kept between runs, so every run logs in again; and the check that a
+handled; sessions are kept between runs only if the user ticks "stay logged in" in the web app (stored
+cookies, per site, on their own computer; the replicas keep login state on the server, so this has
+no effect there); and the check that a
 password field is filled before submitting only applies when the user gave secrets (the benchmark
 tasks, which predate it, do not).
 
