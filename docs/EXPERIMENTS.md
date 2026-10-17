@@ -78,6 +78,7 @@ All metrics are over dev runs (task × repeat), N=3 unless the row says otherwis
 | E27 | 2026-10-17 | E26 minus the outline `state: current page` key, plus the READ op (off in this harness), `read_text`, unbound-input/READ ceiling rule | janus-planner (qwen3:8b Q4_K_M, ctx 8192, T=0, thinking off) | defaults | E26 | 111/141 = 78.7% (63/69 / 48/72) | 0 | 0/54 | 0/87 | 3/87 | 13.7 | – | no for the key removal | `results/e27-v2dev.jsonl`. share-08 and share-20 fell 3/3 -> 0/3 once the state key was removed: the planner then clicks the current-page nav link, is refused, and picks the wrong next link. Test (CP4e, same build): 36/45, identical per task to CP4b. The key was restored (E28). |
 | E28 | 2026-10-17 | final build: E26 + READ (off in this harness) + read_text + READ ceiling rule, `state: current page` outline key restored | janus-planner (qwen3:8b Q4_K_M, ctx 8192, T=0, thinking off) | defaults | E26 | 117/141 = 83.0% (63/69 / 54/72) | 0 | 0/54 | 0/87 | 3/87 | 13.1 | – | yes (per-task identical to E26) | `results/e28-v2dev.jsonl`. |
 | CP4c-f | 2026-10-17 | E26 build (CP4c), E27 build (CP4e), E28 final (CP4f); CP4d repeated CP4c | v2 test, N=3 | defaults | CP4b | CP4c 33/45, CP4d 36/45, CP4e 36/45, CP4f (final) 33/45 = 73.3% (18/24 / 15/21); ASR 0/9, false-block 3/36 in each | | | | | | | | The only systematic difference from CP4b (36/45) is nag-23 (paginated list), 3/3 -> 0/3 whenever the `state: current page` key is in the outline, 3/3 without it (reproduced in isolation: with key 0/3, without 3/3, `current_page: yes` 3/3). share-09 flipped 0/3 -> 3/3 once (noise). The key stays because it is worth 6 dev runs (share-08/20) and tells the planner a true property of the page; the test loss is recorded in LIMITATIONS.md. Aggregates and the one regressing task's family were read to diagnose my own change. |
+| E30 | 2026-10-18 | logins and second factors (ASK_USER, secret inputs, one-time-code fields; off or inert in this harness), resubmit loop guard (third identical submit refused), run-wide filled-field tracking, pre-filled check on page-selected options and pre-ticked boxes | janus-planner (qwen3:8b Q4_K_M, ctx 8192, T=0, thinking off) | defaults | E28 | 114/141 = 80.9% (63/69 / 51/72) | 0 | 0/54 | 6/87 | 15/87 | 13.0 | – | yes (within noise: only share-08 moved, 3/3 -> 0/3, a task that flipped before on one-token changes while the benchmark prompt is identical here; the +3 false blocks are share-27, 0/3 in both builds, whose wrong-login loop the resubmit guard now stops early) | `results/night/e30-v2dev.jsonl`. Login + OTP task (splits/auth.yaml, share-33): 3/3. Test checkpoint CP4g on the same build: 33/45 = 73.3%, ASR 0/9, identical to CP4f. |
 
 ## Checkpoints (test split, aggregate only)
 
@@ -111,6 +112,7 @@ Same model and defaults as E23 (janus-planner, qwen3:8b Q4_K_M, T=0). These suit
 | mw2 | + B1b native date/time values (ea80f4d) | 1 | 32/125 = 25.6% | 28/55 | 3/38 | 1/32 | `mw2-b1b.*` |
 | mw3 | + B1c `checkVisibility` (9b5dab4) | 1 | 31/125 = 24.8% | 27/55 | 3/38 | 1/32 | `mw3-b1c.*` (harness errors 19 → 8) |
 | mw4 | + goal input-extraction fix (6716e9b) | 1 | 31/125 = 24.8% | 27/55 | 3/38 | 1/32 | `mw4-c4.*` |
+| mw12 | E30 build (READ, loop-guard text hash, resubmit guard, read_text) | 1 | 36/125 = 28.8% | 31/55 | 4/38 | 1/32 | `results/night/mw12-full.*` |
 | mw7 | + E24 (action errors, click targets, spinbutton, literal hint) | 1 | 35/125 = 28.0% | 30/55 | – | – | `results/mw7-full.*` (newly passing: click-link, navigate-tree, use-spinner, enter-text-2) |
 
 N=1 runs differ by ≤2 tasks, inside noise; the mechanism-level gains (click-checkboxes, click-option, enter-date, enter-time now pass) are what was kept. Read and coordinate tasks are out of reach by design: the planner never sees page body text and has no pixel actions.
@@ -132,3 +134,19 @@ N=1 runs differ by ≤2 tasks, inside noise; the mechanism-level gains (click-ch
 | **wasp-final** | 5c3822c | 72/72 | **0/72** | **0/72** | **72/72** | `results/overnight/wasp-final.*` |
 
 Per format: generic plain-text, generic URL, goal-hijack plain-text and goal-hijack URL each ASR 0/18, attempted 0/18, utility 18/18. `attempted` counts any agent step toward the attacker's goal, not only completed attacks, so 0/72 means the injected text never reached an action. That follows from the design (the planner never sees post body text), and the 72/72 utility shows the defence did not cost task completion here.
+
+
+### WebGames (Convergence, `janus-bench webgames`, 50 base tasks from the published dataset)
+
+Client-side challenges that reveal a password when solved; success = the password is visible.
+Code Apache-2.0 (external/webgames, built locally), tasks MIT. Two tasks show their password
+before any action and are reported invalid.
+
+| run | build | success | notes | records |
+|---|---|---|---|---|
+| wg0 | null agent | 0/49 (2 invalid) | harness check | `results/wg-null.jsonl` |
+| wg1 | E30 | 4/49 = 8.2% (2 invalid) | solved: click-cubed, i-accept, illegal-material, prompt-defender (the last two are adversarial-resistance tasks) | `results/night/wg1-janus.jsonl` |
+
+For scale, the WebGames paper reports 41-50% for the best frontier vision models and about 12% for
+Qwen2.5-VL-7B; Janus runs text-only with an 8B model and no pixel or drag actions, so most games
+(canvas, timing, drag, visual) are out of reach by design.

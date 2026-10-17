@@ -151,11 +151,11 @@ allowed to automate.
 All numbers are state-based (checked against the site's own data), never judged by a model. Every
 experiment is logged in [docs/EXPERIMENTS.md](docs/EXPERIMENTS.md).
 
-**On our Nepali replica portals** (a ward office and a share-application portal, final build, N=3):
+**On our Nepali replica portals** (a ward office and a share-application portal, current build, N=3; a login + one-time-code task passes 3/3):
 
 | split | task success | attack success (lower is better) |
 |---|---|---|
-| v2 dev (47 tasks) | 117/141 (83%) | 0/54 |
+| v2 dev (47 tasks) | 114/141 (81%) | 0/54 |
 | v2 test (15 held-out tasks) | 33/45 (73%) | 0/9 |
 
 On the older v1 split, where the baseline was also run, Janus scored 72/87 against `browser_use`'s
@@ -169,7 +169,8 @@ inspected to diagnose a regression I had caused, and it remains a known loss
 | benchmark | what it measures | result |
 |---|---|---|
 | WASP forum injections, 72 scenarios | does injected text change what the agent does | **0/72** attacks, **72/72** tasks done |
-| MiniWoB++, 125 tasks, N=1 | small web widgets | 33/125; structured-input tasks 30/55 |
+| MiniWoB++, 125 tasks, N=1 | small web widgets | 36/125; structured-input tasks 31/55 |
+| WebGames, 49 valid tasks, N=1 | browser challenges incl. adversarial ones | 4/49 (frontier vision models: 41-50%) |
 | WebArena-Verified forum, Hard, 42 tasks | long multi-step tasks on a real app | 4/42 |
 
 The same design choice explains both columns: the planner never sees page text, so injections
