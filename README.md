@@ -50,7 +50,7 @@ in a browser to see Janus's step-by-step decision report.
 ## How it works
 
 ```mermaid
-flowchart LR
+flowchart TB
     goal(["Your goal<br/>ne / hi / en"]) --> plan
     page[["Web page"]] -->|outline only: roles and labels| plan
     page -.->|body text| reader["Quarantined reader<br/>one short typed value"]
