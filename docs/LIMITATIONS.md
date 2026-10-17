@@ -150,6 +150,26 @@ checkbox or required field; clearing would erase legitimate saved profile data o
 (which is why the interactive mode only discloses); and the two cases it was built for are dev
 tasks, so read 0/54 as "this known gap is closed", not as general injection immunity.
 
+### The planner is brittle to outline wording (measured 2026-10-17)
+
+The outline marks a link to the already-open page as `"state": "current page"`. The three
+variants tried on the same build gave opposite results on different tasks (3 runs each):
+`state: current page` passed share-08 and share-20 (withdraw flows, dev) and failed nag-23
+(paginated list, test); `current_page: yes` and no label did the reverse. The state wording was
+kept because it informs the planner about a real page property and scored better in aggregate, but
+the lesson is that one-token outline changes can flip individual tasks at N=3, so single-task
+movements in any experiment are weak evidence. The checkpoint rows in EXPERIMENTS.md record the
+nag-23 effect.
+
+### Quarantined READ: a poisoned typed value (added 2026-10-17)
+
+`READ` (janus/read.py) lets the planner ask for a value shown on the page without seeing the page
+text. The value is a short, shape-checked string bound as `page_<name>` and typed into a
+non-sensitive field. Injected page text can therefore alter that one typed value (a wrong number
+or word), never an operation, ref, URL or sensitive field. Consequential actions still need
+approval. On MiniWoB the 8B reader is the limit: about 4 of 38 read tasks pass, and email/social
+tasks that need picking a row by page text stay out of reach by design.
+
 ### Escalation grants are now per-target, per-use (closed at M4/P4's own scope; name-matching is the open edge)
 
 `executor/escalation.py`'s approval labels (e.g. `cancel_application`) used to map to a set of
