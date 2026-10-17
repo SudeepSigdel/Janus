@@ -170,6 +170,17 @@ or word), never an operation, ref, URL or sensitive field. Consequential actions
 approval. On MiniWoB the 8B reader is the limit: about 4 of 38 read tasks pass, and email/social
 tasks that need picking a row by page text stay out of reach by design.
 
+### Logins and one-time codes (added 2026-10-18)
+
+Janus can log in with credentials the user types into the web app or a hidden prompt, and asks
+the user for a one-time code (`ASK_USER`). Measured on one replica task (share-33, login + OTP +
+apply): 3/3 in the benchmark, and an end-to-end run through `janus ui` submitted the application
+with the right values. Limits: only one replica site has a second factor, and its code is fixed;
+the run asks for one code per prompt and has no resend or expiry handling; CAPTCHAs are not
+handled; sessions are not kept between runs, so every run logs in again; and the check that a
+password field is filled before submitting only applies when the user gave secrets (the benchmark
+tasks, which predate it, do not).
+
 ### Escalation grants are now per-target, per-use (closed at M4/P4's own scope; name-matching is the open edge)
 
 `executor/escalation.py`'s approval labels (e.g. `cancel_application`) used to map to a set of

@@ -1883,6 +1883,21 @@ honest limits; `docs/BENCHMARK.md` and `CONTRIBUTING.md` added. New local web UI
 Dependency added: extra `ui` = `fastapi`, `uvicorn` (already used by the `bench` extra). Verified
 live: a Nepali goal on nagarpalika submitted application 047 after approval.
 
+## Logins and second factors 2026-10-18
+`ASK_USER` op (off unless a caller enables it: `janus ui`, `janus run --goal`, tasks with
+`allow_ask: true`): the planner asks the user for something only they have; the answer is stored as
+`user_<name>`, never traced. `Policy.secret_inputs`: secrets typed in the UI or at a hidden prompt
+(never in the goal, so never seen by a model) may only go into password fields, password fields
+only take secrets, and a submit that leaves a password field empty is sent back. Fields with
+`autocomplete="one-time-code"` take only a user's answer; `READ` is refused on such a page.
+`repair_input_refs` rewrites `$inputs.otp` to `$inputs.user_otp` when unambiguous. Replica: ShareSewa
+`otp` variant (`/otp`, code in `/__bench/state`); task share-33 in `splits/auth.yaml` (kept out of
+v2 so v2 numbers stay comparable); the benchmark's simulated user reads the code from state.
+Also: a submit that returns the identical page twice in a row is refused as a no-op (it used to
+loop until the leg budget ran out), interactive runs get 12 legs, and the pre-filled check tracks
+filled fields for the whole run (a form re-rendered at another URL after a validation error was
+being flagged). Hero and web-app logo redrawn as a Roman coin of Janus Bifrons.
+
 ## Later (not in the Frogtoberfest slice)
 Site 3 (utility or bank transfer), hybrid cloud planner over a privacy-abstracted view, other baselines (Nanobrowser, BrowserOS),
 manual closed-agent evals, public leaderboard, paper, vLLM/LM Studio backends.

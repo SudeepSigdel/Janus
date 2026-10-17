@@ -119,6 +119,26 @@ uv run janus run --url http://127.0.0.1:8101/services --headed --report run.html
   --goal "निवास सिफारिसको निवेदन दिनुहोस्: नाम माया गुरुङ, वडा 8, मोबाइल 9847654321, नागरिकता नं. २८-०२-७७-०२३४५, जन्म मिति 2058-04-10 (वि.सं.)"
 ```
 
+**Sites that need a login or a one-time code.** Give your username, password and PIN in the web
+app's *Login details* (or `--username U --secret password --secret pin` on the command line, which
+asks at a hidden prompt). When the site sends a one-time code to your phone, Janus stops and asks
+you for it. How that stays safe:
+
+- **The model never sees your secrets.** They are not part of the goal text. The planner only
+  sees that inputs named `password` and `pin` exist.
+- **Secrets go only into password fields, and password fields take only secrets.** A page cannot
+  get your PIN typed into a search box, and the model cannot type a guess into a password field.
+- **One-time codes come only from you.** A field marked as a one-time code accepts only an
+  answer you gave, never a value the model wrote or read off the page.
+- **Answers are never logged.** Traces and reports record that you answered, not what.
+
+```bash
+uv run janus-bench serve --site sharesewa      # a share portal; reset it with the otp variant to try a code
+uv run janus run --url http://127.0.0.1:8102/login --username १२३४५६७८ --secret password --secret pin   --goal "Log in and apply for the NIC Asia Debenture 2083 issue: bank Nabil Bank, 200 kitta, CRN CRN-482901."
+```
+
+CAPTCHAs are not solved by Janus; they would need you to type the answer, as with a one-time code.
+
 A run stays on the start URL's origin. A value is used only if it appears in your goal. The
 portal's name field wants Devanagari, so give the name that way. Only point Janus at sites you are
 allowed to automate.

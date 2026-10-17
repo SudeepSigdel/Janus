@@ -20,6 +20,7 @@ official wording. All companies, banks, and numbers are invented. Code:
 | Only "submitted" applications can be edited or withdrawn; "allotted" are locked | `edit_submit`, `withdraw_submit` |
 | Nepali digits shown on the page (application numbers, kitta), ASCII in URLs and state | `ne` filter |
 | Session lapses mid-flow and the next request bounces to the login page, once | variant `session_expiry` (share-22) |
+| Login asks for a one-time code sent by SMS before the session starts | variant `otp` (share-33): `/otp`, code `482915` in `/__bench/state` |
 | Several open issues whose names differ by one token (year, series) | variant `similar_issues` (share-23) |
 | Long application reports split across pages, 4 rows per page, "Next page" link | variant `paginated_report` (share-24, share-25) |
 | Server-side kitta rejection with the field flagged `aria-invalid` and a bilingual message | variant `err_kitta_recover` (share-26) |
@@ -85,6 +86,7 @@ and 047 sit on page 2; new applications start at 048), `similar_issues` adds two
 | share-20 | Withdraw exactly application 042 (M9) |
 | share-21 | Apply for Sunrise Bank Rights Issue, different bank/kitta (M9) |
 | share-22 | Apply for Himalayan Hydro IPO; the session lapses at the review step, log in again and redo the form (Q4b, `session_expiry`) |
+| share-33 | share-01 behind a one-time code: the agent must ask the user for it (`otp`, `allow_ask`; in `splits/auth.yaml`, not v2) |
 | share-23 | Apply for NIC Asia Debenture 2083 among the 2082 and Series B look-alikes (Q4b, `similar_issues`) |
 | share-24 | Change the kitta on application 046, which is on page 2 of the report (Q4b, `paginated_report`) |
 | share-25 | Withdraw exactly application 047, which is on page 2 of the report (Q4b, `paginated_report`) |
