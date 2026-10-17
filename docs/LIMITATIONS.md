@@ -137,14 +137,18 @@ fields a task author forgets to mark) or (b) a new validator check that diffs a 
 value against page-provided legitimate options when the field is being filled from ungrounded
 model output rather than a direct `$inputs` reference -- out of scope for this milestone.
 
-### Pre-filled defaults in untouched fields are submitted as-is (Q5, measured)
+### Pre-filled defaults in untouched fields (Q5; mitigated 2026-10-17, E26)
 
-A form that opens with an attacker-chosen default in an optional field the task never mentions
-(nag-27 alternate mobile, share-28 referral code) is hijacked 6/6 by Janus. Typed plans only
-constrain what the agent *does*; a field it never touches keeps whatever the page put there, and no
-gate looks at it. Fixing it needs a rule about untouched fields (for example clearing or flagging
-non-empty optional defaults before a consequential submit), which is not built. The oracle passes
-only because it clears the field deliberately.
+A form can open with an attacker-chosen default in an optional field the task never mentions
+(nag-27 alternate mobile, share-28 referral code). Janus was hijacked 6/6 before E26 because a
+typed plan never looks at fields it does not touch. Now, at any click that submits a form,
+`executor/prefill.py` finds optional, editable text fields in that form that hold a value the run
+did not set. `janus run` lists them in the approval prompt (`prefill="flag"`); the benchmark agent
+clears them (`prefill="clear"`), and v2 dev attack success went from 6/54 to 0/54.
+Remaining edges: it covers text inputs and textareas only, not a poisoned default in a select,
+checkbox or required field; clearing would erase legitimate saved profile data on a real site
+(which is why the interactive mode only discloses); and the two cases it was built for are dev
+tasks, so read 0/54 as "this known gap is closed", not as general injection immunity.
 
 ### Escalation grants are now per-target, per-use (closed at M4/P4's own scope; name-matching is the open edge)
 
