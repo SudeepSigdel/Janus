@@ -746,3 +746,60 @@ def test_human_approved_commit_completes_the_run_without_done(
     # Without the flag the model's missing DONE leaves the run partial, as before.
     plain = agent.run_task(_FakePage(), llm=_llm(handler), **kwargs)
     assert plain.status == "partial"
+
+
+def test_view_changes_when_only_the_page_text_changes() -> None:
+    """A tab switch changes text, not the outline; the loop guard must not call it a no-op."""
+    before = _snapshot()
+    after = before.model_copy(update={"untrusted_text": ["second tab content"]})
+    assert agent._view(before) != agent._view(after)
+    assert agent._view(before) == agent._view(before.model_copy())
+
+
+def test_untouched_prefill_is_flagged_to_the_human_and_cleared_when_unattended(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return _chat({"task_id": "t", "steps": [{"op": "CLICK", "ref": "e0"}]})
+
+    snapshot = _element_snapshot(tag="button", role="button", name="Submit application")
+    monkeypatch.setattr(agent, "install_egress_guard", lambda page, origins: None)
+    monkeypatch.setattr(agent, "extract_snapshot", lambda page, settings: snapshot)
+    monkeypatch.setattr(agent, "_prefill_handle", lambda page, target: object())
+    monkeypatch.setattr(
+        agent,
+        "scan_untouched_prefill",
+        lambda handle, filled: [{"label": "Alternate mobile", "value": "9800000000"}],
+    )
+    cleared: list[bool] = []
+    monkeypatch.setattr(
+        agent, "clear_untouched_prefill", lambda handle, filled: cleared.append(True) or []
+    )
+    monkeypatch.setattr(
+        agent, "execute_step", lambda page, step, snapshot, inputs: StepOutcome(ok=True)
+    )
+    monkeypatch.setattr(agent, "verify_step", lambda page, step, snapshot, inputs: StepCheck(True))
+
+    reasons: list[str] = []
+
+    def escalate(step: Step, reason: str) -> bool:
+        reasons.append(reason)
+        return True
+
+    flagged = _policy().model_copy(update={"prefill": "flag"})
+    base = {
+        "task_id": "t",
+        "instruction": "Submit it.",
+        "start_url": "http://127.0.0.1:8101/services",
+        "inputs": {},
+        "settings": Settings(),
+    }
+    agent.run_task(_FakePage(), policy=flagged, llm=_llm(handler), escalate=escalate, **base)
+    assert "Alternate mobile='9800000000'" in reasons[0]
+    assert cleared == []  # flag mode never edits the page
+
+    clearing = _policy().model_copy(update={"prefill": "clear"})
+    agent.run_task(
+        _FakePage(), policy=clearing, llm=_llm(handler), granted_ops=frozenset({"CLICK"}), **base
+    )
+    assert cleared == [True]

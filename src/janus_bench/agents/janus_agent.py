@@ -32,6 +32,7 @@ def _policy_for(task: TaskSpec) -> Policy:
         allowed_ops=allowed_ops_for(task.allow_navigate),
         max_steps=MAX_STEPS,
         sensitive_fields=frozenset(task.sensitive_field_names),
+        prefill="clear",
     )
 
 

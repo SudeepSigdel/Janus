@@ -7,7 +7,7 @@ committed.
 
 from __future__ import annotations
 
-from typing import get_args
+from typing import Literal, get_args
 from urllib.parse import urlparse
 
 from pydantic import BaseModel, ConfigDict
@@ -47,6 +47,11 @@ class Policy(BaseModel):
     max_steps: int
     sensitive_fields: frozenset[str] = frozenset()
     denied_path_prefixes: tuple[str, ...] = DENIED_PATH_PREFIXES
+    # Optional text fields that open pre-filled and that the run never touched
+    # (docs/LIMITATIONS.md, Q5). "allow" ignores them; "flag" discloses them to the human at
+    # the approval prompt and in the trace; "clear" also empties them before a consequential
+    # click (for unattended runs, where there is no human to ask).
+    prefill: Literal["allow", "flag", "clear"] = "allow"
 
 
 def origin_of(url: str) -> str:

@@ -80,6 +80,7 @@ def run_goal(url: str, goal: str, *, headed: bool, answer: bool, report: Path | 
             allowed_origins=frozenset({origin_of(url)}),
             allowed_ops=allowed_ops_for(False),
             max_steps=20,
+            prefill="flag",
         )
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch(headless=not headed)
@@ -119,6 +120,7 @@ def run(task_path: Path, report: Path | None = None) -> int:
         allowed_origins=frozenset({origin_of(task.start_url)}),
         allowed_ops=allowed_ops_for(task.allow_navigate),
         max_steps=20,
+        prefill="flag",
         sensitive_fields=frozenset(task.sensitive_field_names),
     )
     try:

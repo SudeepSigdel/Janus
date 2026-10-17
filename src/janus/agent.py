@@ -20,21 +20,25 @@ way the only thing that ever actually authorizes a step is `authorize_action`.
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import date
 from typing import Any, Literal
 
+from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page
 
 from janus.config import Settings
 from janus.executor.egress import install_egress_guard
 from janus.executor.executor import StepOutcome, execute_step
+from janus.executor.prefill import clear_untouched_prefill, scan_untouched_prefill
+from janus.executor.resolve import ResolutionError, resolve_element
 from janus.llm import LLMClient
 from janus.observer.extract import extract_snapshot
 from janus.observer.snapshot import Element, Fingerprint, PageSnapshot
 from janus.planner.ground import GroundingError, ground_plan
-from janus.planner.ops import DoneStep, FillFormStep, OpKind, Step
+from janus.planner.ops import DoneStep, FillFormStep, OpKind, SelectStep, Step
 from janus.planner.plan import PlanningError, commit_plan
 from janus.policy import ApprovalTarget
 from janus.text.nepali import ad_to_bs
@@ -119,9 +123,31 @@ def _step_label(step: Step, snapshot: PageSnapshot) -> str | None:
     return element.accessible_name if element is not None else None
 
 
-def _view(snapshot: PageSnapshot) -> tuple[str, frozenset[Fingerprint]]:
-    """What the planner can observe of a page: its URL and its element outline."""
-    return snapshot.url, frozenset(e.fingerprint for e in snapshot.elements)
+_View = tuple[str, frozenset[Fingerprint], str]
+
+
+def _view(snapshot: PageSnapshot) -> _View:
+    """What changed on a page, for the loop guard: its URL, its element outline, and a hash
+    of its visible text. The text is compared, never read by the planner or any model: a
+    click that only switched a tab's content did something, even though the outline is the
+    same, and must not be refused as a no-op."""
+    digest = hashlib.sha256(chr(10).join(snapshot.untrusted_text).encode("utf-8")).hexdigest()
+    return snapshot.url, frozenset(e.fingerprint for e in snapshot.elements), digest
+
+
+def _written_refs(step: Step) -> list[str]:
+    if isinstance(step, FillFormStep):
+        return [f.ref for f in step.fields]
+    if isinstance(step, SelectStep):
+        return [step.ref]
+    return []
+
+
+def _prefill_handle(page: Page, target: Element | None):
+    try:
+        return resolve_element(page, target) if target is not None else None
+    except (ResolutionError, PlaywrightError):
+        return None
 
 
 def _grounding_diff(before: list[Step], after: list[Step]) -> list[dict[str, Any]]:
@@ -182,6 +208,12 @@ def run_task(
     outcomes: list[StepOutcome] = []
     checks: list[StepCheck] = []
     completed_ops: list[str] = []
+    # Field names/labels this run has filled, per page URL, so a replan on the same page never
+    # mistakes the user's own values for untouched pre-filled ones.
+    filled_by_url: dict[str, set[str]] = {}
+    # Untouched pre-filled fields seen at the last form submit, so the later approval prompt
+    # (often on a review page where the form is gone) can still list them.
+    carried_prefill: list[dict[str, str]] = []
     claimed: Status = "partial"
     steps_run = 0
     replans = 0
@@ -195,7 +227,7 @@ def run_task(
     over_action_count = 0
     # E21 loop guard: (url, fingerprint) of CLICKs that changed nothing observable.
     no_effect: set[tuple[str, Fingerprint]] = set()
-    prev_view: tuple[str, frozenset[Fingerprint]] | None = None
+    prev_view: _View | None = None
     last_click: tuple[str, Fingerprint] | None = None
 
     for leg in range(settings.max_replan_attempts + 1):
@@ -286,6 +318,7 @@ def run_task(
                 trace("blocked", {"gate": gate_block, "errors": result.errors})
             break
 
+        filled_names = filled_by_url.setdefault(snapshot.url, set())
         for index, (step, decision) in enumerate(zip(plan.steps, result.decisions, strict=True)):
             if isinstance(step, DoneStep):
                 claimed = step.status
@@ -295,6 +328,18 @@ def run_task(
             target = _target_element(step, snapshot)
             target_name = target.accessible_name if target is not None else None
             target_row_key = target.row_key if target is not None else None
+            prefilled: list[dict[str, str]] = []
+            if policy.prefill != "allow" and step.op in ("CLICK", "SUBMIT") and target is not None:
+                handle = _prefill_handle(page, target)
+                if handle is not None:
+                    try:
+                        prefilled = scan_untouched_prefill(handle, filled_names)
+                    except PlaywrightError:
+                        prefilled = []
+                if prefilled:
+                    carried_prefill = prefilled
+                    if trace is not None:
+                        trace("prefill_untouched", {"fields": prefilled})
             authorization = authorize_action(
                 step.op,
                 decision.consequential,
@@ -304,10 +349,17 @@ def run_task(
                 remaining,
                 frozenset(granted),
             )
+            note = ""
+            if decision.consequential and (prefilled or carried_prefill):
+                shown = ", ".join(
+                    f"{f['label'] or '?'}={f['value']!r}" for f in (prefilled or carried_prefill)
+                )
+                note = f"; untouched pre-filled fields: {shown}"
             human_approved = False
             if not authorization.allowed and escalate is not None:
                 if escalate(
-                    step, f"{authorization.reason}; target {target_name!r} at {snapshot.url}"
+                    step,
+                    f"{authorization.reason}; target {target_name!r} at {snapshot.url}{note}",
                 ):
                     granted.add(step.op)
                     human_approved = True
@@ -347,6 +399,15 @@ def run_task(
             if decision.consequential and approvals and not remaining:
                 over_action_count += 1
 
+            if prefilled and policy.prefill == "clear":
+                handle = _prefill_handle(page, target)
+                if handle is not None:
+                    try:
+                        removed = clear_untouched_prefill(handle, filled_names)
+                    except PlaywrightError:
+                        removed = []
+                    if trace is not None:
+                        trace("prefill_cleared", {"fields": removed})
             outcome = execute_step(page, step, snapshot, inputs)
             outcomes.append(outcome)
             steps_run += 1
@@ -370,6 +431,12 @@ def run_task(
             if not outcome.ok:
                 break
             completed_ops.append(step.op)
+            for ref in _written_refs(step):
+                written = next((e for e in snapshot.elements if e.ref == ref), None)
+                if written is not None:
+                    filled_names.update(
+                        n for n in (written.name_attr, written.accessible_name) if n
+                    )
             # Only a plain CLICK (no form POST) can be a no-op the loop guard records;
             # a submit that came back with validation errors must stay retryable.
             last_click = (
