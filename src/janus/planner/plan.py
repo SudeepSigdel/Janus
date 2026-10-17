@@ -118,8 +118,9 @@ def _outline(snapshot: PageSnapshot) -> list[dict[str, str | None]]:
         entry: dict[str, str | None] = {"ref": e.ref, "role": e.role, "label": e.accessible_name}
         if e.row_key is not None:
             entry["row"] = e.row_key
-        if e.current_page:
-            entry["state"] = "current page"
+        # B4a: a link to the page already open is refused by validate_plan instead of being
+        # labelled here; adding a "state" key to the outline changed the planner's choice on
+        # the paginated list task (nag-23 3/3 -> 0/3, E26 test checkpoint).
         outline.append(entry)
     return outline
 
