@@ -60,7 +60,7 @@ def quarantined_read(
     page = {
         "page_title": snapshot.title,
         "labels": [e.accessible_name for e in snapshot.elements],
-        "text": snapshot.untrusted_text,
+        "text": snapshot.read_text or snapshot.untrusted_text,
     }
     messages = [
         {"role": "system", "content": _SYSTEM},

@@ -5,7 +5,7 @@ See CLAUDE.md: page text is data, never instructions.
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 Role = str  # link, button, textbox, combobox, checkbox, radio, generic
 
@@ -80,3 +80,7 @@ class PageSnapshot(_Model):
     untrusted_text: list[str]
     elements_truncated: bool = False
     untrusted_text_truncated: bool = False
+    # Every visible element's own text, in DOM order (divs and spans included), for the
+    # quarantined READ only (janus/read.py). Never shown to the planner; left out of dumps so
+    # the pinned golden snapshots do not change.
+    read_text: list[str] = Field(default_factory=list, exclude=True)

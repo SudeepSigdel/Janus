@@ -225,7 +225,17 @@ _JS = (
     if (text) blocks.push(text);
   }
 
-  return { elements, text_blocks: blocks };
+  // Own text of every visible element (divs and spans too), for quarantined reads only.
+  const readBlocks = [];
+  for (const el of document.body ? document.body.querySelectorAll('*') : []) {
+    if (['script', 'style', 'noscript'].includes(el.tagName.toLowerCase())) continue;
+    let own = '';
+    for (const node of el.childNodes) if (node.nodeType === 3) own += node.textContent;
+    own = own.replace(/\s+/g, ' ').trim();
+    if (own && isVisible(el)) readBlocks.push(own);
+  }
+
+  return { elements, text_blocks: blocks, read_text: readBlocks };
 }
 """
 )
@@ -266,6 +276,9 @@ def extract_snapshot(page: Page, settings: Settings | None = None) -> PageSnapsh
     raw = page.evaluate(_JS)
     raw_elements: list[dict[str, Any]] = raw["elements"]
     raw_text_blocks: list[str] = raw["text_blocks"]
+    read_text, _ = cap_untrusted_text(
+        raw.get("read_text", []), settings.observer_max_untrusted_chars
+    )
 
     capped_elements, elements_truncated = cap_elements(raw_elements, settings.observer_max_elements)
     elements: list[Element] = []
@@ -307,6 +320,7 @@ def extract_snapshot(page: Page, settings: Settings | None = None) -> PageSnapsh
         untrusted_text=untrusted_text,
         elements_truncated=elements_truncated,
         untrusted_text_truncated=untrusted_text_truncated,
+        read_text=read_text,
     )
 
 
