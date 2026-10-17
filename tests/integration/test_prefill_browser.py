@@ -1,6 +1,6 @@
-"""Untouched pre-filled fields: scan finds optional text defaults the run did not set, and
-clearing empties exactly those. Required, read-only, hidden, select and checkbox fields and
-fields the run filled are left alone."""
+"""Untouched pre-filled fields: scan finds optional values the run did not set (text, a
+page-selected option, a pre-ticked box), and clearing removes exactly those. Required, read-only,
+hidden and password fields and fields the run set itself are left alone."""
 
 from __future__ import annotations
 
@@ -20,14 +20,18 @@ HTML = """
   <input type="hidden" name="h" value="kept">
   <input type="password" name="pw" value="kept">
   <input type="checkbox" name="c" checked>
+  <label><input type="checkbox" name="share" checked> Share my data with partners</label>
+  <input type="checkbox" name="untouched">
   <select name="s"><option value="1" selected>one</option></select>
+  <select name="bank"><option value="">Choose</option><option value="nabil">Nabil</option>
+    <option value="evil" selected>Attacker Bank</option></select>
   <input name="empty" value="">
   <button id="go" type="submit">Submit</button>
 </form>
 """
 
 
-def test_scan_and_clear_only_untouched_optional_text_fields() -> None:
+def test_scan_and_clear_only_untouched_optional_fields() -> None:
     with sync_playwright() as p:
         browser = p.chromium.launch()
         try:
@@ -35,15 +39,25 @@ def test_scan_and_clear_only_untouched_optional_text_fields() -> None:
             page.set_content(HTML)
             go = page.query_selector("#go")
             assert go is not None
-            found = scan_untouched_prefill(go, {"name"})
-            assert [f["value"] for f in found] == ["9800000000"]
+            filled = {"name", "c"}  # the run typed the name and ticked "c" itself
+            found = scan_untouched_prefill(go, filled)
+            assert [(f["kind"], f["value"]) for f in found] == [
+                ("text", "9800000000"),
+                ("checkbox", "ticked"),
+                ("select", "Attacker Bank"),
+            ]
             assert "Alternate mobile" in found[0]["label"]
+            assert "Share my data" in found[1]["label"]
             # a scan changes nothing
             assert page.input_value("#alt") == "9800000000"
-            clear_untouched_prefill(go, {"name"})
+            clear_untouched_prefill(go, filled)
             assert page.input_value("#alt") == ""
+            assert not page.is_checked("[name=share]")
+            assert page.input_value("[name=bank]") == ""
+            assert page.is_checked("[name=c]")
             assert page.input_value("#name") == "typed by the run"
             assert page.input_value("[name=req]") == "kept"
             assert page.input_value("[name=ro]") == "kept"
+            assert page.input_value("[name=s]") == "1"  # first option: nothing to undo
         finally:
             browser.close()

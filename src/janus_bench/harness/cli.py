@@ -280,10 +280,26 @@ def main(argv: list[str] | None = None) -> int:
     ws_p = sub.add_parser("wasp", help="WASP injection scenarios on the forum (PLAN.md B4)")
     ws_p.add_argument("--out", type=Path, required=True, help="JSONL results (resumable)")
     ws_p.add_argument("--only", default=None, help="comma-separated scenario ids")
+    wg_p = sub.add_parser("webgames", help="run an agent on WebGames (Convergence, 50 tasks)")
+    wg_p.add_argument("--agent", choices=("janus", "null"), default="janus")
+    wg_p.add_argument("--only", default=None, help="comma-separated task ids")
+    wg_p.add_argument("--repeats", type=int, default=1)
+    wg_p.add_argument("--out", type=Path, required=True, help="JSONL results (resumable)")
     demo_p = sub.add_parser("demo", help="naive agent vs Janus on one injection task, as HTML")
     demo_p.add_argument("--task", default="nag-06", help="an injection task id (default nag-06)")
     demo_p.add_argument("--out", type=Path, default=Path("demo.html"))
     args = parser.parse_args(argv)
+    if args.command == "webgames":
+        from janus_bench.external import webgames
+
+        tasks = webgames.load_tasks()
+        if args.only:
+            wanted = {t.strip() for t in args.only.split(",")}
+            tasks = [t for t in tasks if t["id"] in wanted]
+        webgames.run(agent=args.agent, tasks=tasks, repeats=args.repeats, out=args.out)
+        records = [json.loads(x) for x in args.out.read_text("utf-8").splitlines() if x]
+        print(webgames.summarize(records))
+        return 0
     if args.command == "demo":
         from janus_bench.demo import build_demo
 

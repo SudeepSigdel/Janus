@@ -42,6 +42,7 @@ from janus.planner.ops import (
     ASK_INPUT_PREFIX,
     READ_INPUT_PREFIX,
     AskUserStep,
+    ClickStep,
     DoneStep,
     FillFormStep,
     OpKind,
@@ -158,6 +159,8 @@ def _written_refs(step: Step) -> list[str]:
     if isinstance(step, FillFormStep):
         return [f.ref for f in step.fields]
     if isinstance(step, SelectStep):
+        return [step.ref]
+    if isinstance(step, ClickStep):  # ticking a box is the run's own choice too
         return [step.ref]
     return []
 

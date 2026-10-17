@@ -3,8 +3,11 @@ an optional text field the task never mentions, and a typed plan never looks at 
 touch. Before a click that submits a form, this finds those fields in the same form so the run can
 disclose them to the human, or, when no human is present and the policy says so, clear them.
 
-It only reads and clears optional, editable text fields of the target's own form. Required fields,
-selects, checkboxes, passwords and hidden inputs are left alone, and nothing here reaches a model.
+It looks at the optional fields of the form being submitted: text fields that hold a value,
+selects whose page-chosen option is not the first one, and checkboxes that arrived ticked.
+Clearing empties a text field, resets a select to its empty placeholder option (if it has one)
+and unticks a box.
+Required fields, passwords and hidden inputs are left alone, and nothing here reaches a model.
 """
 
 from __future__ import annotations
@@ -27,27 +30,46 @@ _JS = r"""
   const skip = new Set(args.filled);
   const textTypes = ['text', 'search', 'tel', 'email', 'url', 'number'];
   const found = [];
-  for (const c of Array.from(form.elements)) {
-    const tag = c.tagName.toLowerCase();
-    if (tag !== 'input' && tag !== 'textarea') continue;
-    if (tag === 'input' && !textTypes.includes((c.getAttribute('type') || 'text').toLowerCase())) {
-      continue;
-    }
-    if (c.readOnly || c.disabled || c.required) continue;
-    const value = (c.value || '').trim();
-    if (!value) continue;
+  const labelOf = (c) => {
     const id = c.getAttribute('id');
     const lab = id ? document.querySelector(`label[for="${CSS.escape(id)}"]`) : null;
-    const label = ((lab && lab.textContent) || c.getAttribute('aria-label')
+    const wrap = c.closest('label');
+    return ((lab && lab.textContent) || (wrap && wrap.textContent) || c.getAttribute('aria-label')
       || c.getAttribute('placeholder') || c.getAttribute('name') || '').replace(/\s+/g, ' ').trim();
+  };
+  const fire = (c) => {
+    c.dispatchEvent(new Event('input', { bubbles: true }));
+    c.dispatchEvent(new Event('change', { bubbles: true }));
+  };
+  for (const c of Array.from(form.elements)) {
+    const tag = c.tagName.toLowerCase();
+    if (c.disabled || c.required) continue;
+    const label = labelOf(c);
     const name = c.getAttribute('name') || '';
     if ((name && skip.has(name)) || (label && skip.has(label))) continue;
-    found.push({ label, value });
-    if (args.clear) {
-      c.value = '';
-      c.dispatchEvent(new Event('input', { bubbles: true }));
-      c.dispatchEvent(new Event('change', { bubbles: true }));
+    const type = (c.getAttribute('type') || 'text').toLowerCase();
+    if (tag === 'select') {
+      // A non-first option the page marked as selected, which the run never chose.
+      const i = c.selectedIndex;
+      if (i <= 0 || !c.options[i].defaultSelected || c.options[i].value === '') continue;
+      found.push({ label, value: c.options[i].textContent.trim(), kind: 'select' });
+      if (args.clear && c.options[0].value === '') { c.selectedIndex = 0; fire(c); }
+      continue;
     }
+    if (tag === 'input' && type === 'checkbox') {
+      // A box that arrived ticked (a consent or opt-in the user never chose).
+      if (!c.checked || !c.defaultChecked) continue;
+      found.push({ label, value: 'ticked', kind: 'checkbox' });
+      if (args.clear) { c.checked = false; fire(c); }
+      continue;
+    }
+    if (tag !== 'input' && tag !== 'textarea') continue;
+    if (tag === 'input' && !textTypes.includes(type)) continue;
+    if (c.readOnly) continue;
+    const value = (c.value || '').trim();
+    if (!value) continue;
+    found.push({ label, value, kind: 'text' });
+    if (args.clear) { c.value = ''; fire(c); }
   }
   return found;
 }
@@ -56,11 +78,14 @@ _JS = r"""
 
 def _run(handle: ElementHandle, filled: Iterable[str], clear: bool) -> list[dict[str, str]]:
     found = handle.evaluate(_JS, {"filled": sorted(set(filled)), "clear": clear})
-    return [{"label": item["label"], "value": item["value"][:MAX_VALUE_CHARS]} for item in found]
+    return [
+        {"label": item["label"], "value": item["value"][:MAX_VALUE_CHARS], "kind": item["kind"]}
+        for item in found
+    ]
 
 
 def scan_untouched_prefill(handle: ElementHandle, filled: Iterable[str]) -> list[dict[str, str]]:
-    """Optional text fields in `handle`'s form that hold a value this run did not set."""
+    """Optional fields in `handle`'s form holding a value this run did not set."""
     return _run(handle, filled, clear=False)
 
 
