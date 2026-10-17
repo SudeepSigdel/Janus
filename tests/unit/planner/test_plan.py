@@ -867,3 +867,56 @@ def test_trace_reports_invalid_json_attempts() -> None:
             trace=lambda stage, data: events.append((stage, data)),
         )
     assert all(data["valid_json"] is False for _, data in events)
+
+
+def test_unbound_input_key_does_not_lock_a_ceiling_for_the_correction() -> None:
+    """A first plan that fills `$inputs.text` when the task has no inputs reached for data
+    that does not exist; the corrected plan (click the textbox) must still commit."""
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return _response(
+                {
+                    "task_id": "t",
+                    "steps": [
+                        {"op": "FILL_FORM", "fields": [{"ref": "e0", "value": "$inputs.text"}]}
+                    ],
+                }
+            )
+        return _response({"task_id": "t", "steps": [{"op": "CLICK", "ref": "e0"}]})
+
+    textbox = Element(
+        ref="e0",
+        tag="input",
+        role="textbox",
+        accessible_name="Box",
+        name_attr="box",
+        form_id="f1",
+        fingerprint=Fingerprint(
+            role="textbox", accessible_name="Box", name_attr="box", form_id="f1", tag="input"
+        ),
+    )
+    snapshot = PageSnapshot(
+        url="http://127.0.0.1:8101/services",
+        title="Box",
+        elements=[textbox],
+        untrusted_text=[],
+    )
+    policy = Policy(
+        allowed_origins=frozenset({"http://127.0.0.1:8101"}),
+        allowed_ops=frozenset({"CLICK", "FILL_FORM", "DONE"}),
+        max_steps=5,
+    )
+    plan, result = commit_plan(
+        task_id="t",
+        instruction="Focus into the textbox.",
+        inputs={},
+        snapshot=snapshot,
+        policy=policy,
+        llm=_client(handler),
+        max_retries=2,
+    )
+    assert calls["n"] == 2 and result.ok
+    assert plan.steps[0].op == "CLICK"

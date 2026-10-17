@@ -205,6 +205,15 @@ def _has_scope_violation(errors: list[str]) -> bool:
     )
 
 
+def _has_unbound_input(errors: list[str]) -> bool:
+    """True if any of `errors` is a `$inputs.<key>` the task never had (E19). That plan
+    reached for data that does not exist, so its capabilities are not a commitment either:
+    the MiniWoB focus-text and use-autocomplete runs showed the right correction (click the
+    box instead of filling a made-up value) being refused against the first attempt's
+    FILL-only ceiling. The corrected plan still faces every validator and policy check."""
+    return any("is not an input of this task" in error for error in errors)
+
+
 def commit_plan(
     *,
     task_id: str,
@@ -318,7 +327,7 @@ def commit_plan(
         if result.ok:
             return plan, result
         errors = result.errors
-        if ceiling is None and not _has_scope_violation(errors):
+        if ceiling is None and not (_has_scope_violation(errors) or _has_unbound_input(errors)):
             # Lock in this first (rejected) attempt's own scope: a retry may fix
             # what was wrong, but may not use the fix as cover to ask for more. Skip
             # this for an attempt that was itself off-allowlist/off-policy (P2): its
