@@ -125,8 +125,9 @@ def _outline(snapshot: PageSnapshot) -> list[dict[str, str | None]]:
 
 
 _READ_RULE = (
-    "\n- READ: when a value the task needs (to type into a field) is shown on the page "
-    "rather than given in the task, output exactly one step, "
+    "\n- READ: when the task asks you to type or enter a value that is not given in the task "
+    "itself (an answer, a result, a word or cell found on the page), do not invent it: "
+    "output exactly one step, "
     '{"op":"READ","name":"<snake_case>","question":"<what to look up, from the task>",'
     '"kind":"number|word|phrase"}, and nothing else in that plan. You never see the page '
     "text; the value is looked up for you and appears on your next view as the input key "
@@ -342,7 +343,11 @@ def commit_plan(
         if result.ok:
             return plan, result
         errors = result.errors
-        if ceiling is None and not (_has_scope_violation(errors) or _has_unbound_input(errors)):
+        if (
+            ceiling is None
+            and not (_has_scope_violation(errors) or _has_unbound_input(errors))
+            and not any(step.op == "READ" for step in plan.steps)
+        ):
             # Lock in this first (rejected) attempt's own scope: a retry may fix
             # what was wrong, but may not use the fix as cover to ask for more. Skip
             # this for an attempt that was itself off-allowlist/off-policy (P2): its
