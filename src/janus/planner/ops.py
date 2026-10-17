@@ -18,7 +18,16 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 OpKind = Literal[
-    "NAVIGATE", "FILL_FORM", "SELECT", "CLICK", "SUBMIT", "EXTRACT", "READ", "ASK_USER", "DONE"
+    "NAVIGATE",
+    "FILL_FORM",
+    "SELECT",
+    "CLICK",
+    "SUBMIT",
+    "EXTRACT",
+    "READ",
+    "PICK",
+    "ASK_USER",
+    "DONE",
 ]
 
 _INPUT_REF = re.compile(r"^\$inputs\.([A-Za-z_][A-Za-z0-9_]*)$")
@@ -93,6 +102,18 @@ class ReadStep(_Step):
     kind: ReadKind = "phrase"
 
 
+class PickStep(_Step):
+    """Ask a quarantined reader to choose one element on this page by what is written around it
+    (the email from X, the cheapest flight). The planner never sees that text; the chosen
+    element is marked `"picked": "<name>"` in its next view, and clicking it is still validated
+    and, if consequential, needs approval."""
+
+    op: Literal["PICK"] = "PICK"
+    name: str = Field(pattern=r"^[a-z][a-z0-9_]{0,29}$")
+    question: str = Field(min_length=3, max_length=200)
+    role: str | None = Field(default=None, max_length=20)
+
+
 # An ASK_USER answer is exposed to later legs as the input `user_<name>`.
 ASK_INPUT_PREFIX = "user_"
 
@@ -122,6 +143,7 @@ Step = Annotated[
     | SubmitStep
     | ExtractStep
     | ReadStep
+    | PickStep
     | AskUserStep
     | DoneStep,
     Field(discriminator="op"),

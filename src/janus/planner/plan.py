@@ -125,6 +125,8 @@ def _outline(snapshot: PageSnapshot) -> list[dict[str, str | None]]:
             entry["row"] = e.row_key
         if e.current_page:
             entry["state"] = "current page"
+        if e.picked:
+            entry["picked"] = e.picked
         outline.append(entry)
     return outline
 
@@ -141,6 +143,14 @@ _READ_RULE = (
 )
 
 
+_PICK_RULE = (
+    "\n- PICK: when the task needs an element chosen by something written on the page that "
+    "you cannot see (the email from a person, the cheapest item, the post by a user, the "
+    'largest number), output exactly one step, {"op":"PICK","name":"<snake_case>",'
+    '"question":"<which element, from the task>","role":"<link|button|checkbox|...>"}, and '
+    'nothing else. On your next view that element carries "picked": "<name>"; click it then.'
+)
+
 _ASK_RULE = (
     "\n- ASK_USER: if the page needs something only the user can give and it is not one of "
     "your input keys (a one-time code sent to their phone, a verification answer), output "
@@ -155,6 +165,7 @@ def _system_prompt(policy: Policy) -> str:
     return (
         _SYSTEM_PROMPT
         + (_READ_RULE if "READ" in policy.allowed_ops else "")
+        + (_PICK_RULE if "PICK" in policy.allowed_ops else "")
         + (_ASK_RULE if "ASK_USER" in policy.allowed_ops else "")
     )
 

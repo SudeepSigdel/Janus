@@ -46,13 +46,14 @@ from janus.planner.ops import (
     DoneStep,
     FillFormStep,
     OpKind,
+    PickStep,
     ReadStep,
     SelectStep,
     Step,
 )
 from janus.planner.plan import PlanningError, commit_plan
 from janus.policy import ApprovalTarget
-from janus.read import quarantined_read
+from janus.read import quarantined_pick, quarantined_read
 from janus.text.nepali import ad_to_bs
 from janus.validator.action import authorize_action
 from janus.validator.plan import validate_plan
@@ -147,6 +148,24 @@ def _view(snapshot: PageSnapshot) -> _View:
     return snapshot.url, frozenset(e.fingerprint for e in snapshot.elements), digest
 
 
+def _mark_picks(snapshot: PageSnapshot, picks: dict[str, tuple[str, Fingerprint]]) -> PageSnapshot:
+    """Mark elements a PICK chose (same page, same fingerprint) so the planner can click them."""
+    if not picks:
+        return snapshot
+    marked = []
+    for element in snapshot.elements:
+        name = next(
+            (
+                n
+                for n, (url, fp) in picks.items()
+                if url == snapshot.url and fp == element.fingerprint
+            ),
+            None,
+        )
+        marked.append(element.model_copy(update={"picked": name}) if name else element)
+    return snapshot.model_copy(update={"elements": marked})
+
+
 def _all_labels(step: Step, snapshot: PageSnapshot) -> str | None:
     """Every field a FILL_FORM step writes, by label (never by value), for traces and reports."""
     if not isinstance(step, FillFormStep):
@@ -235,6 +254,8 @@ def run_task(
     # untouched pre-filled ones, including when a form comes back re-rendered at another URL
     # after a validation error.
     filled_run: set[str] = set()
+    # PICK results: name -> (url, fingerprint) of the element the quarantined reader chose.
+    picks: dict[str, tuple[str, Fingerprint]] = {}
     # Untouched pre-filled fields seen at the last form submit, so the later approval prompt
     # (often on a review page where the form is gone) can still list them.
     carried_prefill: list[dict[str, str]] = []
@@ -265,7 +286,7 @@ def run_task(
         if stop is not None and stop():
             break
         replans = leg
-        snapshot = extract_snapshot(page, settings)
+        snapshot = _mark_picks(extract_snapshot(page, settings), picks)
         if trace is not None:
             trace(
                 "snapshot",
@@ -362,6 +383,25 @@ def run_task(
                 claimed = step.status
                 done = True
                 break
+
+            if isinstance(step, PickStep):
+                chosen = quarantined_pick(step.question, step.role, snapshot, llm)
+                if trace is not None:
+                    trace(
+                        "pick",
+                        {
+                            "name": step.name,
+                            "question": step.question,
+                            "label": chosen.accessible_name if chosen else None,
+                        },
+                    )
+                if chosen is None:
+                    outcomes.append(StepOutcome(ok=False, reason="nothing matched"))
+                    break
+                picks[step.name] = (snapshot.url, chosen.fingerprint)
+                completed_ops.append("PICK")
+                steps_run += 1
+                break  # the next leg's outline marks the chosen element
 
             if isinstance(step, AskUserStep):
                 answer = ask_user(step.question, step.secret) if ask_user is not None else None

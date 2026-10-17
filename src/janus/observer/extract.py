@@ -199,6 +199,19 @@ _JS = (
     } catch (e) { return false; }
   };
 
+  // The smallest enclosing block with some text of its own beyond the element (a table row,
+  // list item or card), capped. Untrusted: only the quarantined PICK reads it.
+  function contextOf(el) {
+    const own = squash(el.textContent);
+    let node = el.parentElement;
+    for (let depth = 0; node && node !== document.body && depth < 5; depth++) {
+      const text = squash(node.textContent);
+      if (text.length > own.length + 2) return text.slice(0, 240);
+      node = node.parentElement;
+    }
+    return null;
+  }
+
   const interactive = collectInteractive();
   const elements = interactive.map((el) => {
     const form = el.closest('form');
@@ -213,6 +226,7 @@ _JS = (
       input_type: el.tagName.toLowerCase() === 'input'
         ? (el.getAttribute('type') || 'text').toLowerCase() : null,
       autocomplete: (el.getAttribute('autocomplete') || '').toLowerCase() || null,
+      context: contextOf(el),
     };
   });
 
@@ -311,6 +325,7 @@ def extract_snapshot(page: Page, settings: Settings | None = None) -> PageSnapsh
                 current_page=bool(raw_el.get("current_page", False)),
                 input_type=raw_el.get("input_type"),
                 autocomplete=raw_el.get("autocomplete"),
+                context=raw_el.get("context"),
             )
         )
 

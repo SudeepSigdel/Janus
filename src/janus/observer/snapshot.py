@@ -56,6 +56,11 @@ class Element(_Model):
     input_type: str | None = Field(default=None, exclude=True)
     # The autocomplete hint ("one-time-code", "current-password", ...), also excluded from dumps.
     autocomplete: str | None = Field(default=None, exclude=True)
+    # Text around the element (its row, list item or card), untrusted page text kept for the
+    # quarantined PICK only; never shown to the planner and left out of dumps.
+    context: str | None = Field(default=None, exclude=True)
+    # Set by the agent when a PICK chose this element: the pick's name, shown in the outline.
+    picked: str | None = Field(default=None, exclude=True)
 
 
 class SelectOption(_Model):

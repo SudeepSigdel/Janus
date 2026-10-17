@@ -258,6 +258,15 @@ def validate_plan(
             decisions.append(StepDecision(i, consequential))
             continue
 
+        if step.op == "PICK":
+            if len(plan.steps) != 1:
+                errors.append(
+                    f"step {i}: PICK must be the only step in its plan; the chosen element is "
+                    "marked on the next page view"
+                )
+            decisions.append(StepDecision(i, False))
+            continue
+
         if step.op == "ASK_USER":
             if len(plan.steps) != 1:
                 errors.append(

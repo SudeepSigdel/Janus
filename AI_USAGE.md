@@ -85,6 +85,14 @@ re-validated by deterministic code, or both, before anything downstream acts on 
   become an operation, ref or URL. The remaining risk is a poisoned typed value, listed in
   `docs/LIMITATIONS.md`.
 
+- **`read.py::quarantined_pick`** (the `PICK` op, enabled together with `READ`) -- calls
+  `LLMClient.chat_json` with each candidate element's label and the page text around it
+  (untrusted), and a response schema whose `ref` is an `enum` of the real candidate refs (or null),
+  checked against the candidate list again before use. The chosen element is only marked in the
+  planner's next outline (`"picked": "<name>"`); clicking it is a normal planned step that goes
+  through `validate_plan`, `authorize_action` and, if consequential, approval. Page text can
+  therefore influence which element of the requested role gets marked, never the operation.
+
 - **`goal.py::extract_inputs`** (docs/PLAN.md B0, goal-only runs) -- calls
   `LLMClient.chat_json` on the *user's goal text* only (trusted, never page content), with the
   response constrained to `{inputs: [{key, value}]}` (`extra="forbid"`). Deterministic checks

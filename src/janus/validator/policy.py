@@ -40,6 +40,7 @@ def allowed_ops_for(
         ops.discard("NAVIGATE")
     if not allow_read:
         ops.discard("READ")
+        ops.discard("PICK")
     if not allow_ask:
         ops.discard("ASK_USER")
     return frozenset(ops)
