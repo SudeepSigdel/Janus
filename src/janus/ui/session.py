@@ -67,6 +67,7 @@ class RunSession:
     username: str = ""
     password: str = field(default="", repr=False)
     pin: str = field(default="", repr=False)
+    remember: bool = False
     error: str = ""
     report_html: str = ""
     _lock: threading.Lock = field(default_factory=threading.Lock)

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from playwright.sync_api import sync_playwright
 
+from janus import sessions
 from janus.agent import run_task
 from janus.config import Settings
 from janus.goal import extract_inputs
@@ -66,7 +67,8 @@ def execute(session: RunSession, settings: Settings, headed: bool) -> None:
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch(headless=not headed)
             try:
-                page = browser.new_context(service_workers="block").new_page()
+                context = sessions.open_context(browser, session.url, session.remember)
+                page = context.new_page()
                 result = run_task(
                     page,
                     task_id="ui",
@@ -83,6 +85,9 @@ def execute(session: RunSession, settings: Settings, headed: bool) -> None:
                     stop_after_approved_commit=True,
                     ask_user=session.ask,
                 )
+                if session.remember and result.status != "blocked":
+                    sessions.save(context, session.url)
+                    session.trace("session_saved", {})
             finally:
                 browser.close()
         session.status = result.status

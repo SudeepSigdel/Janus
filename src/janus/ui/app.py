@@ -12,6 +12,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, ConfigDict, Field
 
+from janus import sessions
 from janus.config import Settings, get_settings
 from janus.llm import LLMClient
 from janus.ui.runner import execute, model_problem
@@ -29,6 +30,7 @@ class StartRequest(BaseModel):
     username: str = Field(default="", max_length=200)
     password: str = Field(default="", max_length=200, repr=False)
     pin: str = Field(default="", max_length=50, repr=False)
+    remember: bool = False
 
 
 class ReplyRequest(BaseModel):
@@ -70,6 +72,7 @@ def create_app(settings: Settings | None = None, headed: bool = True, runner=exe
             username=body.username.strip(),
             password=body.password,
             pin=body.pin,
+            remember=body.remember,
         )
         store.add(session)
         threading.Thread(target=runner, args=(session, cfg, headed), daemon=True).start()
@@ -99,6 +102,10 @@ def create_app(settings: Settings | None = None, headed: bool = True, runner=exe
         if not session.reply(body.answer):
             raise HTTPException(409, "nothing is waiting for an answer")
         return {"ok": True}
+
+    @app.post("/api/sessions/forget")
+    def forget(body: StartRequest) -> dict[str, bool]:
+        return {"forgotten": sessions.forget(body.url)}
 
     @app.get("/runs/{run_id}/report", response_class=HTMLResponse)
     def report(run_id: str) -> str:

@@ -70,6 +70,8 @@ ol.timeline li:first-child { border-top: 0; }
 .result a { color: var(--teal); font-weight: 600; }
 .hidden { display: none; }
 details summary { cursor: pointer; margin-bottom: 8px; }
+label.check { display: flex; gap: 8px; align-items: center; font-weight: 500; margin-top: 8px; }
+label.check input { width: auto; }
 .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 @media (max-width: 560px) { .two { grid-template-columns: 1fr; } }
 </style>
@@ -204,6 +206,7 @@ details summary { cursor: pointer; margin-bottom: 8px; }
         <div><label for="pin">PIN <small>e.g. transaction PIN</small></label><input id="pin" type="password" autocomplete="off"></div>
       </div>
       <p class="note">These go straight to the browser, never to the AI model. The password and PIN can only be typed into password boxes.</p>
+      <label class="check"><input type="checkbox" id="remember"> Stay logged in on this site <small>saves the site's cookies on this computer only (<a href="#" id="forget">forget</a>)</small></label>
     </details>
     <div class="actions">
       <button class="primary" id="start">Start / सुरु गर्नुहोस्</button>
@@ -303,6 +306,7 @@ function render(ev) {
     case 'approval_answered': item(d.ok ? 'ok' : 'bad', d.ok ? '✓' : '✕', d.ok ? 'You approved it' : 'You denied it'); break;
     case 'ask_user': item(d.answered ? 'ok' : 'bad', d.answered ? '✓' : '✕', 'Asked you: ' + d.question, d.answered ? 'you answered (the answer is not shown or stored)' : 'no answer, so Janus stopped'); break;
     case 'login_details': item('ok', '✓', 'Using the login details you gave', 'kept out of the AI model; the password only goes into a password field'); break;
+    case 'session_saved': item('ok', '✓', 'Saved your login for this site', 'next time you may not need to log in again'); break;
     case 'loop_guard': item('warn', '!', 'That click changed nothing; not trying it again', d.label); break;
     case 'blocked': item('bad', '✕', 'Stopped by a safety check (' + d.gate + ')', (d.errors || [d.error || ''])[0]); break;
     case 'run_result': item(d.status === 'completed' ? 'ok' : 'warn', '■', 'Finished: ' + (STATUS[d.status] || d.status), d.steps_run + ' steps'); break;
@@ -369,11 +373,18 @@ fetch('/api/health').then((r) => r.json()).then((h) => {
   if (h.problem) { $('health').textContent = h.problem; $('health').classList.remove('hidden'); }
 }).catch(() => {});
 
+$('forget').onclick = async (e) => {
+  e.preventDefault();
+  const r = await fetch('/api/sessions/forget', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ goal: 'forget', url: $('url').value.trim() }) });
+  const j = await r.json();
+  alert(j.forgotten ? 'Saved login for this site removed.' : 'No saved login for this site.');
+};
+
 $('start').onclick = async () => {
   const goal = $('goal').value.trim(), url = $('url').value.trim();
   if (goal.length < 3) { $('goal').focus(); return; }
   $('start').disabled = true;
-  const r = await fetch('/api/runs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ goal, url, username: $('username').value.trim(), password: $('password').value, pin: $('pin').value }) });
+  const r = await fetch('/api/runs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ goal, url, username: $('username').value.trim(), password: $('password').value, pin: $('pin').value, remember: $('remember').checked }) });
   if (!r.ok) { $('start').disabled = false; alert((await r.json()).detail || 'Could not start'); return; }
   runId = (await r.json()).id; next = 0;
   $('timeline').innerHTML = ''; $('report').classList.add('hidden');
