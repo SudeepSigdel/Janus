@@ -39,7 +39,15 @@ from dataclasses import dataclass, field
 from urllib.parse import urlparse
 
 from janus.observer.snapshot import Element, PageSnapshot
-from janus.planner.ops import FieldValue, FillFormStep, Plan, SelectStep, Step, input_ref_key
+from janus.planner.ops import (
+    READ_INPUT_PREFIX,
+    FieldValue,
+    FillFormStep,
+    Plan,
+    SelectStep,
+    Step,
+    input_ref_key,
+)
 from janus.validator.consequential import is_consequential
 from janus.validator.policy import (
     Capability,
@@ -75,7 +83,14 @@ def _element_by_ref(snapshot: PageSnapshot, ref: str) -> Element | None:
 def _check_sensitive_binding(
     errors: list[str], index: int, policy: Policy, element: Element, ref: str, value: str
 ) -> None:
-    if element.name_attr in policy.sensitive_fields and input_ref_key(value) is None:
+    key = input_ref_key(value)
+    if element.name_attr in policy.sensitive_fields and key is not None:
+        if key.startswith(READ_INPUT_PREFIX):
+            errors.append(
+                f"step {index}: field {ref!r} ({element.name_attr}) is sensitive and cannot take "
+                "a value read from the page"
+            )
+    if element.name_attr in policy.sensitive_fields and key is None:
         errors.append(
             f"step {index}: field {ref!r} ({element.name_attr}) is sensitive and must "
             "bind via $inputs, not a literal"
@@ -167,6 +182,17 @@ def validate_plan(
                 is_consequential(step.op, element.accessible_name) or step.consequential_hint
             )
             decisions.append(StepDecision(i, consequential))
+            continue
+
+        if step.op == "READ":
+            if len(plan.steps) != 1:
+                errors.append(
+                    f"step {i}: READ must be the only step in its plan; the value is available "
+                    "on the next page view"
+                )
+            if f"{READ_INPUT_PREFIX}{step.name}" in inputs or step.name in inputs:
+                errors.append(f"step {i}: READ name {step.name!r} is already an input")
+            decisions.append(StepDecision(i, False))
             continue
 
         # EXTRACT, DONE: no element ref; only a hint can mark these consequential.

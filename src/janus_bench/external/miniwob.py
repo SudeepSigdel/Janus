@@ -195,7 +195,7 @@ def run_one(
                     inputs=inputs,
                     policy=Policy(
                         allowed_origins=frozenset({base_url}),
-                        allowed_ops=allowed_ops_for(False),
+                        allowed_ops=allowed_ops_for(False, allow_read=True),
                         max_steps=MAX_STEPS,
                     ),
                     llm=llm,

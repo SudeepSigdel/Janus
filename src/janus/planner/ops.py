@@ -17,7 +17,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-OpKind = Literal["NAVIGATE", "FILL_FORM", "SELECT", "CLICK", "SUBMIT", "EXTRACT", "DONE"]
+OpKind = Literal["NAVIGATE", "FILL_FORM", "SELECT", "CLICK", "SUBMIT", "EXTRACT", "READ", "DONE"]
 
 _INPUT_REF = re.compile(r"^\$inputs\.([A-Za-z_][A-Za-z0-9_]*)$")
 
@@ -74,6 +74,23 @@ class ExtractStep(_Step):
     field: str
 
 
+ReadKind = Literal["number", "word", "phrase"]
+
+# A READ's value is exposed to later legs as the input `page_<name>`.
+READ_INPUT_PREFIX = "page_"
+
+
+class ReadStep(_Step):
+    """Ask a quarantined reader (janus/read.py) for one short value shown on this page. The
+    planner writes only a name and a question from the task; it never sees the page text, and
+    the answer reaches it only as the opaque input `$inputs.page_<name>` on the next page view."""
+
+    op: Literal["READ"] = "READ"
+    name: str = Field(pattern=r"^[a-z][a-z0-9_]{0,29}$")
+    question: str = Field(min_length=3, max_length=200)
+    kind: ReadKind = "phrase"
+
+
 class DoneStep(_Step):
     op: Literal["DONE"] = "DONE"
     status: Literal["completed", "blocked", "partial"]
@@ -81,7 +98,14 @@ class DoneStep(_Step):
 
 
 Step = Annotated[
-    NavigateStep | FillFormStep | SelectStep | ClickStep | SubmitStep | ExtractStep | DoneStep,
+    NavigateStep
+    | FillFormStep
+    | SelectStep
+    | ClickStep
+    | SubmitStep
+    | ExtractStep
+    | ReadStep
+    | DoneStep,
     Field(discriminator="op"),
 ]
 

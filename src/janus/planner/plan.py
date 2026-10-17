@@ -124,6 +124,21 @@ def _outline(snapshot: PageSnapshot) -> list[dict[str, str | None]]:
     return outline
 
 
+_READ_RULE = (
+    "\n- READ: when a value the task needs (to type into a field) is shown on the page "
+    "rather than given in the task, output exactly one step, "
+    '{"op":"READ","name":"<snake_case>","question":"<what to look up, from the task>",'
+    '"kind":"number|word|phrase"}, and nothing else in that plan. You never see the page '
+    "text; the value is looked up for you and appears on your next view as the input key "
+    "page_<name>, which you then bind as $inputs.page_<name>. Never READ a password or "
+    "other secret."
+)
+
+
+def _system_prompt(policy: Policy) -> str:
+    return _SYSTEM_PROMPT + (_READ_RULE if "READ" in policy.allowed_ops else "")
+
+
 def _plan_schema(policy: Policy) -> dict:
     """`Plan.model_json_schema()`, with `op` forced `required` on every step type and
     the step union narrowed to `policy.allowed_ops` (docs/PLAN.md P3): this is
@@ -246,7 +261,7 @@ def commit_plan(
     behavior is unchanged from before the parameter existed.
     """
     schema = _plan_schema(policy)
-    messages: list[dict[str, str]] = [{"role": "system", "content": _SYSTEM_PROMPT}]
+    messages: list[dict[str, str]] = [{"role": "system", "content": _system_prompt(policy)}]
 
     # Q3 (docs/PLAN.md): the one worked example, only on legs whose page matches
     # (trusted structure only -- see planner/examples.py). Spliced in once, before

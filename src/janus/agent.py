@@ -38,9 +38,18 @@ from janus.llm import LLMClient
 from janus.observer.extract import extract_snapshot
 from janus.observer.snapshot import Element, Fingerprint, PageSnapshot
 from janus.planner.ground import GroundingError, ground_plan
-from janus.planner.ops import DoneStep, FillFormStep, OpKind, SelectStep, Step
+from janus.planner.ops import (
+    READ_INPUT_PREFIX,
+    DoneStep,
+    FillFormStep,
+    OpKind,
+    ReadStep,
+    SelectStep,
+    Step,
+)
 from janus.planner.plan import PlanningError, commit_plan
 from janus.policy import ApprovalTarget
+from janus.read import quarantined_read
 from janus.text.nepali import ad_to_bs
 from janus.validator.action import authorize_action
 from janus.validator.plan import validate_plan
@@ -324,6 +333,21 @@ def run_task(
                 claimed = step.status
                 done = True
                 break
+
+            if isinstance(step, ReadStep):
+                value = quarantined_read(step.question, step.kind, snapshot, llm)
+                if trace is not None:
+                    trace(
+                        "read",
+                        {"name": step.name, "question": step.question, "value": value},
+                    )
+                if value is None:
+                    outcomes.append(StepOutcome(ok=False, reason="no value of that shape"))
+                    break
+                inputs[f"{READ_INPUT_PREFIX}{step.name}"] = value
+                completed_ops.append("READ")
+                steps_run += 1
+                break  # the next leg's planner sees the value as an input key
 
             target = _target_element(step, snapshot)
             target_name = target.accessible_name if target is not None else None

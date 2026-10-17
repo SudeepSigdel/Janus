@@ -27,7 +27,7 @@ def is_denied_path(path: str, prefixes: tuple[str, ...] = DENIED_PATH_PREFIXES) 
     return any(path == p or path.startswith(p + "/") for p in prefixes)
 
 
-def allowed_ops_for(allow_navigate: bool) -> frozenset[OpKind]:
+def allowed_ops_for(allow_navigate: bool, allow_read: bool = False) -> frozenset[OpKind]:
     """Every op kind, minus `NAVIGATE` unless a task explicitly opts in (docs/PLAN.md
     P3): the runtime already opens `start_url` itself, and no dev task needs a
     mid-task NAVIGATE. Dropping it from the caller's `Policy.allowed_ops` also drops
@@ -36,6 +36,8 @@ def allowed_ops_for(allow_navigate: bool) -> frozenset[OpKind]:
     ops = set(get_args(OpKind))
     if not allow_navigate:
         ops.discard("NAVIGATE")
+    if not allow_read:
+        ops.discard("READ")
     return frozenset(ops)
 
 

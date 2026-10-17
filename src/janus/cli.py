@@ -78,7 +78,7 @@ def run_goal(url: str, goal: str, *, headed: bool, answer: bool, report: Path | 
             print("inputs from your goal: " + ", ".join(f"{k}={v!r}" for k, v in inputs.items()))
         policy = Policy(
             allowed_origins=frozenset({origin_of(url)}),
-            allowed_ops=allowed_ops_for(False),
+            allowed_ops=allowed_ops_for(False, allow_read=True),
             max_steps=20,
             prefill="flag",
         )

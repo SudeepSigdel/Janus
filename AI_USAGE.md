@@ -60,6 +60,17 @@ re-validated by deterministic code, or both, before anything downstream acts on 
   - A sensitive field's `<select>` value is never rewritten to an invented literal
     (`GroundingError` instead) -- see `ground_select_value`.
 
+- **`read.py::quarantined_read`** (the `READ` op, off unless a caller passes
+  `allowed_ops_for(..., allow_read=True)`: `janus run --goal` and the MiniWoB adapter) -- calls
+  `LLMClient.chat_json` over the current page's text (untrusted) with the response constrained to
+  `{answer: string | null}`. The planner supplies only a name, a question and a kind; it never
+  sees the page text. The answer passes a deterministic shape check (`check_shape`: a number, one
+  word, or a short phrase with no URL, newline or `$inputs`) and is stored as the input
+  `page_<name>`. `validate_plan` forbids binding a `page_*` value to a sensitive field, a READ
+  must be the only step in its plan, and the value is only ever typed into a field: it cannot
+  become an operation, ref or URL. The remaining risk is a poisoned typed value, listed in
+  `docs/LIMITATIONS.md`.
+
 - **`goal.py::extract_inputs`** (docs/PLAN.md B0, goal-only runs) -- calls
   `LLMClient.chat_json` on the *user's goal text* only (trusted, never page content), with the
   response constrained to `{inputs: [{key, value}]}` (`extra="forbid"`). Deterministic checks
