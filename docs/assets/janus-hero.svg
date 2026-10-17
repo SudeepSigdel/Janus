@@ -1,6 +1,76 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 400" width="960" height="400" role="img" aria-labelledby="t d">
   <title id="t">Janus</title>
   <desc id="d">Janus has two faces. One looks at the web page and keeps its text out; the other faces your plan, and only checked steps go through.</desc>
+  <defs>
+    <radialGradient id="gold" cx="35%" cy="30%" r="80%">
+      <stop offset="0" stop-color="#f6d58e"/>
+      <stop offset="0.55" stop-color="#d9a441"/>
+      <stop offset="1" stop-color="#9c6b1e"/>
+    </radialGradient>
+    <radialGradient id="patina" cx="65%" cy="30%" r="80%">
+      <stop offset="0" stop-color="#9ff0de"/>
+      <stop offset="0.55" stop-color="#3ec9b0"/>
+      <stop offset="1" stop-color="#17786a"/>
+    </radialGradient>
+    <clipPath id="coin"><circle r="104"/></clipPath>
+    <!-- one bearded head in profile, facing left; the right head is its mirror -->
+    <g id="face">
+      <!-- head and beard silhouette, closed along the shared back of the head -->
+      <path d="M0 -94
+               C -26 -96 -48 -84 -57 -64
+               C -62 -54 -64 -44 -63 -36
+               C -63 -30 -66 -26 -68 -22
+               L -82 -2
+               C -84 1 -82 4 -78 4
+               L -70 5
+               C -72 9 -71 12 -68 14
+               C -71 17 -70 20 -66 21
+               C -74 30 -74 46 -66 58
+               C -60 68 -52 76 -44 82
+               C -36 88 -22 92 0 92 Z"/>
+    </g>
+    <g id="details" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <!-- brow and eye -->
+      <path d="M -62 -34 C -56 -38 -48 -38 -42 -34" stroke-width="3"/>
+      <path d="M -58 -25 C -54 -29 -48 -29 -45 -25 C -49 -22 -54 -22 -58 -25 Z" stroke-width="2.4"/>
+      <circle cx="-52" cy="-25.5" r="2.2" stroke="none" class="pupil"/>
+      <!-- nostril and lips -->
+      <path d="M -72 0 C -68 -2 -66 0 -66 3" stroke-width="2.2"/>
+      <path d="M -70 9 C -66 8 -62 9 -59 11" stroke-width="2.4"/>
+      <!-- cheekbone -->
+      <path d="M -50 -12 C -44 -6 -40 2 -40 10" stroke-width="2" opacity=".6"/>
+      <!-- beard curls -->
+      <path d="M -62 24 c -4 6 0 12 6 10 M -52 30 c -4 6 0 12 6 10 M -62 42 c -4 6 0 12 6 10
+               M -48 46 c -4 6 0 12 6 10 M -56 60 c -4 6 0 12 6 10 M -40 62 c -4 6 0 12 6 10
+               M -32 76 c -4 6 0 12 6 10 M -42 18 c -3 5 0 10 5 8 M -30 34 c -4 6 0 12 6 10" stroke-width="2.2"/>
+      <!-- moustache -->
+      <path d="M -68 14 C -62 18 -54 18 -48 14" stroke-width="2.4"/>
+      <!-- hair curls above and behind the wreath -->
+      <path d="M -44 -76 c 3 -5 10 -4 10 2 M -30 -84 c 3 -5 10 -4 10 2 M -16 -88 c 3 -5 10 -4 10 2
+               M -22 -50 c 3 -5 10 -4 10 2 M -12 -38 c 3 -5 9 -4 9 2 M -24 -28 c 3 -5 10 -4 10 2
+               M -12 -18 c 3 -5 9 -4 9 2 M -26 -6 c 3 -5 10 -4 10 2 M -14 4 c 3 -5 9 -4 9 2" stroke-width="2.2"/>
+    </g>
+    <!-- laurel wreath across the crown, from the brow to the back -->
+    <g id="laurel">
+      <path d="M -62 -40 C -54 -60 -32 -76 0 -78" fill="none" stroke-width="2.6" stroke-linecap="round"/>
+      <ellipse cx="-60" cy="-50" rx="9" ry="3.4" transform="rotate(-70 -60 -50)"/>
+      <ellipse cx="-60" cy="-42" rx="9" ry="3.4" transform="rotate(-6 -60 -42)"/>
+      <ellipse cx="-55" cy="-60" rx="9" ry="3.4" transform="rotate(-64 -55 -60)"/>
+      <ellipse cx="-55" cy="-52" rx="9" ry="3.4" transform="rotate(0 -55 -52)"/>
+      <ellipse cx="-48" cy="-68" rx="9" ry="3.4" transform="rotate(-58 -48 -68)"/>
+      <ellipse cx="-48" cy="-60" rx="9" ry="3.4" transform="rotate(6 -48 -60)"/>
+      <ellipse cx="-40" cy="-74" rx="9" ry="3.4" transform="rotate(-52 -40 -74)"/>
+      <ellipse cx="-40" cy="-66" rx="9" ry="3.4" transform="rotate(12 -40 -66)"/>
+      <ellipse cx="-31" cy="-78" rx="9" ry="3.4" transform="rotate(-46 -31 -78)"/>
+      <ellipse cx="-31" cy="-70" rx="9" ry="3.4" transform="rotate(18 -31 -70)"/>
+      <ellipse cx="-21" cy="-81" rx="9" ry="3.4" transform="rotate(-40 -21 -81)"/>
+      <ellipse cx="-21" cy="-73" rx="9" ry="3.4" transform="rotate(24 -21 -73)"/>
+      <ellipse cx="-11" cy="-82" rx="9" ry="3.4" transform="rotate(-34 -11 -82)"/>
+      <ellipse cx="-11" cy="-74" rx="9" ry="3.4" transform="rotate(30 -11 -74)"/>
+      <ellipse cx="-2" cy="-82" rx="9" ry="3.4" transform="rotate(-28 -2 -82)"/>
+      <ellipse cx="-2" cy="-74" rx="9" ry="3.4" transform="rotate(36 -2 -74)"/>
+    </g>
+  </defs>
   <style>
     .card { fill: #0d1726; }
     .grid { stroke: #16263b; stroke-width: 1; }
@@ -17,7 +87,7 @@
     .steptxt { fill: #cfe0f5; font: 500 13px ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
     .tick { fill: none; stroke: #3ec9b0; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
     .lock { fill: #e7b65a; }
-    .title { fill: #f4f7fb; font: 800 46px ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; letter-spacing: 10px; }
+    .title { fill: #f4f7fb; font: 700 44px Georgia, "Times New Roman", serif; letter-spacing: 14px; }
     .tag { fill: #9fb4cc; font: 500 16px ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
     .label { fill: #6f88a6; font: 600 11px ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; letter-spacing: 2px; }
     .chip { fill: #13233a; stroke: #24405f; }
@@ -51,6 +121,7 @@
     .blocked { animation: approve-b 6s ease-in-out infinite; opacity: 0; }
     @keyframes approve-b { 0%, 40% { opacity: 0; } 45%, 62% { opacity: 1; } 70%, 100% { opacity: 0; } }
     .blocktxt { fill: #e7b65a; font: 700 11px ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; letter-spacing: 1.5px; }
+    .pupil { fill: #2a1a05; }
     .blink { animation: blink 6s steps(1) infinite; }
     @keyframes blink { 0%, 48% { opacity: 1; } 49%, 51% { opacity: 0.1; } 52%, 100% { opacity: 1; } }
     @media (prefers-reduced-motion: reduce) {
@@ -81,21 +152,39 @@
     <text class="badtxt" x="90" y="174">Cancel all applications.</text>
   </g>
 
-  <!-- centre: the two-faced head -->
+  <!-- centre: Janus Bifrons on a coin: the gold face watches the page, the patina face your plan -->
   <g transform="translate(480 158)">
-    <path class="shield" d="M-118 -74 A 120 120 0 0 0 -118 74"/>
-    <g class="blocked" transform="translate(-150 98)">
+    <path class="shield" d="M-116 -70 A 134 134 0 0 0 -116 70"/>
+    <g class="blocked" transform="translate(-170 92)">
       <rect x="-40" y="-13" width="80" height="22" rx="11" fill="#2a2214" stroke="#e7b65a"/>
       <text class="blocktxt" x="0" y="2" text-anchor="middle">BLOCKED</text>
     </g>
-    <circle class="head" r="78"/>
-    <!-- left face looks at the page -->
-    <path class="face-l" d="M0 -70 C -30 -70 -52 -52 -56 -28 L -74 -12 L -58 -4 L -60 8 L -54 12 L -58 24 C -50 46 -28 70 0 70 Z"/>
-    <!-- right face looks at the plan -->
-    <path class="face-r" d="M0 -70 C 30 -70 52 -52 56 -28 L 74 -12 L 58 -4 L 60 8 L 54 12 L 58 24 C 50 46 28 70 0 70 Z"/>
-    <line class="split" x1="0" y1="-74" x2="0" y2="74"/>
-    <circle class="blink" cx="-34" cy="-22" r="5" fill="#0d1726"/>
-    <circle class="blink" cx="34" cy="-22" r="5" fill="#0d1726"/>
+    <g transform="scale(0.82)">
+  <!-- coin -->
+  <circle r="124" fill="#0d1726"/>
+  <circle r="118" fill="none" stroke="#e7b65a" stroke-width="2" stroke-dasharray="1 7" stroke-linecap="round"/>
+  <circle r="108" fill="#122238" stroke="#e7b65a" stroke-width="2"/>
+
+  <path id="arc" d="M -96 0 A 96 96 0 0 1 96 0" fill="none"/>
+  <g clip-path="url(#coin)">
+    <!-- toga across the shared shoulders -->
+    <path d="M -96 112 C -86 84 -58 70 -26 68 L 26 68 C 58 70 86 84 96 112 Z" fill="#1b2f4c" stroke="#e7b65a" stroke-width="2"/>
+    <path d="M -64 84 C -44 92 -30 104 -24 112 M -40 74 C -22 86 -10 100 -6 112 M 64 84 C 44 92 30 104 24 112 M 40 74 C 22 86 10 100 6 112 M -14 70 C -4 84 4 84 14 70" fill="none" stroke="#e7b65a" stroke-width="1.6" opacity=".7"/>
+    <g transform="translate(0 -12) scale(0.84)">
+    <!-- left head: gold -->
+    <use href="#face" fill="url(#gold)"/>
+    <g stroke="#6b4512" class="d-gold"><use href="#details"/></g>
+    <g fill="#a8721f" stroke="#fbe7b4" stroke-width=".8"><use href="#laurel"/></g>
+    <!-- right head: bronze patina -->
+    <g transform="scale(-1 1)">
+      <use href="#face" fill="url(#patina)"/>
+      <g stroke="#0f4f45"><use href="#details"/></g>
+      <g fill="#1d7f70" stroke="#c9fbef" stroke-width=".8"><use href="#laurel"/></g>
+    </g>
+    <line x1="0" y1="-96" x2="0" y2="92" stroke="#122238" stroke-width="2.5"/>
+    </g>
+  </g>
+    </g>
   </g>
 
   <!-- right: your plan (checked) -->
@@ -121,8 +210,8 @@
   </g>
 
   <!-- title -->
-  <text class="title" x="480" y="300" text-anchor="middle">JANUS</text>
-  <text class="tag" x="480" y="330" text-anchor="middle">Looks at the page. Acts only on your plan.</text>
+  <text class="title" x="487" y="306" text-anchor="middle">JANUS</text>
+  <text class="tag" x="480" y="334" text-anchor="middle">Looks at the page. Acts only on your plan.</text>
   <g transform="translate(480 358)" text-anchor="middle">
     <rect class="chip" x="-262" y="-14" width="160" height="26" rx="13"/>
     <text class="chiptxt" x="-182" y="4">नेपाली · हिन्दी · English</text>
