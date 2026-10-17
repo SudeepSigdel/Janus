@@ -137,7 +137,10 @@ uv run janus-bench serve --site sharesewa      # a share portal; reset it with t
 uv run janus run --url http://127.0.0.1:8102/login --username १२३४५६७८ --secret password --secret pin   --goal "Log in and apply for the NIC Asia Debenture 2083 issue: bank Nabil Bank, 200 kitta, CRN CRN-482901."
 ```
 
-CAPTCHAs are not solved by Janus; they would need you to type the answer, as with a one-time code.
+Tick *Stay logged in on this site* in the web app to keep that site's cookies on your computer
+(`~/.janus/sessions/`, one file per site, removable with *forget*), so the next run can skip the
+login and the code. CAPTCHAs are not solved by Janus: in the web app's visible browser you can read
+one and type the answer when Janus asks, as with a one-time code.
 
 A run stays on the start URL's origin. A value is used only if it appears in your goal. The
 portal's name field wants Devanagari, so give the name that way. Only point Janus at sites you are
