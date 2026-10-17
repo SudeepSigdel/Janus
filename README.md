@@ -9,6 +9,30 @@ Janus plans before it reads untrusted page content, validates every step with de
 open-weight models through Ollama -- no proprietary API or SDK anywhere in the runtime
 (`tests/unit/test_no_proprietary.py` enforces this).
 
+## The problem, and what Janus does about it
+
+Government, bank and broker portals in Nepal are used in Nepali, Hindi and English, often on one
+page, with Devanagari digits and Bikram Sambat dates. AI browser agents that read page text can be
+steered by that text: a banner saying "cancel all old applications" becomes an instruction. For a
+service where one wrong click files, cancels or withdraws something real, that is the wrong
+failure mode, and today's agents handle Nepali portals poorly.
+
+Janus is a browser agent built to be safe first. A local open-weight model plans the task from a
+structural outline of the page (roles and labels, never body text); deterministic code validates
+and authorizes every step before it runs; and consequential actions (submit, cancel, withdraw,
+pay) need approval. See the two-minute demo below for the difference this makes.
+
+**Why the AI is essential:** the model reads the user's goal in Nepali, Hindi or English, decides
+which controls to use on each page, and binds the user's values to form fields. Remove it and
+nothing plans or acts; the validator, policy and verifier have no plan to check. **Where its
+output is consumed:** `src/janus/validator/plan.py::validate_plan` and
+`src/janus/validator/action.py::authorize_action` (full list in [AI_USAGE.md](AI_USAGE.md)).
+
+**Intended impact:** people who have to complete portal tasks in Nepali (applications, status
+checks, share applications) with an assistant that cannot be talked into doing something else.
+This is a design target. It has been measured only on fictional replica sites and public
+benchmarks, not with real users or real portals.
+
 ## Setup
 
 Requires Python 3.11+, [uv](https://docs.astral.sh/uv/), and a local

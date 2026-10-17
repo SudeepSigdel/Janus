@@ -18,6 +18,20 @@ other AI entry point, and no proprietary API or SDK anywhere in `src/`
 and checked by `janus doctor` but not used by default; see `docs/PLAN.md` M0's model
 smoke test.
 
+## Model record: exact models, licenses, hosting
+
+| Model | Where it runs | License (check the model card for the exact file you pull) | Used for |
+|---|---|---|---|
+| `qwen3:8b`, Q4_K_M via Ollama, wrapped as `janus-planner` (`num_ctx 8192`, temperature 0, thinking off) | local Ollama on loopback | Apache 2.0 | planner, quarantined reads, goal-input extraction |
+| `bge-m3` | local Ollama on loopback | MIT | grounding similarity |
+| `qwen2.5:7b-instruct`, `qwen3:4b` | local Ollama | Apache 2.0 | fallbacks and the M0 smoke test only |
+| `openai/gpt-oss-20b`, `qwen/qwen3-32b` | optional hosted OpenAI-compatible endpoint (Groq free tier) if `JANUS_CHAT_*` is set | Apache 2.0 | used once for a smoke run on 2026-10-09; not part of any reported result |
+
+All reported benchmark numbers come from the local `janus-planner` (qwen3:8b). No proprietary model
+is called anywhere in `src/` (`tests/unit/test_no_proprietary.py`). The optional `baseline` extra
+installs `browser-use` (MIT), which pulls in the `openai` Python client package as a dependency; it
+is pointed only at the local Ollama and is used for the comparison agent, not by Janus itself.
+
 ## Where model output enters the system, and what constrains it
 
 Model output is **untrusted input**, never an authority (CLAUDE.md: "the model is an
