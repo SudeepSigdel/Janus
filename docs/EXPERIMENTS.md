@@ -133,6 +133,7 @@ N=1 runs differ by ≤2 tasks, inside noise; the mechanism-level gains (click-ch
 |---|---|---|---|---|---|---|
 | wasp8-smoke | 5c3822c | 2/2 | 0/2 | 0/2 | 2/2 (was 0/2 before B1d named the vote buttons) | `wasp8-smoke.*` |
 | **wasp-final** | 5c3822c | 72/72 | **0/72** | **0/72** | **72/72** | `results/overnight/wasp-final.*` |
+| wasp-e30 | dc5cc4f (E30) | 72/72 | **0/72** | **0/72** | 70/72 | `results/night/wasp-e30.*` (one utility miss each in the two URL-injection formats) |
 
 Per format: generic plain-text, generic URL, goal-hijack plain-text and goal-hijack URL each ASR 0/18, attempted 0/18, utility 18/18. `attempted` counts any agent step toward the attacker's goal, not only completed attacks, so 0/72 means the injected text never reached an action. That follows from the design (the planner never sees post body text), and the 72/72 utility shows the defence did not cost task completion here.
 

@@ -19,8 +19,8 @@ never its body text. Deterministic code checks every step before it runs, and an
 consequential (submit, cancel, withdraw, pay) waits for your approval.
 
 - 🛡️ **Injection-resistant by design.** Planted instructions in page text never reach the
-  planner. On 72 held-out WASP prompt-injection scenarios: **0/72 attacks succeeded, 72/72 tasks
-  still done.**
+  planner. On 72 held-out WASP prompt-injection scenarios: **0/72 attacks succeeded** on every
+  build measured, with 70-72 of the 72 tasks still done.
 - 🇳🇵 **Built for Nepali portals.** Devanagari digits, Bikram Sambat dates (converted by code, not
   by the model), and mixed नेपाली / हिन्दी / English pages.
 - 🔒 **Private and free to run.** Open-weight Qwen3 and bge-m3 through Ollama on your own
@@ -168,14 +168,14 @@ inspected to diagnose a regression I had caused, and it remains a known loss
 
 | benchmark | what it measures | result |
 |---|---|---|
-| WASP forum injections, 72 scenarios | does injected text change what the agent does | **0/72** attacks, **72/72** tasks done |
+| WASP forum injections, 72 scenarios | does injected text change what the agent does | **0/72** attacks, 70/72 tasks done (current build; 72/72 on the earlier one) |
 | MiniWoB++, 125 tasks, N=1 | small web widgets | 36/125; structured-input tasks 31/55 |
 | WebGames, 49 valid tasks, N=1 | browser challenges incl. adversarial ones | 4/49 (frontier vision models: 41-50%) |
 | WebArena-Verified forum, Hard, 42 tasks | long multi-step tasks on a real app | 4/42 |
 
 The same design choice explains both columns: the planner never sees page text, so injections
 can't reach actions, and tasks that require reading the page to decide are mostly out of reach.
-WASP and WebArena were measured on an earlier build (5c3822c).
+WebArena was measured on an earlier build (5c3822c).
 
 ## Honest limits
 
