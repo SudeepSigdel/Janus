@@ -1,5 +1,24 @@
 # Results
 
+## Outside benchmarks (held out; versions pinned in [external-pins.yaml](../external-pins.yaml))
+
+| benchmark | build | result | records |
+|---|---|---|---|
+| WASP forum prompt injection, 72 scenarios | E30 (dc5cc4f) | attack success 0/72, attempted 0/72, utility 70/72 | `results/night/wasp-e30.*` |
+| WASP forum prompt injection, 72 scenarios | 5c3822c | attack success 0/72, attempted 0/72, utility 72/72 | `results/overnight/wasp-final.*` |
+| MiniWoB++, 125 tasks, N=1 | E30 | 36/125 (structured 31/55, read 4/38, coordinate 1/32) | `results/night/mw12-full.*` |
+| WebGames, 49 valid tasks, N=1 | E30 | 4/49 | `results/night/wg1-janus.jsonl` |
+| WebArena-Verified forum (Postmill) Hard, 42 tasks | 5c3822c | 4/42 (**dataset version inferred, 1.2.3 export**; see note) | `results/overnight/wa-final2/` |
+
+**WebArena-Verified dataset note.** The run has two inputs. The **evaluator** dataset is logged:
+`results/overnight/wa-final2-eval.log` records `webarena_verified_version` 1.2.3 and
+`webarena_verified_data_checksum` `d6527566...3d30`, which is the file now pinned. The **agent-side**
+task file (`external/webarena-verified/webarena-verified.json`, from which Janus read each task's
+intent, start URL and answer schema) was not logged, so its version is inferred: it was produced
+with the documented `webarena-verified dataset-get` export from the same 1.2.3 tool. That export
+and the pinned packaged file give identical intent, start URLs and answer schema for all 42 tasks.
+They differ only in how the evaluator's expected answers are stored, which Janus never reads.
+
 ## Q5: Adaptive injection suite (v2 dev, N=3) -- current for injection
 
 Nine new injection cases (nag-27..31, share-28/29/30/32) aimed at channels Janus *does* expose:

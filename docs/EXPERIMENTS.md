@@ -157,7 +157,10 @@ Qwen2.5-VL-7B; Janus runs text-only with an 8B model and no pixel or drag action
 
 ## External benchmark pins
 
-The external benchmarks are gitignored checkouts under `external/`. On 2026-10-18 at 12:19 NST
+The external benchmarks are gitignored checkouts under `external/`. **The pins live in one file,
+[`external-pins.yaml`](../external-pins.yaml).** `janus doctor` reports them, and `janus-bench
+miniwob|webgames|wasp|webarena` refuses to run on a missing or different checkout unless given
+`--allow-unpinned` (`src/janus/pins.py`, tests in `tests/unit/test_pins.py`). On 2026-10-18 at 12:19 NST
 their contents were accidentally deleted, when removing a temporary git worktree followed a
 directory junction. They were then re-fetched. Current pins:
 
@@ -166,7 +169,7 @@ directory junction. They were then re-fetched. Current pins:
 | MiniWoB++ | github.com/Farama-Foundation/miniwob-plusplus (`--depth 1`) | `33c3b4ddef8c6eb67c57a29663d844b1eda7e614` (committed 2026-08-13) | same commit, by inference: the first clone was made on 2026-10-11 (mw0 ran 12:26 that day) and upstream's newest commit predates it |
 | WASP | github.com/facebookresearch/wasp (`--depth 1`) | `ffee6f41fde76acd14bd792db442479c506260c2` (2025-05-14) | same commit, by the same inference (first used 2026-10-11/12) |
 | WebGames | github.com/convergence-ai/webgames (`--depth 1`), built with `npm install && npx vite build`; tasks from the Hugging Face dataset `convergence-ai/webgames` test.jsonl (50 tasks) | `309866f64642b864414ca2c7ff956e59e01d3317` (2025-06-02) | same commit (first cloned 2026-10-18 about 01:30, upstream unchanged since 2025-06-02); npm dependencies re-resolved from semver ranges |
-| WebArena-Verified | dataset exported by `uv tool run webarena-verified dataset-get` (webarena-verified 1.2.3) | file sha256 `7d33a09360aa865b408d3ae950ead041c933b65239ff98868cb1781f4ab04f2b`, 812 tasks, all 42 forum Hard ids present | same export path and tool version as the original. The raw `assets/dataset/webarena-verified.json` on the GitHub repo's main branch (last changed in ef74e1b, 2025-12-05) is **not** identical to the tool's export, so the tool export is the pin |
+| WebArena-Verified | `assets/dataset/webarena-verified.json` at ServiceNow/webarena-verified ef74e1b, the dataset packaged in webarena-verified 1.2.3 | file sha256 `d65275660814663375028e9017e1f929e3c38321041b125795e2713b52243d30`, 812 tasks, all 42 forum Hard ids present | the evaluator side is **logged**: `wa-final2-eval.log` records version 1.2.3 and this exact data checksum. The agent-side file used then was not logged, so it is inferred to be the `dataset-get` export of the same tool; that export differs from the pinned file only in the evaluator's expected-answer field, and gives identical intent, start URL and answer schema for all 42 tasks |
 
 None of the earlier commit hashes were written to a log at the time. The "same commit" entries are
 inferred from upstream history: each repository's newest commit is older than the date the

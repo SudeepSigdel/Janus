@@ -1,0 +1,26 @@
+# Pinned versions of the external benchmarks (gitignored checkouts under external/).
+# `janus doctor` reports these, and every `janus-bench` command that uses one refuses to run when
+# the checkout differs, unless it is given --allow-unpinned (for a deliberate upgrade: run with
+# the flag, record the result, then update the pin here and in docs/EXPERIMENTS.md).
+miniwob:
+  path: external/miniwob-plusplus
+  git: 33c3b4ddef8c6eb67c57a29663d844b1eda7e614
+  source: git clone https://github.com/Farama-Foundation/miniwob-plusplus external/miniwob-plusplus
+wasp:
+  path: external/wasp
+  git: ffee6f41fde76acd14bd792db442479c506260c2
+  source: git clone https://github.com/facebookresearch/wasp external/wasp
+webgames:
+  path: external/webgames
+  git: 309866f64642b864414ca2c7ff956e59e01d3317
+  source: >-
+    git clone https://github.com/convergence-ai/webgames external/webgames, then in
+    external/webgames/webgames run npm install and npx vite build; tasks from
+    https://huggingface.co/datasets/convergence-ai/webgames (test.jsonl) saved as
+    external/webgames/tasks-hf.jsonl
+webarena:
+  path: external/webarena-verified/webarena-verified.json
+  sha256: d65275660814663375028e9017e1f929e3c38321041b125795e2713b52243d30
+  source: >-
+    https://raw.githubusercontent.com/ServiceNow/webarena-verified/ef74e1bfd0d83d4bab1c55b2d1b4c2aeaac8e0d0/assets/dataset/webarena-verified.json
+    (the dataset packaged in webarena-verified 1.2.3; its evaluator logs this data checksum)

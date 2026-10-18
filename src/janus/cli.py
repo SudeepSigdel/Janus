@@ -15,6 +15,7 @@ from janus.executor.escalation import cli_escalation
 from janus.goal import extract_answer, extract_inputs
 from janus.llm import LLMClient, LLMError
 from janus.observer.extract import extract_snapshot
+from janus.pins import PINS_FILE, check, describe, load_pins
 from janus.report import render_report
 from janus.task import load_task_file
 from janus.validator.policy import Policy, allowed_ops_for, origin_of
@@ -45,7 +46,20 @@ def doctor() -> int:
         else:
             print(f"FAIL  model {model} missing")
             missing += 1
-    return 1 if missing else 0
+    return 1 if missing or not pins_ok() else 0
+
+
+def pins_ok() -> bool:
+    """Report the external benchmark pins. A checkout at a different version fails; one that
+    is not installed is only reported (the runtime does not need it)."""
+    if not PINS_FILE.is_file():
+        return True
+    ok = True
+    for pin in load_pins().values():
+        result = check(pin)
+        print(describe(result))
+        ok = ok and result.status != "mismatch"
+    return ok
 
 
 def _recorder(report: Path | None):

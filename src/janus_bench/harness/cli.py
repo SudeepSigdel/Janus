@@ -9,6 +9,7 @@ from datetime import datetime
 from pathlib import Path
 
 from janus.config import Settings
+from janus.pins import UnpinnedError, describe, require
 from janus_bench.agents.base import Agent
 from janus_bench.harness import metrics
 from janus_bench.harness.perturbation import perturb_task
@@ -292,7 +293,22 @@ def main(argv: list[str] | None = None) -> int:
     demo_p = sub.add_parser("demo", help="naive agent vs Janus on one injection task, as HTML")
     demo_p.add_argument("--task", default="nag-06", help="an injection task id (default nag-06)")
     demo_p.add_argument("--out", type=Path, default=Path("demo.html"))
+    for external in (mw_p, wa_p, ws_p, wg_p):
+        external.add_argument(
+            "--allow-unpinned",
+            action="store_true",
+            help="run even if the benchmark checkout differs from external-pins.yaml",
+        )
     args = parser.parse_args(argv)
+    pinned = {"miniwob": "miniwob", "webarena": "webarena", "wasp": "wasp", "webgames": "webgames"}
+    if args.command in pinned:
+        try:
+            for result in require([pinned[args.command]], allow_unpinned=args.allow_unpinned):
+                if result.status == "mismatch":
+                    print(f"warning: --allow-unpinned: {describe(result)}")
+        except UnpinnedError as exc:
+            print(f"refusing to run {args.command}: external benchmark not at its pin\n{exc}")
+            return 2
     if args.command == "webgames":
         from janus_bench.external import webgames
 

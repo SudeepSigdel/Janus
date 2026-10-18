@@ -115,6 +115,11 @@ implements `POST /__bench/reset` (with an optional `variant`) and `GET /__bench/
 pieces are in `sites/common/`. Register it in `SITES` in `harness/server.py` with a free port, and
 document the real-world patterns it models in `docs/sites/<name>.md`. Keep it fictional.
 
+## Pinned versions of the outside benchmarks
+
+The MiniWoB++, WASP, WebGames and WebArena-Verified adapters run only against the versions in
+[`external-pins.yaml`](../external-pins.yaml) (`--allow-unpinned` overrides this for a deliberate upgrade).
+
 ## Known limits of the benchmark
 
 - Two sites, both written by the same author as the agent. The MiniWoB++, WebArena-Verified and
