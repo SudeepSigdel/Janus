@@ -1953,6 +1953,47 @@ controls, validation errors, and reading or computing values. Not implemented, p
 Revisit only if a new task family shows same-labelled siblings told apart solely by a user value
 in row text.
 
+## D4 — Closed-vocabulary icon names (diagnosed 2026-10-18; not implemented)
+Status: stopped at Step 0. Too few failures of the target kind, so nothing was built.
+Proposal: map deterministic icon signals (icon-font class, svg title, img alt or src filename,
+CSS `content:url(...)` filename) on otherwise unnamed controls to a fixed vocabulary
+("[icon: delete]"), so the planner can see them without raw page text.
+Step 0 rule: implement only if about 5 or more of the 13 icon-only first-fatal failures from D1
+are class (a): icon-only with a deterministic signal that maps to a small vocabulary.
+Method: each task was loaded at seed 1, as in the mw12 run. For the email tasks the named email
+was opened the way Janus did, then the clickable, text-free elements in the DOM were dumped
+(diagnostic script, not committed).
+
+Counts: **(a) 4, (b) 0, (c) 9.**
+
+- (a) icon-only with a usable signal, needed by the task: email-inbox (star), email-inbox-delete
+  (trash), email-inbox-important (star), email-inbox-nl-turk (trash on each of a sender's rows).
+  The controls are `<span class="star">` and `<span class="trash">` with `cursor: pointer`, CSS
+  `content:url(.../star.png)` and `.../delete.png`, and no text, title or aria label, so the
+  observer's click-target rule (text, alt or title required) drops them. Even here a name might
+  not be enough: email-inbox's own first fatal event in mw12 was a READ loop before it opened the
+  email.
+- (b) icon-only with no usable signal: none.
+- (c) not icon-only, but missed or merged by interactivity detection, 9:
+  - reply and forward (email-inbox-forward, -forward-nl, -forward-nl-turk, -reply, -noscroll,
+    -star-reply; 6). The real controls are `<span class="email-reply">` and
+    `<span class="email-forward">`. Each holds an icon plus a text label ("Reply", "Forward") and
+    has the click handler. Their common parent `.email-send` has `cursor: pointer` and is taken
+    as the single outermost click target, labelled "Reply Forward", so the two controls are merged
+    into one. This is a granularity problem in click-target detection (nested targets), not
+    naming. email-inbox-star-reply also needs the star from class (a).
+  - social-media, -all, -some (3): the per-post controls (`<span class="reply|retweet|like|more">`)
+    only get `cursor: pointer` on `:hover`, so they are never detected as interactive. "Mute"
+    sits in the hidden menu under "more". These tasks would also need the post chosen by the
+    author's handle in its card text, which is the D1 kind of choice.
+
+Conclusion: (a) = 4 is under the bar of about 5, so D4 is not implemented. The larger group is (c),
+a separate candidate: **interactivity detection**. That means splitting nested pointer targets
+when inner elements carry their own handler-bearing text labels, and treating
+`.controls span:hover { cursor: pointer }`-style controls as clickable. This was not folded into
+D4 and is recorded under "Later". If (c) is built, re-check (a): with reply and forward fixed,
+icon names could become worth it for the star and trash cases.
+
 ## Later (not in the Frogtoberfest slice)
 Site 3 (utility or bank transfer), hybrid cloud planner over a privacy-abstracted view, other baselines (Nanobrowser, BrowserOS),
 manual closed-agent evals, public leaderboard, paper, vLLM/LM Studio backends.
@@ -1963,6 +2004,10 @@ never the message text, for recovery tasks such as nag-21.
 Observer: name icon-only controls (the email-inbox star, trash and reply icons) deterministically,
 for example from title, aria attributes or icon class tokens. This was the most common first fatal
 event in the D1 diagnosis.
+Interactivity detection (D4 Step 0, class c, 9 MiniWoB failures): split a pointer-cursor
+container into its handler-bearing children when each child has its own short text label (the
+email Reply and Forward controls), and detect hover-only pointer controls. Re-check D4's icon
+names after this.
 Prior work to check before any novelty claim about narrow deterministic channels from page text to
 the planner: Microsoft's FIDES (information-flow control with constrained declassification) is the
 closest.
