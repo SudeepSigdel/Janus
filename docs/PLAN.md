@@ -1994,6 +1994,35 @@ when inner elements carry their own handler-bearing text labels, and treating
 D4 and is recorded under "Later". If (c) is built, re-check (a): with reply and forward fixed,
 icon names could become worth it for the star and trash cases.
 
+## D5 — Split nested controls
+Status: in progress (Step 0 passed 2026-10-18).
+Goal: when a pointer-cursor container holds several separately clickable children (the email
+Reply and Forward spans), emit the children as separate elements instead of one merged control
+("Reply Forward"). Hover-only pointer controls stay under "Later".
+
+Step 0 (diagnosis; scripts in the session scratchpad, not committed):
+1. **Where the merge happens.** `observer/extract.py::_COLLECT_JS::isClickTarget` takes a
+   non-semantic element with a computed `cursor: pointer` whose parent's cursor is *not*
+   pointer, which is the outermost pointer boundary. `.email-send` (pointer, no listener) is that
+   boundary. Its children `.email-reply` and `.email-forward` inherit the pointer cursor, so they are
+   skipped, and the container is named by all its text: "Reply Forward". This is the same
+   mechanism in all 6 tasks (email-inbox-forward, -forward-nl, -forward-nl-turk, -reply,
+   -noscroll, -star-reply).
+2. **Listeners (CDP `DOMDebugger.getEventListeners`).** `.email-reply` and `.email-forward` each
+   carry their own `click` listener (jQuery `.on('click')` bound per element, not delegated);
+   `.email-send`, `#email`, `body` and `document` carry none. In all 6 tasks, after opening the
+   named email, the container has no listener and has exactly 2 visible named children with their
+   own (Reply, Forward).
+3. **What else would change.** All 36 MiniWoB tasks Janus passes (mw12, seed 1, first page) and
+   all 187 page loads the oracle makes on v2 dev were scanned. The first draft of the rule (two or
+   more named descendants with listeners) would have changed one passing task, navigate-tree. Its
+   folder `li` holds its own click listener and its "children" were hidden subfolders. With the
+   refined rule (**the container has no click listener of its own, and two or more *visible*,
+   named descendants each have one**), the change count is **0 of 36 passing MiniWoB tasks and 0
+   of 187 v2 dev pages**. No v2 dev page has a non-semantic click target at all.
+
+Result: one shared mechanism, no collateral outline changes, so D5 proceeds.
+
 ## Later (not in the Frogtoberfest slice)
 Site 3 (utility or bank transfer), hybrid cloud planner over a privacy-abstracted view, other baselines (Nanobrowser, BrowserOS),
 manual closed-agent evals, public leaderboard, paper, vLLM/LM Studio backends.
