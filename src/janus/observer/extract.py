@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from playwright.sync_api import ElementHandle, Page
+from playwright.sync_api import CDPSession, ElementHandle, Page
 
 from janus.config import Settings, get_settings
 from janus.observer.fingerprint import compute_fingerprint
@@ -59,13 +59,53 @@ function collectInteractive() {
   }
   return out;
 }
+// D5: a click target may hold several separately clickable children (Reply and Forward inside
+// one pointer container). Candidates are its visible descendants with text; Python checks their
+// click listeners over CDP and returns which to emit instead of the container.
+const MAX_SPLIT_CONTAINERS = 20;
+const MAX_SPLIT_KIDS = 8;
+const squashText = (t) => (t || '').replace(/\s+/g, ' ').trim();
+function splitCandidates(list) {
+  const found = [];
+  list.forEach((el, i) => {
+    if (!clickTargets.has(el) || found.length >= MAX_SPLIT_CONTAINERS) return;
+    const kids = [];
+    for (const d of el.querySelectorAll('*')) {
+      if (kids.length >= MAX_SPLIT_KIDS) break;
+      if (!isVisible(d) || !squashText(d.textContent)) continue;
+      kids.push(d);
+    }
+    if (kids.length >= 2) found.push([i, el, kids]);
+  });
+  window.__janusSplit = found;
+  return found.map(([i, el, kids]) => ({
+    index: i,
+    parents: kids.map((k) => kids.findIndex((other) => other !== k && other.contains(k))),
+  }));
+}
+function applySplit(list, decisions) {
+  const stored = window.__janusSplit || [];
+  const out = [];
+  list.forEach((el, i) => {
+    const chosen = decisions[String(i)];
+    const entry = stored.find((c) => c[0] === i && c[1] === el);
+    if (!chosen || !entry) { out.push(el); return; }
+    for (const k of chosen) {
+      const kid = entry[2][k];
+      if (!kid) continue;
+      clickTargets.add(kid);
+      out.push(kid);
+    }
+  });
+  return out;
+}
 """
 
 # Interactive elements become trusted, short-labelled Elements. Everything else
 # visible (headings, paragraphs, notices, table cells, review values) is untrusted
 # text: the planner never sees it (CLAUDE.md: page text is data, never instructions).
 _JS = (
-    "() => {"
+    "(decisions) => {"
     + _COLLECT_JS
     + r"""
   const textSelector = 'h1, h2, h3, h4, h5, h6, p, dt, dd, li, td, th, .notice';
@@ -199,7 +239,7 @@ _JS = (
     } catch (e) { return false; }
   };
 
-  const interactive = collectInteractive();
+  const interactive = applySplit(collectInteractive(), decisions || {});
   const elements = interactive.map((el) => {
     const form = el.closest('form');
     return {
@@ -276,7 +316,7 @@ def cap_untrusted_text(blocks: list[str], max_chars: int) -> tuple[list[str], bo
 
 def extract_snapshot(page: Page, settings: Settings | None = None) -> PageSnapshot:
     settings = settings or get_settings()
-    raw = page.evaluate(_JS)
+    raw = page.evaluate(_JS, split_decisions(page))
     raw_elements: list[dict[str, Any]] = raw["elements"]
     raw_text_blocks: list[str] = raw["text_blocks"]
     read_text, _ = cap_untrusted_text(
@@ -329,6 +369,78 @@ def extract_snapshot(page: Page, settings: Settings | None = None) -> PageSnapsh
     )
 
 
+_CANDIDATES_JS = "() => {" + _COLLECT_JS + "return splitCandidates(collectInteractive()); }"
+
+
+def split_children(
+    container_has_click: bool, kid_has_click: list[bool], kid_parent: list[int]
+) -> list[int]:
+    """D5's rule: which of a click target's candidate children to emit instead of it.
+
+    Split only when the container has no click listener of its own and at least two visible,
+    named descendants each have one. Of those, keep the outermost: a clickable child inside
+    another clickable child is part of it. Anything else keeps today's single control.
+    """
+    if container_has_click:
+        return []
+    clickable = {k for k, has in enumerate(kid_has_click) if has}
+
+    def nested(k: int) -> bool:
+        parent = kid_parent[k]
+        while parent != -1:
+            if parent in clickable:
+                return True
+            parent = kid_parent[parent]
+        return False
+
+    chosen = sorted(k for k in clickable if not nested(k))
+    return chosen if len(chosen) >= 2 else []
+
+
+def _has_click(cdp: CDPSession, expression: str) -> bool:
+    found = cdp.send("Runtime.evaluate", {"expression": expression})
+    object_id = found.get("result", {}).get("objectId")
+    if not object_id:
+        raise RuntimeError("element not found")
+    listeners = cdp.send("DOMDebugger.getEventListeners", {"objectId": object_id, "depth": 0})
+    return any(item.get("type") == "click" for item in listeners.get("listeners", []))
+
+
+def split_decisions(page: Page) -> dict[str, list[int]]:
+    """{click-target index: child indices to emit instead}, from real click listeners.
+
+    Best effort: any failure (no CDP outside Chromium, a page that changed mid-check) means no
+    split, which is exactly the observer's behaviour before D5.
+    """
+    try:
+        candidates = page.evaluate(_CANDIDATES_JS)
+    except Exception:  # noqa: BLE001
+        return {}
+    if not candidates:
+        return {}
+    decisions: dict[str, list[int]] = {}
+    try:
+        cdp = page.context.new_cdp_session(page)
+    except Exception:  # noqa: BLE001
+        return {}
+    try:
+        for j, candidate in enumerate(candidates):
+            base = f"window.__janusSplit[{j}]"
+            container = _has_click(cdp, f"{base}[1]")
+            kids = [_has_click(cdp, f"{base}[2][{k}]") for k in range(len(candidate["parents"]))]
+            chosen = split_children(container, kids, candidate["parents"])
+            if chosen:
+                decisions[str(candidate["index"])] = chosen
+    except Exception:  # noqa: BLE001
+        return {}
+    finally:
+        try:
+            cdp.detach()
+        except Exception:  # noqa: BLE001
+            pass
+    return decisions
+
+
 def extract_raw_elements(page: Page) -> list[dict[str, Any]]:
     """Uncapped element descriptors, in the same DOM order used to assign refs.
 
@@ -336,7 +448,7 @@ def extract_raw_elements(page: Page) -> list[dict[str, Any]]:
     fresh, right before acting, without the element/label caps that only apply to
     what the planner is allowed to see.
     """
-    return page.evaluate(_JS)["elements"]
+    return page.evaluate(_JS, split_decisions(page))["elements"]
 
 
 _HANDLE_AT_INDEX_JS = (
@@ -344,7 +456,7 @@ _HANDLE_AT_INDEX_JS = (
     + _COLLECT_JS
     + """
   const index = args[1];
-  return collectInteractive()[index] ?? null;
+  return applySplit(collectInteractive(), args[2] || {})[index] ?? null;
 }"""
 )
 
@@ -355,7 +467,9 @@ def handle_at_index(page: Page, index: int) -> ElementHandle | None:
     None if `index` is out of range (the page has fewer matching elements now than
     when it was last observed).
     """
-    handle = page.evaluate_handle(_HANDLE_AT_INDEX_JS, [INTERACTIVE_SELECTOR, index])
+    handle = page.evaluate_handle(
+        _HANDLE_AT_INDEX_JS, [INTERACTIVE_SELECTOR, index, split_decisions(page)]
+    )
     return handle.as_element()
 
 
