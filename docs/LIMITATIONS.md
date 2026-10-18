@@ -162,6 +162,14 @@ the lesson is that one-token outline changes can flip individual tasks at N=3, s
 movements in any experiment are weak evidence. The checkpoint rows in EXPERIMENTS.md record the
 nag-23 effect.
 
+### Choosing an element by page text (tried 2026-10-18, not kept)
+
+A `PICK` step (a quarantined reader chooses one element by the text around it, from an enum of
+real refs) chose correctly when used, for example the email from a named sender, but it did not
+raise MiniWoB success (32/125 against 36/125) because the controls needed next, such as an
+icon-only star, are not in the outline. It lives on the `dev/pick` branch. Tasks that need picking
+a row or card by what is written in it remain mostly out of reach.
+
 ### Quarantined READ: a poisoned typed value (added 2026-10-17)
 
 `READ` (janus/read.py) lets the planner ask for a value shown on the page without seeing the page

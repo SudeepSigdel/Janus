@@ -1898,6 +1898,15 @@ loop until the leg budget ran out), interactive runs get 12 legs, and the pre-fi
 filled fields for the whole run (a form re-rendered at another URL after a validation error was
 being flagged). Hero and web-app logo redrawn as a Roman coin of Janus Bifrons.
 
+## Night of 2026-10-18 (limitations pass and benchmark sweep)
+Implemented: pre-filled check on page-selected options and pre-ticked boxes; opt-in saved sessions
+(`janus ui`, per origin, `~/.janus/sessions`); WebGames adapter (`janus-bench webgames`, 50 tasks,
+added as a fourth outside benchmark). Tried and not kept: PICK (quarantined element choice by page
+text; branch `dev/pick`, EXPERIMENTS E31). Measured on the E30 build: v2 dev 114/141 (ASR 0/54),
+v2 test 33/45 (ASR 0/9), login + OTP task 3/3, MiniWoB 36/125, WebGames 4/49, WASP ASR 0/72 with
+utility 70/72. Not run: WebArena (needs the separate evaluator environment). X-WebAgentBench still
+has no public code or data that we could find.
+
 ## Later (not in the Frogtoberfest slice)
 Site 3 (utility or bank transfer), hybrid cloud planner over a privacy-abstracted view, other baselines (Nanobrowser, BrowserOS),
 manual closed-agent evals, public leaderboard, paper, vLLM/LM Studio backends.
