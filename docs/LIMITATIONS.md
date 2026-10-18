@@ -56,7 +56,11 @@ N=3 as weak evidence; aggregate moves of 3 runs or fewer are within noise.
 - A goal that needs two separate consequential actions (submit two forms) needs two runs, because
   a run ends after the first approved action goes through.
 - The web app runs one task at a time.
-- Controls with no text, label or title (icon-only spans) are invisible to the observer.
+- Controls with no text, label or title (icon-only spans) are invisible to the observer, and
+  separately clickable controls inside one pointer-styled container (an email's Reply and Forward)
+  are merged into one control. Splitting them was built and reverted (D5, EXPERIMENTS E32): on its
+  own it only moved the failure to the next icon-only control (Send). Controls that only get a
+  pointer cursor on hover are not detected.
 
 ## Security
 
