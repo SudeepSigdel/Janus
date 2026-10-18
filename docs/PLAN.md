@@ -1995,7 +1995,8 @@ D4 and is recorded under "Later". If (c) is built, re-check (a): with reply and 
 icon names could become worth it for the star and trash cases.
 
 ## D5 — Split nested controls
-Status: in progress (Step 0 passed 2026-10-18).
+Status: reverted (2026-10-18). Built (dbf1ef1) and evaluated; the affected tasks did not improve,
+so it was reverted (the revert commit follows dbf1ef1 on `dev/split-controls`). EXPERIMENTS E32.
 Goal: when a pointer-cursor container holds several separately clickable children (the email
 Reply and Forward spans), emit the children as separate elements instead of one merged control
 ("Reply Forward"). Hover-only pointer controls stay under "Later".
@@ -2021,7 +2022,42 @@ Step 0 (diagnosis; scripts in the session scratchpad, not committed):
    named descendants each have one**), the change count is **0 of 36 passing MiniWoB tasks and 0
    of 187 v2 dev pages**. No v2 dev page has a non-semantic click target at all.
 
-Result: one shared mechanism, no collateral outline changes, so D5 proceeds.
+Result: one shared mechanism, no collateral outline changes, so D5 proceeded.
+
+Implementation (dbf1ef1, reverted). `_COLLECT_JS` gained `splitCandidates` (each click target's
+visible, text-bearing descendants, capped at 20 containers x 8 children) and `applySplit`. The
+pure Python rule `split_children` splits only if the container has no click listener and two or
+more outermost descendants do. `split_decisions` read the listeners over a CDP session, best
+effort: any failure meant no split. Snapshot extraction, `extract_raw_elements` and
+`handle_at_index` all applied the same decisions, so act-time re-resolution pinned a split child
+(browser test: clicking the resolved "Forward" fired Forward's own handler). A child kept only its
+own text as its name; no sibling text was added. The existing 200-element cap applied after
+splitting, and there was no special handling, because splitting adds at most 7 elements per
+container. Tests: 5 unit and 3 browser. Unit and browser suites green (508 and 209); no golden
+changed.
+
+Evaluation (the v2 test split was not run or inspected):
+- The 6 affected tasks, N=3, seeds 1-3: **0/18 on `main` (7622c64), 0/18 with D5.** D5 worked
+  mechanically. Janus now opens the email and clicks the separate Reply or Forward control (in
+  every N=1 trace), then fills the reply or forward text, and then fails: Send is
+  `<span id="send-reply">` / `<span id="send-forward">`, icon-only (CSS `send.png`, no text), so it
+  is not in the outline. The planner loops on FILL_FORM or tries READ until the leg budget or a
+  ceiling ends the run.
+- MiniWoB full, N=1: 36/125 with D5 against 36/125 on E30 (mw12), identical task for task
+  (nothing gained, nothing lost).
+- v2 dev and WASP were not run. The keep rule ("the affected tasks improve") had already failed,
+  and Step 0 showed no v2 dev page has a non-semantic click target, so v2 outlines cannot change.
+
+Decision: reverted. D5 alone moves the fatal event one step later (to the icon-only Send) without
+completing a task.
+
+D4 re-check after D5: the reply and forward family now needs an icon-only control too (Send), so
+together with the star and trash cases, 10 of the 13 icon-related failures need a class (a)
+icon name: star (email-inbox, -important), trash (-delete, -nl-turk), send (the 6 reply and
+forward tasks, given D5). A combined D4+D5 milestone (split nested controls *and* name icon-only
+controls from the closed vocabulary, here CSS `content:url(...)` filenames and class tokens:
+star, trash/delete, send) would target 10 tasks; D4 alone targets 4. Not started; needs its own
+Step 0 and keep rule. Hover-only pointer controls (social-media) stay under "Later".
 
 ## Later (not in the Frogtoberfest slice)
 Site 3 (utility or bank transfer), hybrid cloud planner over a privacy-abstracted view, other baselines (Nanobrowser, BrowserOS),
