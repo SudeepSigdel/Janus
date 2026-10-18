@@ -175,7 +175,7 @@ inspected to diagnose a regression I had caused, and it remains a known loss
 
 The same design choice explains both columns: the planner never sees page text, so injections
 can't reach actions, and tasks that require reading the page to decide are mostly out of reach.
-WebArena was measured on an earlier build (5c3822c).
+WebArena was measured on an earlier build (5c3822c). The exact benchmark versions (commits and dataset hash) are pinned in [EXPERIMENTS.md](docs/EXPERIMENTS.md#external-benchmark-pins).
 
 ## Honest limits
 

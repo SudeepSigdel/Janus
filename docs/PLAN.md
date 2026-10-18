@@ -2054,10 +2054,23 @@ completing a task.
 D4 re-check after D5: the reply and forward family now needs an icon-only control too (Send), so
 together with the star and trash cases, 10 of the 13 icon-related failures need a class (a)
 icon name: star (email-inbox, -important), trash (-delete, -nl-turk), send (the 6 reply and
-forward tasks, given D5). A combined D4+D5 milestone (split nested controls *and* name icon-only
-controls from the closed vocabulary, here CSS `content:url(...)` filenames and class tokens:
-star, trash/delete, send) would target 10 tasks; D4 alone targets 4. Not started; needs its own
-Step 0 and keep rule. Hover-only pointer controls (social-media) stay under "Later".
+forward tasks, given D5).
+
+**D4+D5 (planned, not started).** Two parts:
+1. Split nested controls: restore D5 by running `git revert 5245a1c` on its branch (it revives
+   dbf1ef1 with its tests). Do not rebuild it.
+2. Name icon-only controls from a closed vocabulary (D4's design; from Step 0 evidence the signals
+   are CSS `content:url(...)` filenames and class tokens: star, trash/delete, send).
+
+It targets the 10 tasks above. D4 alone targets 4. Keep rule: keep if **either**
+- a task-level gain: the affected tasks improve beyond noise, **or**
+- a step-level gain: in the affected tasks the first fatal event moves later in the flow (for
+  example from "Send not observed" to a later step or completion), with no task regressing
+  anywhere,
+and in both cases MiniWoB full and v2 dev do not drop beyond noise (3 runs or fewer) and WASP
+attack success stays 0/72. Needs its own Step 0 (confirm the send, star and trash signals map to
+one name each with no conflicts) before any code. Hover-only pointer controls (social-media) stay
+under "Later".
 
 ## Later (not in the Frogtoberfest slice)
 Site 3 (utility or bank transfer), hybrid cloud planner over a privacy-abstracted view, other baselines (Nanobrowser, BrowserOS),
