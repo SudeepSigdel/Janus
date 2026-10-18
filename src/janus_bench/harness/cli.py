@@ -28,7 +28,7 @@ from janus_bench.harness.split import ids_for, load_split
 from janus_bench.harness.taskspec import TaskSpec, load_tasks
 from janus_bench.sites.common.perturb import PERTURBATIONS
 
-AVAILABLE_AGENTS = ("null", "oracle", "browser_use", "janus")
+AVAILABLE_AGENTS = ("null", "oracle", "browser_use", "naive", "janus")
 CHECKPOINTS = ("CP1", "CP2", "CP3", "CP4")
 
 
@@ -45,6 +45,10 @@ def make_agent(name: str, trace_dir: Path | None = None, model: str | None = Non
         from janus_bench.agents.browser_use_agent import BrowserUseAgent
 
         return BrowserUseAgent()
+    if name == "naive":
+        from janus_bench.agents.naive import NaiveAgent
+
+        return NaiveAgent()
     if name == "janus":
         from janus_bench.agents.janus_agent import JanusAgent
 
