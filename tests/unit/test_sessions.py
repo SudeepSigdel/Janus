@@ -22,3 +22,23 @@ def test_forget_removes_only_that_origin(tmp_path: Path) -> None:
     assert sessions.forget("http://127.0.0.1:8102/login", tmp_path)
     assert not gone.exists() and keep.exists()
     assert not sessions.forget("http://127.0.0.1:8102/login", tmp_path)
+
+
+class _FakeBrowser:
+    def __init__(self) -> None:
+        self.kwargs: dict = {}
+
+    def new_context(self, **kwargs):
+        self.kwargs = kwargs
+        return object()
+
+
+def test_open_context_records_video_only_when_asked(tmp_path: Path) -> None:
+    browser = _FakeBrowser()
+    url = "http://127.0.0.1:8101/"
+    sessions.open_context(browser, url, False, tmp_path)  # type: ignore[arg-type]
+    assert "record_video_dir" not in browser.kwargs
+    video = tmp_path / "v"
+    sessions.open_context(browser, url, False, tmp_path, record_dir=video)  # type: ignore[arg-type]
+    assert browser.kwargs["record_video_dir"] == str(video)
+    assert browser.kwargs["service_workers"] == "block"

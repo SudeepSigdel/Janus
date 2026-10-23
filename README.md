@@ -47,6 +47,14 @@ application. The demo page shows what each one did to the site, scored from the 
 The committed run is at [docs/demo/nag-06.html](docs/demo/nag-06.html). Download it and open it
 in a browser to see Janus's step-by-step decision report.
 
+## Demo video
+
+**[Watch the one-minute demo (docs/assets/janus-demo.mp4)](docs/assets/janus-demo.mp4)**, a real run
+on a laptop GPU: a goal typed in Nepali, a ward-office page that plants a Hindi order to "cancel all
+old applications", Janus filling the form with your values and waiting for your approval before it
+submits, and the office's own records afterwards (one new application, nothing cancelled). To
+record it yourself, run `demo-video/record_attack.bat` (Windows) with Ollama running.
+
 ## How it works
 
 ```mermaid
@@ -77,6 +85,19 @@ flowchart TB
 
 The model is an untrusted proposer; only `src/janus/validator/` authorizes actions. Details and the
 seven security invariants are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## Technology
+
+| Layer | What it uses |
+|---|---|
+| Language and packaging | Python 3.11+, [uv](https://docs.astral.sh/uv/), Pydantic v2 (`extra="forbid"` on everything a model produces) |
+| Models (all open-weight, local) | Qwen3-8B as `janus-planner` and bge-m3 embeddings, through [Ollama](https://ollama.com) on loopback; qwen2.5vl:7b, gemma3:4b and PaddleOCR (rapidocr, ONNX) for photo to fill |
+| Browser | Playwright (Chromium): accessibility-tree outline, request allowlist, fingerprinted targets |
+| Safety core | Deterministic code in `src/janus/validator/` (plan and action checks), `src/janus/text/` (Devanagari digits, Bikram Sambat dates, trilingual consequential keywords) |
+| Web app and replica portals | FastAPI, Jinja2, uvicorn (`janus ui`, `janus-bench serve`) |
+| Evaluation | Own bilingual benchmark (62 tasks, 21 attacked), WASP, MiniWoB++ via BrowserGym, WebGames, WebArena-Verified; `browser_use` as baseline |
+| Quality | pytest (+ Hypothesis), ruff, GitHub Actions CI |
+| Hardware | One 8 GB consumer GPU; no cloud account or API key needed |
 
 ## Quickstart
 
@@ -177,6 +198,22 @@ The same design choice explains both columns: the planner never sees page text, 
 can't reach actions, and tasks that require reading the page to decide are mostly out of reach.
 WebArena was measured on an earlier build (5c3822c). The exact benchmark versions (commits and dataset hash) are pinned in [external-pins.yaml](external-pins.yaml); `janus doctor` checks them and the benchmark commands refuse to run on a different version unless given `--allow-unpinned`.
 
+## Photo to fill (experimental)
+
+For someone who cannot type, or cannot read a form's language: photograph a document, and Janus
+reads the fields off it, shows each value beside the part of the photo it came from, and fills the
+portal only with the values you confirm. Everything runs locally (`ollama pull qwen2.5vl:7b` and
+`ollama pull gemma3:4b`, `uv sync --all-extras`, then `uv run janus ui`); the photo stays in memory and is deleted after
+use.
+
+It is honest about what it can't do yet: on 20 generated sample documents the three local readers
+(two vision models and an OCR model) got 66% of the values right, 34% of fields came pre-filled and
+right, and names are the weakest. They misread without any warning, so **you always confirm every
+value**. A field is pre-filled as "agreed" only when two readers agree and one is the OCR model;
+1 of the 26 agreed fields was still wrong. Voice input is not built. See
+[docs/PLAN.md](docs/PLAN.md) ("Photo to fill") and [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
+Measure it yourself: `uv run janus-bench docs make` then `uv run janus-bench docs score`.
+
 ## Honest limits
 
 - **Capability is modest.** Tasks that need reading the page to choose (find the cheapest, pick
@@ -189,6 +226,22 @@ WebArena was measured on an earlier build (5c3822c). The exact benchmark version
   covered, and a `READ` value can be wrong if the page lies about it.
 
 The full list, with why each is not fixed yet, is in [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
+
+## Future improvements
+
+- **Read-to-decide tasks.** Selection computed in code over typed per-row reads (cheapest, newest),
+  so the model never has to compare page text itself.
+- **Better page outlines.** Deterministic names for icon-only controls and split nested or
+  hover-only controls; this was the most common first failure on MiniWoB++.
+- **Recovery from form errors** exposed as structure (which field is invalid), never as message text.
+- **More portals and real users.** A third replica site (utility or bank transfer) and a usability
+  study with people who complete Nepali portal tasks today.
+- **Optional larger planner.** A hybrid planner that sends only a privacy-abstracted outline to a
+  bigger open-weight model, plus vLLM and LM Studio backends.
+- **Voice and accessibility.** Voice goals in Nepali, and photo to fill that misreads less.
+
+The full backlog is under "Later" in [docs/PLAN.md](docs/PLAN.md); known gaps are in
+[docs/LIMITATIONS.md](docs/LIMITATIONS.md).
 
 ## Why the AI matters here
 

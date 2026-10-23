@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import os
+from pathlib import Path
+
 from playwright.sync_api import sync_playwright
 
 from janus import sessions
@@ -46,6 +49,9 @@ def execute(session: RunSession, settings: Settings, headed: bool) -> None:
             return
         inputs = extract_inputs(session.goal, llm)
         session.trace("inputs", {"keys": sorted(inputs), "values": dict(inputs)})
+        if session.doc_inputs:
+            inputs.update(session.doc_inputs)  # the person confirmed these on the screen
+            session.trace("doc_inputs", {"keys": sorted(session.doc_inputs)})
         secrets: set[str] = set()
         if session.username:
             inputs["username"] = session.username
@@ -64,10 +70,17 @@ def execute(session: RunSession, settings: Settings, headed: bool) -> None:
             prefill="flag",
             secret_inputs=frozenset(secrets),
         )
+        record = os.environ.get("JANUS_RECORD_DIR")  # optional run video, for demos
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch(headless=not headed)
             try:
-                context = sessions.open_context(browser, session.url, session.remember)
+                context = None
+                if record:
+                    context = sessions.open_context(
+                        browser, session.url, session.remember, record_dir=Path(record)
+                    )
+                else:
+                    context = sessions.open_context(browser, session.url, session.remember)
                 page = context.new_page()
                 result = run_task(
                     page,
@@ -89,6 +102,8 @@ def execute(session: RunSession, settings: Settings, headed: bool) -> None:
                     sessions.save(context, session.url)
                     session.trace("session_saved", {})
             finally:
+                if record and context is not None:
+                    context.close()  # flushes the video file
                 browser.close()
         session.status = result.status
     except Exception as exc:  # a broken run is shown in the UI, never crashes the server
@@ -99,6 +114,7 @@ def execute(session: RunSession, settings: Settings, headed: bool) -> None:
     finally:
         llm.close()
         session.password = session.pin = ""
+        session.doc_inputs = {}
         session.report_html = render_report(
             list(session.events), title="Janus run", subtitle=session.goal
         )

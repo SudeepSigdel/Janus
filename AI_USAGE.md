@@ -1,5 +1,23 @@
 # AI usage
 
+## Short statement
+
+Janus's planner (open-weight Qwen3-8B, run locally through Ollama) turns the user's Nepali, Hindi or
+English goal and a structural outline of the page into a typed plan of browser steps. That model
+output is consumed programmatically, never just displayed:
+
+1. `src/janus/planner/plan.py::commit_plan` calls `src/janus/llm.py::LLMClient.chat_json` and parses
+   the reply into a `Plan` (JSON schema, closed set of operations).
+2. `src/janus/validator/plan.py::validate_plan` checks every proposed step against the policy and
+   the live page; refused plans go back to the model with the reasons.
+3. `src/janus/validator/action.py::authorize_action` is the final gate before the browser executes
+   each step, and holds consequential steps for the user's approval.
+
+Embeddings (bge-m3) are consumed in `src/janus/planner/ground.py::_best_by_embedding`, and the photo
+readers in `src/janus/extract_doc.py::extract_document`. Details for every call site follow.
+
+## Overview
+
 Every AI call in this repo goes through `src/janus/llm.py::LLMClient`. Embeddings and
 local chat require a loopback Ollama (`assert_local_url`). Chat may optionally go to a hosted
 OpenAI-compatible endpoint (`JANUS_CHAT_BASE_URL`/`_MODEL`/`_API_KEY`), but only for
@@ -24,6 +42,9 @@ smoke test.
 |---|---|---|---|
 | `qwen3:8b`, Q4_K_M via Ollama, wrapped as `janus-planner` (`num_ctx 8192`, temperature 0, thinking off) | local Ollama on loopback | Apache 2.0 | planner, quarantined reads, goal-input extraction |
 | `bge-m3` | local Ollama on loopback | MIT | grounding similarity |
+| `qwen2.5vl:7b` | local Ollama on loopback | Apache 2.0 (7B; check the card for the exact file) | reading fields off a document photo (read A) |
+| `gemma3:4b` | local Ollama on loopback | Gemma Terms of Use (open weights, not Apache 2.0) | second reader of the same photo (read B) |
+| PaddleOCR PP-OCRv5 Devanagari recogniser and text detector, run through `rapidocr` (ONNX Runtime) | in this Python process, on the CPU; first use downloads the model files, inference is offline | Apache 2.0 (check the model card) | third reader of the same photo (read C), via `LLMClient.ocr_lines` |
 | `qwen2.5:7b-instruct`, `qwen3:4b` | local Ollama | Apache 2.0 | fallbacks and the M0 smoke test only |
 | `openai/gpt-oss-20b`, `qwen/qwen3-32b` | optional hosted OpenAI-compatible endpoint (Groq free tier) if `JANUS_CHAT_*` is set | Apache 2.0 | used once for a smoke run on 2026-10-09; not part of any reported result |
 
@@ -73,6 +94,25 @@ re-validated by deterministic code, or both, before anything downstream acts on 
     a new authority.
   - A sensitive field's `<select>` value is never rewritten to an invented literal
     (`GroundingError` instead) -- see `ground_select_value`.
+
+- **`extract_doc.py::extract_document`** (photo to fill, used by `janus ui` when the person
+  uploads a document) -- three readers, all local. Read A and B call `LLMClient.chat_vision_json`,
+  which only ever uses the loopback Ollama client, with the response constrained to a per-document
+  JSON schema (only the fields that document has) and parsed with `extra="forbid"` models. Read C
+  calls `LLMClient.ocr_lines` (an open-weight OCR model in this process), and
+  `ocr_fields.py::read_ocr_fields` matches its lines to field labels in code. Every value from every
+  reader goes through `text/fields.py::normalize_field` (format and calendar checks; `pin`,
+  `password` and `otp` are never requested). A field is `agreed` only when two readers give the same
+  valid value and one of them is the OCR reader; otherwise it is a suggestion to check. Nothing it
+  returns is used until the person presses Confirm in the UI
+  (`ui/documents.py::DocSession.confirm` re-validates every value), and only then do the values
+  become `$inputs` for a run. The planner sees the input *keys*, never the values. Photos and values
+  are never traced.
+
+- **`missing.py::needed_user_value`** -- no model output is trusted here: when a plan is refused
+  because it needs a value the user never gave, this deterministic code picks the field from the
+  refused plan's refs and builds the question from that field's outline label; the answer comes from
+  the person and is stored as `user_<name>`.
 
 - **`read.py::quarantined_read`** (the `READ` op, off unless a caller passes
   `allowed_ops_for(..., allow_read=True)`: `janus run --goal` and the MiniWoB adapter) -- calls

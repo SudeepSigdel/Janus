@@ -15,3 +15,8 @@ results/*
 
 # third-party benchmark assets (docs/PLAN.md B1)
 /external/
+
+# demo recordings (large, local)
+/demo-video/rec/
+/demo-video/out/
+/demo-video/page.new.html

@@ -24,12 +24,29 @@ def session_file(url: str, directory: Path = SESSION_DIR) -> Path:
 
 
 def open_context(
-    browser: Browser, url: str, remember: bool, directory: Path = SESSION_DIR
+    browser: Browser,
+    url: str,
+    remember: bool,
+    directory: Path = SESSION_DIR,
+    record_dir: Path | None = None,
 ) -> BrowserContext:
-    """A new context; with `remember`, starting from the origin's saved session if there is one."""
+    """A new context; with `remember`, starting from the origin's saved session if there is one.
+
+    With `record_dir`, Playwright also saves a video of the run there (1280x720), for demos and
+    for reviewing what the agent did. Nothing is recorded unless this is set.
+    """
     path = session_file(url, directory)
     state = str(path) if remember and path.is_file() else None
-    return browser.new_context(service_workers="block", storage_state=state)
+    if record_dir is None:
+        return browser.new_context(service_workers="block", storage_state=state)
+    size = {"width": 1280, "height": 720}
+    return browser.new_context(
+        service_workers="block",
+        storage_state=state,
+        viewport=size,
+        record_video_dir=str(record_dir),
+        record_video_size=size,
+    )
 
 
 def save(context: BrowserContext, url: str, directory: Path = SESSION_DIR) -> Path:
