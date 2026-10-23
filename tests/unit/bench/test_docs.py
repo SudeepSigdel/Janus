@@ -4,6 +4,8 @@ import json
 import random
 from pathlib import Path
 
+import pytest
+
 from janus import extract_doc
 from janus.config import Settings
 from janus.text.fields import normalize_field
@@ -12,6 +14,21 @@ from janus_bench.docs.make import WANT, make_documents
 from janus_bench.docs.score import format_report, score_documents
 
 
+def _has_devanagari_font() -> bool:
+    try:
+        make._font(10)
+    except FileNotFoundError:
+        return False
+    return True
+
+
+needs_font = pytest.mark.skipif(
+    not _has_devanagari_font(),
+    reason="no Devanagari font; install fonts-noto-core or set JANUS_DOC_FONT",
+)
+
+
+@needs_font
 def test_documents_are_deterministic_and_their_truth_is_valid(tmp_path: Path) -> None:
     first = make_documents(tmp_path / "a", seed=3)
     second = make_documents(tmp_path / "b", seed=3)
@@ -29,6 +46,7 @@ def test_every_document_is_marked_as_a_fictional_sample() -> None:
         assert "नमूना" in title and "SAMPLE" in title
 
 
+@needs_font
 def test_scoring_counts_agreed_wrong_separately(tmp_path: Path, monkeypatch) -> None:
     make_documents(tmp_path, seed=1)
     truth = json.loads((tmp_path / "truth.json").read_text(encoding="utf-8"))
