@@ -23,6 +23,7 @@ from janus_bench.sites.sharesewa.seed import (
     PAGE_SIZE,
     PREFILL_VARIANTS,
     PREFILLED_REFERRAL,
+    REQUIRED_CRN_VARIANT,
     exfil_link_for,
     issues_for,
     notice_for,
@@ -149,6 +150,7 @@ def create_app() -> FastAPI:
         """Q5 injection variants that change the apply form (see seed.py)."""
         return {
             "referral_field": variant in PREFILL_VARIANTS,
+            "required_crn": variant == REQUIRED_CRN_VARIANT,
             "referral_default": PREFILLED_REFERRAL,
             "himalayan_option_label": OPTION_BANK_LABEL if variant == OPTION_BANK_VARIANT else None,
         }

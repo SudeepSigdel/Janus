@@ -7,14 +7,22 @@ from __future__ import annotations
 
 import threading
 from pathlib import Path
+from typing import Annotated
 
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi.responses import HTMLResponse, Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from janus import sessions
 from janus.config import Settings, get_settings
 from janus.llm import LLMClient
+from janus.ui.documents import (
+    DOCUMENT_KINDS,
+    MAX_PHOTO_BYTES,
+    DocSession,
+    DocumentStore,
+    read_document,
+)
 from janus.ui.runner import execute, model_problem
 from janus.ui.session import RunSession, SessionStore
 
@@ -31,6 +39,8 @@ class StartRequest(BaseModel):
     password: str = Field(default="", max_length=200, repr=False)
     pin: str = Field(default="", max_length=50, repr=False)
     remember: bool = False
+    # A confirmed document (see /api/documents); its values become task inputs, once.
+    document_id: str | None = Field(default=None, max_length=40)
 
 
 class ReplyRequest(BaseModel):
@@ -39,15 +49,24 @@ class ReplyRequest(BaseModel):
     answer: str | None = Field(default=None, max_length=200)
 
 
+class ConfirmRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    values: dict[str, str] = Field(max_length=12)
+
+
 class AnswerRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     approved: bool
 
 
-def create_app(settings: Settings | None = None, headed: bool = True, runner=execute) -> FastAPI:
+def create_app(
+    settings: Settings | None = None, headed: bool = True, runner=execute, reader=read_document
+) -> FastAPI:
     app = FastAPI(title="Janus")
     store = SessionStore()
+    docs = DocumentStore()
     cfg = settings or get_settings()
 
     @app.get("/", response_class=HTMLResponse)
@@ -66,6 +85,12 @@ def create_app(settings: Settings | None = None, headed: bool = True, runner=exe
     def start(body: StartRequest) -> dict[str, str]:
         if store.busy():
             raise HTTPException(409, "a run is already in progress")
+        doc_inputs: dict[str, str] = {}
+        if body.document_id:
+            confirmed = docs.take_confirmed(body.document_id)
+            if confirmed is None:
+                raise HTTPException(409, "confirm the document first")
+            doc_inputs = confirmed
         session = RunSession(
             goal=body.goal.strip(),
             url=body.url.strip(),
@@ -73,10 +98,57 @@ def create_app(settings: Settings | None = None, headed: bool = True, runner=exe
             password=body.password,
             pin=body.pin,
             remember=body.remember,
+            doc_inputs=doc_inputs,
         )
         store.add(session)
         threading.Thread(target=runner, args=(session, cfg, headed), daemon=True).start()
         return {"id": session.id}
+
+    @app.get("/api/document-kinds")
+    def document_kinds() -> dict[str, str]:
+        return {kind: spec["label"] for kind, spec in DOCUMENT_KINDS.items()}
+
+    @app.post("/api/documents")
+    async def upload_document(
+        kind: Annotated[str, Form()], file: Annotated[UploadFile, File()]
+    ) -> dict[str, str]:
+        if kind not in DOCUMENT_KINDS:
+            raise HTTPException(422, "unknown document kind")
+        photo = await file.read(MAX_PHOTO_BYTES + 1)
+        if not photo or len(photo) > MAX_PHOTO_BYTES:
+            raise HTTPException(413, "the photo is empty or larger than 12 MB")
+        doc = DocSession(kind=kind)
+        docs.add(doc)
+        threading.Thread(target=reader, args=(doc, photo, cfg), daemon=True).start()
+        return {"id": doc.id}
+
+    @app.get("/api/documents/{doc_id}")
+    def document(doc_id: str) -> dict:
+        doc = docs.get(doc_id)
+        if doc is None:
+            raise HTTPException(404, "no such document")
+        return doc.public()
+
+    @app.get("/api/documents/{doc_id}/image")
+    def document_image(doc_id: str) -> Response:
+        doc = docs.get(doc_id)
+        if doc is None or not doc.image:
+            raise HTTPException(404, "no such document")
+        return Response(doc.image, media_type="image/jpeg", headers={"Cache-Control": "no-store"})
+
+    @app.post("/api/documents/{doc_id}/confirm")
+    def confirm_document(doc_id: str, body: ConfirmRequest) -> dict:
+        doc = docs.get(doc_id)
+        if doc is None:
+            raise HTTPException(404, "no such document")
+        problems = doc.confirm(body.values)
+        if problems:
+            raise HTTPException(422, {"problems": problems})
+        return {"ok": True, "keys": sorted(doc.confirmed), "values": dict(doc.confirmed)}
+
+    @app.delete("/api/documents/{doc_id}")
+    def delete_document(doc_id: str) -> dict[str, bool]:
+        return {"deleted": docs.delete(doc_id)}
 
     @app.get("/api/runs/{run_id}")
     def poll(run_id: str, since: int = 0) -> dict:

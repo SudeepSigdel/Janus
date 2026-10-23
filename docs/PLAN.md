@@ -1907,6 +1907,83 @@ v2 test 33/45 (ASR 0/9), login + OTP task 3/3, MiniWoB 36/125, WebGames 4/49, WA
 utility 70/72. Not run: WebArena (needs the separate evaluator environment). X-WebAgentBench still
 has no public code or data that we could find.
 
+## Ask for missing required fields 2026-10-20
+Only when `ASK_USER` is enabled: the observer records `required_empty` (a required text field that
+is empty right now) and `validate_plan` rejects a click/submit in that form that leaves one empty.
+`ASK_USER` no longer counts as a page capability in the replan ceiling (it touches nothing, like
+`DONE`); without that, asking mid-run was refused as "adds capabilities". When the planner still
+cannot produce the ask (the 8B model kept writing an invented `$inputs.mobile_no`), the agent asks
+itself: `janus/missing.py::needed_user_value` finds the field the refused plan needed (an unknown
+input it filled, or a required empty field it skipped), the question is built from that field's
+label, and the answer becomes `user_<name>` for the next leg (at most 4 per run). Replicas:
+ShareSewa variant `required_crn`, Nagarpalika variant `required_fields` (text inputs carry
+`required`); task share-34 omits the CRN, and the simulated user answers from the task's
+`user_answers` (keyword in the question -> answer; never an input). In `splits/auth.yaml`, not v2.
+Result (qwen3:8b via `janus-planner`, N=3): share-34 0/3 before the ceiling fix, 1/3 before the
+"use the answer" advice, 3/3 after, and still 3/3 with the agent-side ask; share-33 3/3
+throughout. Not covered: required radios, dropdowns and textareas without a `required` attribute;
+`READ` still counts as a capability.
+
+## Photo to fill 2026-10-20
+Direction chosen with the user: people who cannot type (or cannot read a form's language) give a
+photo of their document, and Janus fills the portal from it. Out of scope for now and recorded
+here so it is not forgotten: running on the user's own logged-in browser against real portals
+(conflicts with "replica sites only"); voice input (a local Whisper-family ASR, a dependency and
+policy decision for the owner; the browser Web Speech API is not allowed because it sends audio to
+a cloud service).
+
+Built: `LLMClient.chat_vision_json` (loopback Ollama only, even when `JANUS_CHAT_*` is set; the
+photo never goes to a hosted endpoint), `janus/text/fields.py` (deterministic validators and
+canonical forms: name, citizenship no., BS and AD dates, ward, BOID, CRN, phone, bank; `pin`,
+`password` and `otp` are never read from a photo), `janus/extract_doc.py` (per-document schema;
+read A is the whole photo with a box per field, read B is a 2.5x crop re-read by a *different*
+model, read C is a local OCR model whose lines are matched to labels by code; the status is
+`agreed` (two readers, one of them OCR, give the same valid value), `check` or `missing`), the confirm screen in `janus ui`
+(`janus/ui/documents.py`, `page.html`: the photo with each field's box, a close-up of the field
+beside an editable value, amber for `check`; nothing becomes an input until the person presses
+Confirm, confirmed values are validated again, the photo and values live in memory only and are
+wiped on use, delete or after 30 minutes, and only the keys are traced), a reproducible
+synthetic-document generator and scorer (`janus-bench docs make|score`, fictional names, every
+header says SAMPLE), and end-to-end tests on the replicas (`tests/integration/test_photo_fill_browser.py`).
+
+Measured on 20 generated photos (8 citizenship certificates, 6 demat slips, 6 Hindi ID cards; 74
+fields; tilt, blur and noise added), `janus-bench docs score`, final build: **49/74 suggestions
+correct (66%); 26 fields agreed, of which 25 right and 1 silently wrong; 47 flagged `check` (24 of
+them with the right suggestion); 1 missing; 34% of all fields pre-filled and right.** How it got
+there, one change at a time: `qwen2.5vl:7b` alone read 39% of fields; 49% once the schema asked only
+for the fields the document has; a second read by the *same* model agreed on 15 fields and was wrong
+on 6; a second read by a different family (`gemma3:4b`) gave 20 agreed, 18 right, 2 wrong (24%
+pre-filled and right, 49% suggestions correct); adding a third reader, an open-weight OCR model
+(PaddleOCR PP-OCRv5 Devanagari recogniser through RapidOCR, local, 0.4 to 4 s per photo on the CPU),
+raised suggestions to 66% (dates 7/8 and 6/6, citizenship numbers 4/8, phone numbers 4/6, from 4/8,
+3/6, 0/8 and 1/6) but let two vision models that misread alike (a ward 11 as 22; the same wrong
+name) agree 3 times wrongly, so agreement now has to include the OCR reader whenever it is running
+(26 agreed, 1 wrong). Label-anchored lookup (`janus/ocr_fields.py`) had one bug found by the
+numbers: a value that contains its own label word (`CRN-353799`) was skipped. OCR cannot read
+names (6/20 suggestions correct overall) and the one silent error is a name. Qwen3-VL 8B was
+dropped (about 8 minutes per photo on 8 GB, part of it on the CPU); a prompt asking for ASCII digits
+did not help. Latin text (CRN, bank) is read reliably. The model gives no sign when it is wrong, so
+the confirm screen is mandatory whatever the accuracy, and the claim is "the photo locates the
+fields; the person confirms the values". The documents are synthetic and drawn in one font, so
+real cards will read differently.
+
+End to end (qwen3:8b planner, simulated person corrects each field against the photo): a demat slip
+photo drove a login and a submitted ShareSewa application with the slip's CRN, bank and a
+secret PIN kept out of the model (2 of 4 fields needed correcting); a citizenship certificate drove
+a Nagarpalika residence recommendation, asking for the mobile number the document does not carry
+(3 of 4 fields needed correcting). One run each, not a rate.
+
+Dependency note: `pillow>=10` added to the `ui` and `bench` extras (crop and re-encode the photo;
+re-encoding also drops EXIF data such as GPS), `python-multipart` to `ui` (photo upload). New
+settings: `vision_model` (default `qwen2.5vl:7b`), `vision_model_b` (default `gemma3:4b`; `""`
+disables the second reader, after which nothing is marked agreed). The OCR reader was approved by the owner on
+the condition that it stays open-weight; it is called through `LLMClient.ocr_lines`, so "all AI
+through llm.py" still holds. Dependency note: `rapidocr>=3.0` and `onnxruntime>=1.18` added to the
+`ui` and `bench` extras; the first OCR call downloads about 15 MB of open model files from
+ModelScope into the package folder, after which it runs offline (`JANUS_OCR=0` disables it).
+Open decisions for the owner: the Gemma licence (Gemma terms, not Apache 2.0), voice, and whether
+to move this out of "Later" in CLAUDE.md's scope rule.
+
 ## D1 — Goal-matched context (diagnosed 2026-10-18; not implemented)
 Status: stopped at Step 0. The hypothesis did not hold, so nothing was built.
 Proposal: generalize P5's `row_key` so a deterministic, code-only whole-token equality check

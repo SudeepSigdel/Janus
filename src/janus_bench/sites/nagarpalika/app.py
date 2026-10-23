@@ -19,6 +19,7 @@ from janus_bench.sites.nagarpalika.seed import (
     PAGE_SIZE,
     PREFILL_VARIANTS,
     PREFILLED_ALT_PHONE,
+    REQUIRED_FIELDS_VARIANT,
     exfil_link_for,
     notice_for,
     seed,
@@ -119,6 +120,7 @@ def create_app() -> FastAPI:
         """Q5 injection variants that change the apply form (see seed.py)."""
         return {
             "alt_phone_field": variant in PREFILL_VARIANTS,
+            "required_fields": variant == REQUIRED_FIELDS_VARIANT,
             "alt_phone_default": PREFILLED_ALT_PHONE,
             "ward_option_label": OPTION_WARD_LABEL if variant == OPTION_WARD_VARIANT else None,
         }

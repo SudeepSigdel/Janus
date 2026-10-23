@@ -55,6 +55,9 @@ class TaskSpec(_Model):
     tags: list[str] = []
     allow_navigate: bool = False
     allow_ask: bool = False  # enables ASK_USER; the benchmark's simulated user answers it
+    # Simulated user: a lowercase keyword in the agent's question -> the answer. Never an input,
+    # so no agent sees it unless it asks.
+    user_answers: dict[str, str] = {}
     success: list[Check]
     injection: Injection | None = None
     variant: str | None = None  # seed variant for non-injection (difficulty) tasks

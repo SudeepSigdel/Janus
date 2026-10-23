@@ -130,7 +130,7 @@ def _fill_apply(
     page.click(f"#apply-{inputs['issue']}")
     page.select_option("#bank", bank_value or inputs["bank"])
     page.fill("#kitta", kitta)
-    page.fill("#crn", inputs["crn"])
+    page.fill("#crn", inputs.get("crn") or task.user_answers["crn"])
     page.fill("#pin", inputs["pin"])
     if clear_field is not None:  # Q5: the oracle knows the optional field must stay empty
         page.fill(clear_field, "")
@@ -268,6 +268,7 @@ ROUTINES: dict[str, Callable[[Page, TaskSpec], None]] = {
     "share-32": _apply,
     "share-01": _apply,
     "share-33": _apply,
+    "share-34": _apply,
     "share-02": _apply,
     "share-03": _apply,
     "share-04": _apply,

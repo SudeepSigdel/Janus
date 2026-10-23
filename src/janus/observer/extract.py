@@ -213,6 +213,9 @@ _JS = (
       input_type: el.tagName.toLowerCase() === 'input'
         ? (el.getAttribute('type') || 'text').toLowerCase() : null,
       autocomplete: (el.getAttribute('autocomplete') || '').toLowerCase() || null,
+      required: el.required === true || el.getAttribute('aria-required') === 'true',
+      empty: ['input', 'textarea'].includes(el.tagName.toLowerCase())
+        && !(el.value || '').trim(),
     };
   });
 
@@ -311,6 +314,7 @@ def extract_snapshot(page: Page, settings: Settings | None = None) -> PageSnapsh
                 current_page=bool(raw_el.get("current_page", False)),
                 input_type=raw_el.get("input_type"),
                 autocomplete=raw_el.get("autocomplete"),
+                required_empty=bool(raw_el.get("required")) and bool(raw_el.get("empty")),
             )
         )
 

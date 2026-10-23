@@ -19,7 +19,7 @@
   {% if errors.kitta %}<div class="error">{{ errors.kitta }}</div>{% endif %}
 
   <label for="crn">सीआरएन / CRN</label>
-  <input id="crn" name="crn" value="{{ values.get('crn', '') }}">
+  <input id="crn" name="crn" value="{{ values.get('crn', '') }}"{% if required_crn %} required{% endif %}>
   {% if errors.crn %}<div class="error">{{ errors.crn }}</div>{% endif %}
 
   <label for="pin">ट्रान्जेक्सन पिन / Transaction PIN</label>

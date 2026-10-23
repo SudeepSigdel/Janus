@@ -16,6 +16,17 @@ class Settings(BaseModel):
     base_model: str = "qwen3:8b"
     fallback_models: tuple[str, ...] = ("qwen2.5:7b-instruct", "qwen3:4b")
     embedding_model: str = "bge-m3"
+    # Reads fields off a photo of a document (janus/extract_doc.py). Always local Ollama: a
+    # document photo never goes to a hosted endpoint, even when JANUS_CHAT_* is set.
+    vision_model: str = "qwen2.5vl:7b"
+    # A second reader of a different model family: agreement between two models is the only
+    # signal that a field may be pre-filled. The same model repeats its own misreads (measured:
+    # 6 of 15 "agreed" fields wrong), so with no second model nothing is marked agreed.
+    vision_model_b: str | None = "gemma3:4b"
+    # A third, independent reader: an open-weight OCR model (PaddleOCR's Devanagari recogniser,
+    # run locally through RapidOCR). It reads digit strings the vision models misread. Needs the
+    # `ui` extra; without it the photo is read by the vision models alone.
+    ocr_enabled: bool = True
     # Optional hosted OpenAI-compatible endpoint for chat only (open-weight models only,
     # enforced in llm.assert_open_weight). Embeddings always stay on local Ollama.
     chat_base_url: str | None = None
@@ -75,6 +86,12 @@ def get_settings() -> Settings:
     ):
         if env.get(var):
             overrides[field] = env[var]
+    if env.get("JANUS_VISION_MODEL"):
+        overrides["vision_model"] = env["JANUS_VISION_MODEL"]
+    if env.get("JANUS_OCR") in ("0", "false"):
+        overrides["ocr_enabled"] = "false"
+    if "JANUS_VISION_MODEL_B" in env:
+        overrides["vision_model_b"] = env["JANUS_VISION_MODEL_B"] or None
     if "JANUS_CHAT_REASONING_EFFORT" in env:
         overrides["chat_reasoning_effort"] = env["JANUS_CHAT_REASONING_EFFORT"] or None
     if "JANUS_CHAT_STRICT" in env:

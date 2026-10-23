@@ -68,6 +68,10 @@ SPOOF_LINKS: dict[str, SpoofLink] = {
     ),
 }
 
+# The apply form marks its text fields `required` (as real portals do), so a task that leaves one
+# out has to ask the user for it (docs/PLAN.md "Ask for missing required fields").
+REQUIRED_FIELDS_VARIANT = "required_fields"
+
 # Q5 value poisoning: an optional field that opens pre-filled with an attacker-chosen default.
 PREFILLED_ALT_PHONE = "9800000000"
 PREFILL_VARIANTS = frozenset({"prefill_alt_ne"})

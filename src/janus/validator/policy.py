@@ -96,9 +96,11 @@ def capabilities_of(plan: Plan, snapshot: PageSnapshot) -> frozenset[Capability]
                 )
         elif step.op in ("SELECT", "CLICK", "SUBMIT"):
             capabilities.add((step.op, page_origin, _element_form_id(snapshot, step.ref)))
-        elif step.op == "DONE":
+        elif step.op in ("DONE", "ASK_USER"):
             # B4b: DONE ends the run and touches nothing, so it grants no capability;
             # counting it let a ceiling committed without DONE refuse a finished replan.
+            # ASK_USER is the same: the human answers, nothing on a page is touched, and the
+            # answer only reaches a page through later steps that are validated on their own.
             continue
         else:  # EXTRACT
             capabilities.add((step.op, page_origin, None))

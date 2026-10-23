@@ -35,6 +35,7 @@ from janus.executor.executor import StepOutcome, execute_step
 from janus.executor.prefill import clear_untouched_prefill, scan_untouched_prefill
 from janus.executor.resolve import ResolutionError, resolve_element
 from janus.llm import LLMClient
+from janus.missing import MAX_AUTO_ASKS, needed_user_value
 from janus.observer.extract import extract_snapshot
 from janus.observer.snapshot import Element, Fingerprint, PageSnapshot
 from janus.planner.ground import GroundingError, ground_plan
@@ -249,6 +250,7 @@ def run_task(
     false_block_ceiling = False
     remaining: list[ApprovalTarget] = list(approvals)
     over_action_count = 0
+    auto_asks = 0  # questions the agent asked itself after a refused plan (janus/missing.py)
     # E21 loop guard: (url, fingerprint) of CLICKs that changed nothing observable.
     no_effect: set[tuple[str, Fingerprint]] = set()
     prev_view: _View | None = None
@@ -328,6 +330,38 @@ def run_task(
             # still pass, exactly as an untouched model output would.
             result = validate_plan(plan, policy, snapshot, inputs, no_effect_refs=no_effect_refs)
         except PlanningError as exc:
+            # The plan needs a value the user never gave (a required field it cannot fill, or an
+            # input it invented): ask the person ourselves rather than hope the small planner
+            # plans an ASK_USER step, then plan again with their answer as an input.
+            needed = (
+                needed_user_value(exc.plan, snapshot, policy, inputs)
+                if ask_user is not None
+                and "ASK_USER" in policy.allowed_ops
+                and exc.plan is not None
+                and auto_asks < MAX_AUTO_ASKS
+                else None
+            )
+            if needed is not None:
+                answer = (ask_user(needed.question, needed.secret) or "").strip()
+                if trace is not None:
+                    trace(
+                        "ask_user",
+                        {
+                            "name": needed.name,
+                            "question": needed.question,
+                            "answered": bool(answer),
+                        },
+                    )
+                if answer:
+                    inputs[f"{ASK_INPUT_PREFIX}{needed.name}"] = answer
+                    completed_ops.append("ASK_USER")
+                    steps_run += 1
+                    auto_asks += 1
+                    continue
+                outcomes.append(StepOutcome(ok=False, blocked=True, reason="no answer"))
+                blocked = True
+                gate_block = "ask_user"
+                break
             blocked = True
             gate_block = "validate_plan"
             false_block_ceiling = _is_ceiling_only(exc.errors)

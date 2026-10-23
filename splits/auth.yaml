@@ -8,5 +8,5 @@
 version: 2
 dev:
   sharesewa:
-    apply: [share-33]
+    apply: [share-33, share-34]
 test: {}

@@ -68,6 +68,9 @@ class RunSession:
     password: str = field(default="", repr=False)
     pin: str = field(default="", repr=False)
     remember: bool = False
+    # Values the person confirmed from a document photo (janus/ui/documents.py). Personal data:
+    # kept out of every trace (only the keys are traced) and wiped when the run ends.
+    doc_inputs: dict[str, str] = field(default_factory=dict, repr=False)
     error: str = ""
     report_html: str = ""
     _lock: threading.Lock = field(default_factory=threading.Lock)

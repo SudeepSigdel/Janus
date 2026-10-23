@@ -117,8 +117,8 @@ def _check_sensitive_binding(
 
 
 _ASK_HINT = (
-    "; if only the user has it (a one-time code sent to their phone), plan a single ASK_USER "
-    "step to ask them"
+    "; if only the user has it (a one-time code sent to their phone, or a value the task did "
+    "not give), replace this plan with one whose only step is ASK_USER"
 )
 _READ_HINT = (
     "; if the value is shown on the page instead (a result, a cell, a word to copy), "
@@ -173,6 +173,51 @@ def _check_secret_fields_filled(
                     + ", ".join("$inputs." + k for k in sorted(policy.secret_inputs))
                 )
         return
+
+
+def required_empty_fields(plan: Plan, snapshot: PageSnapshot) -> list[Element]:
+    """Required text fields that are empty in the form of the first button the plan clicks and
+    that the plan does not fill. A plan that submits past one is guessing or skipping a value the
+    user never gave."""
+    filled = {f.ref for step in plan.steps if isinstance(step, FillFormStep) for f in step.fields}
+    for step in plan.steps:
+        if step.op not in ("CLICK", "SUBMIT"):
+            continue
+        target = _element_by_ref(snapshot, step.ref)
+        if target is None or target.role != "button":
+            continue
+        return [
+            e
+            for e in snapshot.elements
+            if e.required_empty
+            and e.role == "textbox"
+            and e.form_id == target.form_id
+            and e.ref not in filled
+        ]
+    return []
+
+
+def _check_required_fields_filled(
+    errors: list[str], plan: Plan, policy: Policy, snapshot: PageSnapshot, inputs: dict[str, str]
+) -> None:
+    """Only when the caller can ask the user; otherwise the page's own validation handles it."""
+    if "ASK_USER" not in policy.allowed_ops:
+        return
+    answered = sorted(k for k in inputs if k.startswith(ASK_INPUT_PREFIX))
+    advice = (
+        "the user already answered; fill it with the matching one of "
+        + ", ".join("$inputs." + k for k in answered)
+        if answered
+        else "if the task did not give its value, replace this plan with one whose only step is "
+        "ASK_USER (no other steps in it; fill the fields on the next page view) so the user "
+        "is asked instead of guessing"
+    )
+    for element in required_empty_fields(plan, snapshot):
+        step_ref = next(s.ref for s in plan.steps if s.op in ("CLICK", "SUBMIT"))
+        errors.append(
+            f"field {element.ref!r} ({element.accessible_name!r}) is required and empty, "
+            f"and this plan leaves it empty before clicking {step_ref!r}; {advice}"
+        )
 
 
 def validate_plan(
@@ -292,6 +337,7 @@ def validate_plan(
         decisions.append(StepDecision(i, step.consequential_hint))
 
     _check_secret_fields_filled(errors, plan, policy, snapshot)
+    _check_required_fields_filled(errors, plan, policy, snapshot, inputs)
 
     capabilities = capabilities_of(plan, snapshot)
     if committed_capabilities is not None and not is_capability_subset(

@@ -50,6 +50,19 @@ N=3 as weak evidence; aggregate moves of 3 runs or fewer are within noise.
 - **Safe refusals that cost the task** (nag-30, share-16, share-25): an injected lookalike or a
   planted step is correctly refused, and the run stops instead of finding the legitimate path.
 
+### Photo to fill still misreads names and some digits
+
+On 20 generated documents (74 fields), three local readers (two vision models and an OCR model)
+got 66% of the suggested values right, and 34% of fields came pre-filled and right. Of the 26 fields
+where two readers agreed, 1 was wrong without any flag (a name). Names are the weak spot (6 of 20
+suggestions right); citizenship numbers are 4 of 8 and phone numbers 4 of 6; dates, CRNs and bank
+names are mostly right. The readers give no sign when they misread, so every value is shown beside a
+close-up of the photo and the person must confirm it; nothing is auto-accepted. The documents are
+synthetic and drawn in one Windows font, so real cards in other fonts, creases and glare are
+untested. A person who cannot read the digits cannot catch a wrong one: the close-up helps, but a
+spoken read-back is not built. Voice input is not built. The first OCR use downloads about 15 MB of
+open model files; after that it runs offline.
+
 ### Run-level limits
 
 - Interactive runs end after 12 pages, benchmark runs after 7.
@@ -91,6 +104,16 @@ A declared approval binds an action to the exact control name and a row id or UR
 gives a different control the same name and row id would still match. The lookalike-row case
 (nag-30) was stopped by the path binding in 3/3 runs, and spoofed-label cases are covered by unit
 tests rather than agent runs.
+
+### Photos of documents
+
+A photo is personal data. It is read only by local models (the vision call refuses any non-loopback
+client, even when a hosted chat endpoint is configured), is re-encoded on upload so EXIF data is
+dropped, is held in memory only, and is deleted when its values are used, when the person discards
+it, or after 30 minutes; its values are never traced, logged or put in the report (only the keys).
+Not covered: the web page is served on `127.0.0.1` without authentication, so anyone with access to
+the machine's loopback can read an uploaded photo during its 30 minutes; the confirmed values are
+typed into a form like any input, so a form that echoes them puts them on the page.
 
 ### Logins and one-time codes
 

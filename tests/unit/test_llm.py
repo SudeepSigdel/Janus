@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import itertools
 import json
 
@@ -207,3 +208,47 @@ def test_hosted_chat_retries_on_rate_limit(monkeypatch: pytest.MonkeyPatch) -> N
     client = LLMClient(settings, transport=httpx.MockTransport(lambda r: next(replies)))
     assert client.chat_json([{"role": "user", "content": "x"}], {"type": "object"}) == {}
     assert sleeps == [3.5]
+
+
+def test_vision_request_shape_and_parse() -> None:
+    seen: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["path"] = request.url.path
+        seen["body"] = json.loads(request.content)
+        return httpx.Response(200, json={"message": {"content": '{"name": "x"}'}})
+
+    schema = {"type": "object", "properties": {"name": {"type": "string"}}}
+    out = _client(handler).chat_vision_json("read it", [b"fake-image-bytes"], schema)
+    assert out == {"name": "x"}
+    assert seen["path"] == "/api/chat"
+    assert seen["body"]["model"] == "qwen2.5vl:7b"
+    assert seen["body"]["format"] == schema
+    assert seen["body"]["messages"][0]["images"] == [base64.b64encode(b"fake-image-bytes").decode()]
+
+
+def test_vision_never_uses_the_hosted_chat_client() -> None:
+    """With JANUS_CHAT_* set, chat goes to the hosted host, but a document photo must not."""
+    hosts: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        hosts.append(request.url.host)
+        return httpx.Response(200, json={"message": {"content": "{}"}})
+
+    settings = Settings(chat_base_url="https://api.groq.com/openai/v1", chat_model="qwen/qwen3-32b")
+    client = LLMClient(settings, transport=httpx.MockTransport(handler))
+    client.chat_vision_json("read it", [b"img"], {"type": "object"})
+    assert hosts == ["localhost"]
+
+
+def test_vision_refuses_a_model_off_the_allowlist() -> None:
+    with pytest.raises(ProprietaryModelError):
+        _client(lambda r: httpx.Response(200, json={})).chat_vision_json(
+            "p", [b"i"], {}, model="gpt-4o"
+        )
+
+
+def test_vision_bad_content_raises() -> None:
+    client = _client(lambda r: httpx.Response(200, json={"message": {"content": "nope"}}))
+    with pytest.raises(LLMError):
+        client.chat_vision_json("p", [b"i"], {})

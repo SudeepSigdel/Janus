@@ -225,3 +225,54 @@ def test_submitting_with_an_empty_password_field_is_sent_back() -> None:
     assert validate_plan(full, policy, snap, INPUTS).ok
     # without user secrets (every benchmark task) the rule is off
     assert validate_plan(missing, _policy(), snap, INPUTS).ok
+
+
+def test_submitting_past_a_required_empty_field_asks_the_user() -> None:
+    from janus.planner.ops import ClickStep
+
+    needed = _field("e0", "mother's name").model_copy(update={"required_empty": True})
+    button = Element(
+        ref="e1",
+        tag="button",
+        role="button",
+        accessible_name="Next",
+        name_attr=None,
+        form_id=None,
+        fingerprint=compute_fingerprint(
+            role="button", accessible_name="Next", name_attr=None, form_id=None, tag="button"
+        ),
+    )
+    snap = SNAP.model_copy(update={"elements": [needed, button]})
+    skip = Plan(task_id="t", steps=[ClickStep(ref="e1")])
+    errors = validate_plan(skip, _policy(), snap, {}).errors
+    assert any("required and empty" in e and "ASK_USER" in e for e in errors)
+    filled = Plan(
+        task_id="t",
+        steps=[FillFormStep(fields=[FieldValue(ref="e0", value="Sita")]), ClickStep(ref="e1")],
+    )
+    assert not any(
+        "required and empty" in e for e in validate_plan(filled, _policy(), snap, {}).errors
+    )
+    off = Policy(allowed_origins=frozenset(), allowed_ops=allowed_ops_for(False), max_steps=5)
+    assert not any("required and empty" in e for e in validate_plan(skip, off, snap, {}).errors)
+
+
+def test_required_field_advice_points_at_an_answer_the_user_already_gave() -> None:
+    from janus.planner.ops import ClickStep
+
+    needed = _field("e0", "crn").model_copy(update={"required_empty": True})
+    button = Element(
+        ref="e1",
+        tag="button",
+        role="button",
+        accessible_name="Next",
+        name_attr=None,
+        form_id=None,
+        fingerprint=compute_fingerprint(
+            role="button", accessible_name="Next", name_attr=None, form_id=None, tag="button"
+        ),
+    )
+    snap = SNAP.model_copy(update={"elements": [needed, button]})
+    skip = Plan(task_id="t", steps=[ClickStep(ref="e1")])
+    errors = validate_plan(skip, _policy(), snap, {"user_crn": "X"}).errors
+    assert any("$inputs.user_crn" in e and "plan a single ASK_USER" not in e for e in errors)

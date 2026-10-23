@@ -8,6 +8,7 @@ Output is returned as raw parsed JSON; callers must validate it (see janus/valid
 
 from __future__ import annotations
 
+import base64
 import ipaddress
 import json
 import time
@@ -67,6 +68,29 @@ def assert_local_url(url: str) -> None:
     except ValueError:
         pass
     raise NonLocalEndpointError(f"refusing non-local LLM endpoint: {host}")
+
+
+_OCR_ENGINE: Any = None  # one engine per process: loading the models takes a second or two
+
+
+def _ocr_engine() -> Any:
+    global _OCR_ENGINE
+    if _OCR_ENGINE is None:
+        try:
+            import logging
+
+            from rapidocr import LangRec, ModelType, OCRVersion, RapidOCR
+        except ImportError as exc:
+            raise LLMError("OCR needs the `ui` extra (rapidocr, onnxruntime)") from exc
+        logging.getLogger("RapidOCR").setLevel(logging.WARNING)
+        _OCR_ENGINE = RapidOCR(
+            params={
+                "Rec.lang_type": LangRec.DEVANAGARI,
+                "Rec.model_type": ModelType.MOBILE,
+                "Rec.ocr_version": OCRVersion.PPOCRV5,
+            }
+        )
+    return _OCR_ENGINE
 
 
 class LLMClient:
@@ -180,6 +204,64 @@ class LLMClient:
             return json.loads(data["choices"][0]["message"]["content"])
         except (KeyError, IndexError, TypeError, json.JSONDecodeError) as exc:
             raise LLMError(f"unparseable chat response: {exc}") from exc
+
+    def chat_vision_json(
+        self,
+        prompt: str,
+        images: list[bytes],
+        schema: dict[str, Any],
+        *,
+        model: str | None = None,
+    ) -> Any:
+        """Ask the local vision model about `images`; returns parsed (unvalidated) JSON.
+
+        Images are personal documents, so this call only ever uses the loopback Ollama client
+        (`self._http`), never the hosted chat client, whatever `JANUS_CHAT_*` says."""
+        name = model or self.settings.vision_model
+        assert_open_weight(name)
+        payload: dict[str, Any] = {
+            "model": name,
+            "stream": False,
+            "format": schema,
+            "options": {"temperature": 0, "num_ctx": 4096},
+            "messages": [
+                {
+                    "role": "user",
+                    "content": prompt,
+                    "images": [base64.b64encode(image).decode("ascii") for image in images],
+                }
+            ],
+        }
+        data = self._request("POST", "/api/chat", payload, self._http)
+        self.chat_calls += 1
+        self.prompt_tokens += int(data.get("prompt_eval_count") or 0)
+        self.completion_tokens += int(data.get("eval_count") or 0)
+        try:
+            return json.loads(data["message"]["content"])
+        except (KeyError, TypeError, json.JSONDecodeError) as exc:
+            raise LLMError(f"unparseable vision response: {exc}") from exc
+
+    def ocr_lines(self, image: bytes) -> list[dict[str, Any]]:
+        """Text lines read off `image` by a local open-weight OCR model (PaddleOCR PP-OCRv5
+        Devanagari via RapidOCR, run on this machine, no network at inference).
+
+        Returns [{"text": str, "box": [x1, y1, x2, y2]}] in pixels, unvalidated: callers treat
+        every line as untrusted text, exactly like a vision model's answer."""
+        started = time.monotonic()
+        try:
+            result = _ocr_engine()(image)
+        except LLMError:
+            raise
+        except Exception as exc:
+            raise LLMError(f"OCR failed: {type(exc).__name__}") from exc
+        finally:
+            self.elapsed_s += time.monotonic() - started
+        lines: list[dict[str, Any]] = []
+        boxes = result.boxes if result.boxes is not None else ()
+        for text, quad in zip(result.txts or (), boxes, strict=False):
+            xs, ys = [float(pt[0]) for pt in quad], [float(pt[1]) for pt in quad]
+            lines.append({"text": str(text), "box": [min(xs), min(ys), max(xs), max(ys)]})
+        return lines
 
     def embed(self, texts: list[str], *, model: str | None = None) -> list[list[float]]:
         data = self._request(

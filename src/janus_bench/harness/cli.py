@@ -211,6 +211,24 @@ def miniwob_cmd(agent: str, split: str, only: str | None, repeats: int, out: Pat
     return 0
 
 
+def docs_cmd(args: argparse.Namespace) -> int:
+    from janus.config import get_settings
+    from janus_bench.docs.make import make_documents
+    from janus_bench.docs.score import format_report, score_documents
+
+    if args.docs_command == "make":
+        truth = make_documents(args.out, args.seed, args.clean)
+        print(f"wrote {len(truth)} documents to {args.out}")
+        return 0
+    tally, rows = score_documents(
+        args.dir, get_settings(), args.model, args.model_b, False if args.no_ocr else None
+    )
+    print(format_report(tally))
+    if args.out is not None:
+        args.out.write_text(json.dumps(rows, ensure_ascii=False, indent=1), encoding="utf-8")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     if hasattr(sys.stdout, "reconfigure"):  # Windows consoles default to a non-UTF-8 codepage
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -293,6 +311,18 @@ def main(argv: list[str] | None = None) -> int:
     demo_p = sub.add_parser("demo", help="naive agent vs Janus on one injection task, as HTML")
     demo_p.add_argument("--task", default="nag-06", help="an injection task id (default nag-06)")
     demo_p.add_argument("--out", type=Path, default=Path("demo.html"))
+    docs_p = sub.add_parser("docs", help="fictional document photos: make them, score extraction")
+    docs_sub = docs_p.add_subparsers(dest="docs_command", required=True)
+    make_p = docs_sub.add_parser("make", help="write the images and truth.json")
+    make_p.add_argument("--out", type=Path, default=Path("results/docs"))
+    make_p.add_argument("--seed", type=int, default=7)
+    make_p.add_argument("--clean", action="store_true", help="no tilt, blur or noise")
+    score_p = docs_sub.add_parser("score", help="score photo-to-fill extraction (needs Ollama)")
+    score_p.add_argument("--dir", type=Path, default=Path("results/docs"))
+    score_p.add_argument("--model", default=None, help="read A model (default: vision_model)")
+    score_p.add_argument("--model-b", default=None, help="read B model; '' = no second reader")
+    score_p.add_argument("--no-ocr", action="store_true", help="skip the OCR reader")
+    score_p.add_argument("--out", type=Path, default=None, help="write per-field rows as JSON")
     for external in (mw_p, wa_p, ws_p, wg_p):
         external.add_argument(
             "--allow-unpinned",
@@ -320,6 +350,8 @@ def main(argv: list[str] | None = None) -> int:
         records = [json.loads(x) for x in args.out.read_text("utf-8").splitlines() if x]
         print(webgames.summarize(records))
         return 0
+    if args.command == "docs":
+        return docs_cmd(args)
     if args.command == "demo":
         from janus_bench.demo import build_demo
 

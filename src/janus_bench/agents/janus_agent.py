@@ -38,11 +38,15 @@ def _policy_for(task: TaskSpec) -> Policy:
 
 
 def _sms_reader(task: TaskSpec):
-    """The benchmark's simulated user for ASK_USER: it answers only while the site is waiting
-    for a one-time code, by reading the code the replica 'sent by SMS' from its state. Any other
-    question gets no answer, which stops the run, as a real user who doesn't know would."""
+    """The benchmark's simulated user for ASK_USER: it answers a question that mentions one of the
+    task's `user_answers` keywords, and, while the site is waiting for a one-time code, reads the
+    code the replica 'sent by SMS' from its state. Any other question gets no answer, which stops
+    the run, as a real user who doesn't know would."""
 
     def ask(question: str, secret: bool) -> str | None:
+        for keyword, answer in task.user_answers.items():
+            if keyword.lower() in question.lower():
+                return answer
         state = httpx.get(f"{origin_of(task.start_url)}/__bench/state", timeout=5).json()
         return state.get("otp") if state.get("otp_pending") else None
 

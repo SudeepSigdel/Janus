@@ -197,6 +197,9 @@ _PAGED_ROWS = [
 ]
 
 
+# The apply form marks the CRN field `required`; the task does not give the CRN (share-34), so
+# the agent has to ask the user for it.
+REQUIRED_CRN_VARIANT = "required_crn"
 OTP_VARIANT = "otp"
 # The one-time code the replica "sends by SMS" for the otp variant. Fixed so runs are
 # reproducible; a benchmark's simulated user reads it from /__bench/state.

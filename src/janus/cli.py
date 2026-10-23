@@ -46,6 +46,10 @@ def doctor() -> int:
         else:
             print(f"FAIL  model {model} missing")
             missing += 1
+    # Photo to fill is optional: a missing vision model never fails the check.
+    for model in (settings.vision_model, settings.vision_model_b):
+        if model and not has_model(installed, model):
+            print(f"note  vision model {model} not installed (photo to fill): ollama pull {model}")
     return 1 if missing or not pins_ok() else 0
 
 
