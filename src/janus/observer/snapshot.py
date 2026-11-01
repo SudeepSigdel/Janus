@@ -9,6 +9,20 @@ from pydantic import BaseModel, ConfigDict, Field
 
 Role = str  # link, button, textbox, combobox, checkbox, radio, generic
 
+# AUDIT S1: a page can put any text in a `role` attribute. The planner only ever sees a role from
+# this closed set of standard ARIA widget roles; anything else is shown as "generic".
+ROLE_VOCAB: frozenset[str] = frozenset(
+    {
+        "link", "button", "textbox", "combobox", "checkbox", "radio", "generic", "tab", "option",
+        "menuitem", "menuitemcheckbox", "menuitemradio", "listbox", "slider", "switch",
+        "treeitem", "gridcell", "cell", "row", "columnheader", "rowheader", "menu", "tablist",
+    }
+)  # fmt: skip
+
+
+def outline_role(role: str) -> str:
+    return role if role in ROLE_VOCAB else "generic"
+
 
 class _Model(BaseModel):
     model_config = ConfigDict(extra="forbid")

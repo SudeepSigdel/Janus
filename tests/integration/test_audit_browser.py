@@ -147,9 +147,6 @@ def test_s2_egress_guard_covers_service_workers(page: Page, sites: tuple[_Site, 
 # --- S9: a "commit" is only a main-frame POST navigation after CLICK/SUBMIT ---------------
 
 
-@pytest.mark.xfail(
-    strict=True, reason="AUDIT.md S9: a fetch()-based submit is not seen as a commit"
-)
 def test_s9_fetch_submit_is_detected_as_a_commit(page: Page, sites: tuple[_Site, _Site]) -> None:
     portal, _ = sites
     _open(
@@ -164,9 +161,6 @@ def test_s9_fetch_submit_is_detected_as_a_commit(page: Page, sites: tuple[_Site,
     assert outcome.caused_post
 
 
-@pytest.mark.xfail(
-    strict=True, reason="AUDIT.md S9: a SELECT whose onchange submits is not seen as a commit"
-)
 def test_s9_select_onchange_submit_is_detected_as_a_commit(
     page: Page, sites: tuple[_Site, _Site]
 ) -> None:
@@ -242,9 +236,6 @@ def test_s12_invisible_controls_are_not_in_the_outline(
 # --- R1: an error response still counts as a commit -------------------------------------
 
 
-@pytest.mark.xfail(
-    strict=True, reason="AUDIT.md R1: a POST answered with HTTP 500 counts as a commit"
-)
 def test_r1_error_response_is_not_a_commit(page: Page, sites: tuple[_Site, _Site]) -> None:
     portal, _ = sites
     portal.pages["/boom"] = (500, {"Content-Type": "text/html"}, b"<h1>Internal error</h1>")

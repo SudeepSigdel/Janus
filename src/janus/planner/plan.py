@@ -53,11 +53,12 @@ from __future__ import annotations
 import json
 from collections.abc import Callable
 from typing import Any
+from urllib.parse import urlsplit, urlunsplit
 
 from pydantic import ValidationError
 
 from janus.llm import LLMClient, LLMError
-from janus.observer.snapshot import PageSnapshot
+from janus.observer.snapshot import PageSnapshot, outline_role
 from janus.planner.examples import select_example
 from janus.planner.ops import Plan
 from janus.validator.plan import (
@@ -110,6 +111,21 @@ _SYSTEM_PROMPT = (
 )
 
 
+MAX_TITLE_CHARS = 60
+
+
+def _safe_title(title: str) -> str:
+    """AUDIT S1: the page title is page-authored; cap it (it is only a DONE signal)."""
+    title = " ".join(title.split())
+    return title if len(title) <= MAX_TITLE_CHARS else title[: MAX_TITLE_CHARS - 1] + "…"
+
+
+def _safe_url(url: str) -> str:
+    """AUDIT S1: origin and path only; a query string or fragment is page-controlled text."""
+    parts = urlsplit(url)
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, "", ""))
+
+
 def _outline(snapshot: PageSnapshot) -> list[dict[str, str | None]]:
     """The trusted structural outline the planner is allowed to see (invariant 1).
 
@@ -120,7 +136,11 @@ def _outline(snapshot: PageSnapshot) -> list[dict[str, str | None]]:
     """
     outline: list[dict[str, str | None]] = []
     for e in snapshot.elements:
-        entry: dict[str, str | None] = {"ref": e.ref, "role": e.role, "label": e.accessible_name}
+        entry: dict[str, str | None] = {
+            "ref": e.ref,
+            "role": outline_role(e.role),
+            "label": e.accessible_name,
+        }
         if e.row_key is not None:
             entry["row"] = e.row_key
         if e.current_page:
@@ -208,8 +228,8 @@ def _user_message(
             "instruction": instruction,
             "input_keys": input_keys,
             "completed_ops": completed_ops,
-            "page_url": snapshot.url,
-            "page_title": snapshot.title,
+            "page_url": _safe_url(snapshot.url),
+            "page_title": _safe_title(snapshot.title),
             "elements": _outline(snapshot),
         },
         ensure_ascii=False,

@@ -8,9 +8,11 @@ happened so the verifier can judge the outcome.
 
 from __future__ import annotations
 
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 
-from playwright.sync_api import ElementHandle, Page, Request
+from playwright.sync_api import ElementHandle, Page, Response
 from playwright.sync_api import Error as PlaywrightError
 
 from janus.executor.resolve import ResolutionError, resolve_element
@@ -34,10 +36,10 @@ class StepOutcome:
     blocked: bool = False
     reason: str = ""
     extracted_value: str | None = None
-    # A CLICK/SUBMIT caused a main-frame POST navigation (docs/PLAN.md P4: every
-    # replica state change is a real form POST; a link like the cancel/withdraw
-    # confirm-page navigation is a GET and never sets this). Unset (False) for
-    # every other op kind.
+    # The step caused a state-changing request (any non-GET/HEAD/OPTIONS method, from a form,
+    # fetch or XHR, in any frame) that the server answered below HTTP 400 (AUDIT S9, R1). A GET
+    # such as the cancel/withdraw confirm-page navigation never sets this. The name is kept
+    # for the callers that read it; it now means "a commit happened".
     caused_post: bool = False
 
 
@@ -64,28 +66,35 @@ def _resolve_or_block(
         return None, StepOutcome(ok=False, blocked=True, reason=str(exc))
 
 
-def _click_and_detect_post(page: Page, handle: ElementHandle) -> bool:
-    """Click `handle` and report whether it caused a main-frame POST navigation
-    (docs/PLAN.md P4's definition of a "commit"). A GET navigation (e.g. the
-    cancel/withdraw link to a confirm page) or no navigation at all (a plain CLICK)
-    both report False."""
-    posts: list[bool] = []
+_SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
+COMMIT_SETTLE_MS = 300  # late fetches and onchange submits land just after the action returns
 
-    def _on_request(request: Request) -> None:
-        if (
-            request.method == "POST"
-            and request.is_navigation_request()
-            and request.frame == page.main_frame
-        ):
-            posts.append(True)
 
-    page.on("request", _on_request)
+@contextmanager
+def _watch_commits(page: Page) -> Iterator[Callable[[], bool]]:
+    """Yield a function that reports whether a state-changing request succeeded while the
+    block ran (docs/PLAN.md P4's "commit", widened by AUDIT S9 to fetch/XHR/any frame and
+    narrowed by AUDIT R1 to responses below HTTP 400)."""
+    commits: list[bool] = []
+
+    def _on_response(response: Response) -> None:
+        if response.request.method not in _SAFE_METHODS and response.status < 400:
+            commits.append(True)
+
+    page.on("response", _on_response)
     try:
+        yield lambda: bool(commits)
+        page.wait_for_timeout(COMMIT_SETTLE_MS)
+    finally:
+        page.remove_listener("response", _on_response)
+
+
+def _click_and_detect_post(page: Page, handle: ElementHandle) -> bool:
+    """Click `handle` and report whether it caused a commit (see `_watch_commits`)."""
+    with _watch_commits(page) as committed:
         handle.click(timeout=ACTION_TIMEOUT_MS)
         page.wait_for_load_state("load")
-    finally:
-        page.remove_listener("request", _on_request)
-    return bool(posts)
+    return committed()
 
 
 ACTION_TIMEOUT_MS = 5000
@@ -131,8 +140,9 @@ def _execute(page: Page, step: Step, snapshot: PageSnapshot, inputs: dict[str, s
         handle, blocked = _resolve_or_block(page, element)
         if blocked is not None:
             return blocked
-        handle.select_option(bind_value(step.value, inputs), timeout=ACTION_TIMEOUT_MS)
-        return StepOutcome(ok=True)
+        with _watch_commits(page) as committed:
+            handle.select_option(bind_value(step.value, inputs), timeout=ACTION_TIMEOUT_MS)
+        return StepOutcome(ok=True, caused_post=committed())
 
     if isinstance(step, (ClickStep, SubmitStep)):
         element = _element_by_ref(snapshot, step.ref)
