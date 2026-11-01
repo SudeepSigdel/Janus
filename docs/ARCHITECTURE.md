@@ -139,8 +139,10 @@ flowchart TD
    describes a real in-policy capability, still locks the ceiling exactly as before Q1 existed.
 3. **Values bind by reference.** `$inputs.<key>` by default; literals only for non-sensitive fields
    or page-enumerated options. A sensitive field can never be bound to a model-invented literal.
-4. **Consequential detection is deterministic.** En/ne/hi keywords plus submit semantics
-   (`validator/consequential.py`). A model may upgrade an action to consequential, never downgrade.
+4. **Consequential detection is deterministic.** En/ne/hi keywords, or the element submits a POST form
+   (a property of the element, not of the op the model chose; login and one-time-code forms are
+   exempt) (`validator/consequential.py`). A commit is any state-changing request answered below
+   HTTP 400, including fetch/XHR; only an approval's last named step consumes it. A model may upgrade an action to consequential, never downgrade.
 5. **Act-time re-resolution.** The target is re-found by fingerprint immediately before acting; a
    mismatch blocks the step rather than acting on a stale reference.
 6. **Egress allowlist.** Playwright route interception blocks non-allowlisted origins for every

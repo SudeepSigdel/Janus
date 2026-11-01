@@ -244,3 +244,27 @@ def test_r1_error_response_is_not_a_commit(page: Page, sites: tuple[_Site, _Site
     outcome = execute_step(page, ClickStep(ref="e0"), snapshot, {})
     assert ("POST", "/boom") in portal.log
     assert not outcome.caused_post
+
+
+# --- S3: the element, not the op, decides whether a click is consequential ---------------
+
+
+def test_s3_post_form_button_is_flagged_but_login_and_get_forms_are_not(
+    page: Page, sites: tuple[_Site, _Site]
+) -> None:
+    portal, _ = sites
+    _open(
+        page,
+        portal,
+        "<form method=post action=/save><input name=a><button>Save</button></form>"
+        "<form method=post action=/login><input type=password name=p><button>Go</button></form>"
+        "<form method=post action=/otp><input autocomplete=one-time-code name=o>"
+        "<button>Check</button></form>"
+        "<form method=get action=/find><input name=q><button>Find</button></form>",
+    )
+    flagged = {
+        e.accessible_name: e.submits_form
+        for e in extract_snapshot(page).elements
+        if e.role == "button"
+    }
+    assert flagged == {"Save": True, "Go": False, "Check": False, "Find": False}

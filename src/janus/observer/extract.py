@@ -199,6 +199,22 @@ _JS = (
     } catch (e) { return false; }
   };
 
+  // AUDIT S3: does clicking this element submit a POST form (other than a login / one-time-code
+  // form)? Describes the element, so it does not depend on the op the model picked.
+  function submitsForm(el) {
+    const form = el.form || el.closest('form');
+    if (!form) return false;
+    const tag = el.tagName.toLowerCase();
+    const type = (el.getAttribute('type') || '').toLowerCase();
+    const submitter = (tag === 'button' && (type === '' || type === 'submit'))
+      || (tag === 'input' && (type === 'submit' || type === 'image'));
+    if (!submitter) return false;
+    if ((form.getAttribute('method') || 'get').toLowerCase() !== 'post') return false;
+    return !form.querySelector(
+      'input[type="password"], input[autocomplete="one-time-code"], '
+      + 'input[autocomplete="current-password"]');
+  }
+
   const interactive = collectInteractive();
   const elements = interactive.map((el) => {
     const form = el.closest('form');
@@ -210,6 +226,7 @@ _JS = (
       form_id: form ? form.getAttribute('id') : null,
       row_cell: firstCellText(el),
       current_page: isCurrentPageLink(el),
+      submits_form: submitsForm(el),
       input_type: el.tagName.toLowerCase() === 'input'
         ? (el.getAttribute('type') || 'text').toLowerCase() : null,
       autocomplete: (el.getAttribute('autocomplete') || '').toLowerCase() || null,
@@ -314,6 +331,7 @@ def extract_snapshot(page: Page, settings: Settings | None = None) -> PageSnapsh
                 current_page=bool(raw_el.get("current_page", False)),
                 input_type=raw_el.get("input_type"),
                 autocomplete=raw_el.get("autocomplete"),
+                submits_form=bool(raw_el.get("submits_form", False)),
                 required_empty=bool(raw_el.get("required")) and bool(raw_el.get("empty")),
             )
         )

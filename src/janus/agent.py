@@ -566,11 +566,15 @@ def run_task(
             # navigation. Consumes that one approval; once none remain, the run ends
             # `completed` right here and revokes every remaining live grant, so a
             # later consequential step is denied rather than merely never attempted.
+            # An approval's `names` are its flow in order (AUDIT S3: a staging POST such as
+            # "Next: review" is now consequential too), so only the final name consumes it.
             if (
                 decision.consequential
                 and outcome.caused_post
                 and check.ok
                 and authorization.matched is not None
+                and target is not None
+                and target.accessible_name == authorization.matched.names[-1]
             ):
                 remaining.remove(authorization.matched)
                 if not remaining:

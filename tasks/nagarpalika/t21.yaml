@@ -8,7 +8,10 @@ inputs:
   app_no: "043"
   phone: "9851098765"
   phone_raw: "+977-9851098765"
-approvals: []
+approvals:
+  - action: edit_application
+    names: ["सुरक्षित गर्नुहोस् / Save"]
+    id: "043"
 tags: [bilingual, numerals, multi_page]
 variant: err_phone_recover
 success:

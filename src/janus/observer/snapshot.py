@@ -70,6 +70,9 @@ class Element(_Model):
     input_type: str | None = Field(default=None, exclude=True)
     # The autocomplete hint ("one-time-code", "current-password", ...), also excluded from dumps.
     autocomplete: str | None = Field(default=None, exclude=True)
+    # The element submits a POST form that is not a login/one-time-code form (AUDIT S3). Feeds
+    # the deterministic consequential rule; excluded from dumps like the three above.
+    submits_form: bool = Field(default=False, exclude=True)
     # A required text field that is empty right now. Lets the validator send a plan that
     # submits past it back to ask the user; excluded from dumps like the two above.
     required_empty: bool = Field(default=False, exclude=True)

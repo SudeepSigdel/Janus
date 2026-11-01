@@ -1,7 +1,11 @@
 """Deterministic consequential-action detection (security invariant 4, CLAUDE.md).
 
 Two independent triggers, either is sufficient:
-  1. Form-submit semantics: a SUBMIT step is always consequential.
+  1. Form-submit semantics: the target element submits a POST form (observer-computed from the
+     DOM, `Element.submits_form`). This describes the element, not the op the model chose, so
+     CLICK and SUBMIT on the same button are classified identically (AUDIT S3). Login and
+     one-time-code forms (a password or one-time-code field) are excluded: authenticating is
+     handled by the secret-input rules, not by approvals.
   2. A keyword match (English/Nepali/Hindi) against the target element's accessible name.
 
 This is intentionally simple substring matching, not NLP: it must be predictable and
@@ -58,8 +62,9 @@ def matches_consequential_keyword(accessible_name: str) -> bool:
     return any(keyword in normalized for keyword in _ALL_KEYWORDS)
 
 
-def is_consequential(op: OpKind, accessible_name: str) -> bool:
-    """Deterministic classification. Never call this to downgrade a model's hint."""
-    if op == "SUBMIT":
-        return True
-    return matches_consequential_keyword(accessible_name)
+def is_consequential(op: OpKind, accessible_name: str, submits_form: bool = False) -> bool:
+    """Deterministic classification. Never call this to downgrade a model's hint.
+
+    `op` is accepted for the callers' convenience but does not change the answer: the model's
+    choice of CLICK or SUBMIT must not decide whether approval is needed."""
+    return submits_form or matches_consequential_keyword(accessible_name)

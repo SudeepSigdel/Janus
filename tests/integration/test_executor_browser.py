@@ -287,8 +287,8 @@ def test_hand_written_plan_updates_phone_number(page: Page, base_url: str) -> No
     install_egress_guard(page, frozenset({base_url}))
     inputs = {"phone": "9851098765"}
     policy = _policy(base_url, frozenset({"CLICK", "FILL_FORM"}))
-    # approvals: [] -- this is deliberately non-consequential
-    granted_ops: frozenset[OpKind] = frozenset()
+    # AUDIT S3: Save submits a POST form, so it is consequential; a human grants CLICK for it.
+    granted_ops: frozenset[OpKind] = frozenset({"CLICK"})
 
     snapshot = extract_snapshot(page)
     edit_ref = _ref_for_css(page, snapshot, "#edit-043")

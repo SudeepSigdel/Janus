@@ -9,7 +9,10 @@ inputs:
   password: "Sajilo@975"
   app_no: "046"
   kitta: "90"
-approvals: []
+approvals:
+  - action: edit_application
+    names: ["सुरक्षित गर्नुहोस् / Save"]
+    id: "046"
 tags: [bilingual, numerals, multi_page]
 variant: paginated_report
 success:

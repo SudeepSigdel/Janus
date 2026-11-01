@@ -298,7 +298,8 @@ def validate_plan(
                 _check_sensitive_binding(errors, i, policy, element, step.ref, step.value)
                 _check_input_ref(errors, i, step.value, inputs, "READ" in policy.allowed_ops)
             consequential = (
-                is_consequential(step.op, element.accessible_name) or step.consequential_hint
+                is_consequential(step.op, element.accessible_name, element.submits_form)
+                or step.consequential_hint
             )
             decisions.append(StepDecision(i, consequential))
             continue

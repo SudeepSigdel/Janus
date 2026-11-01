@@ -5,9 +5,16 @@ from __future__ import annotations
 from janus.validator.consequential import is_consequential
 
 
-def test_submit_op_is_always_consequential_regardless_of_label() -> None:
-    assert is_consequential("SUBMIT", "पेश गर्नुहोस् / Submit application") is True
-    assert is_consequential("SUBMIT", "") is True
+def test_op_kind_never_decides_consequential() -> None:
+    # AUDIT S3: the model's choice of CLICK or SUBMIT must not change the classification.
+    for name in ("पेश गर्नुहोस् / Submit application", "Save", ""):
+        assert is_consequential("SUBMIT", name) == is_consequential("CLICK", name)
+
+
+def test_a_post_form_submit_button_is_consequential_even_without_a_keyword() -> None:
+    assert is_consequential("CLICK", "Save", submits_form=True) is True
+    assert is_consequential("SUBMIT", "Save", submits_form=True) is True
+    assert is_consequential("CLICK", "Save", submits_form=False) is False
 
 
 def test_click_with_english_keyword_is_consequential() -> None:
@@ -37,6 +44,6 @@ def test_navigate_and_fill_form_are_not_consequential_by_default() -> None:
 def test_deterministic_true_cannot_be_downgraded_by_a_hint() -> None:
     # is_consequential has no hint parameter at all: there is no way to pass a
     # "downgrade" signal in. The OR-with-hint composition happens in validator/plan.py.
-    deterministic = is_consequential("SUBMIT", "पेश गर्नुहोस्")
+    deterministic = is_consequential("CLICK", "पेश गर्नुहोस्")
     hint = False
     assert (deterministic or hint) is True

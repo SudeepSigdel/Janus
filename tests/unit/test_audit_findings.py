@@ -63,9 +63,6 @@ def test_s1_outline_role_is_from_a_closed_vocabulary() -> None:
     assert all(e["role"] in KNOWN_ROLES for e in msg["elements"])
 
 
-@pytest.mark.xfail(
-    strict=True, reason="AUDIT.md S3: op choice (CLICK vs SUBMIT) downgrades consequential"
-)
 def test_s3_same_target_is_equally_consequential_under_click_and_submit() -> None:
     save = _el("e0", "button", "Save")  # a form-submit button with no keyword in its label
     snap = _snap([save])

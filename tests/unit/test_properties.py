@@ -236,7 +236,8 @@ def test_consequential_is_never_downgraded(plan, snap) -> None:
     if not result.ok:
         return
     for step, decision in zip(plan.steps, result.decisions, strict=True):
-        if step.consequential_hint or isinstance(step, SubmitStep):
+        # AUDIT S3: a bare SUBMIT op is no longer consequential by itself; the element decides.
+        if step.consequential_hint:
             assert decision.consequential
 
 

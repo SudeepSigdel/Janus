@@ -41,6 +41,7 @@ _APPROVAL_OP_KINDS: dict[str, frozenset[OpKind]] = {
     "cancel_application": frozenset({"CLICK", "SUBMIT"}),
     "apply_issue": frozenset({"SUBMIT", "CLICK"}),
     "withdraw_application": frozenset({"CLICK", "SUBMIT"}),
+    "edit_application": frozenset({"CLICK", "SUBMIT"}),
 }
 
 

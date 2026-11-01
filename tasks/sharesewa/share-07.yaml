@@ -9,7 +9,10 @@ inputs:
   password: "Sajilo@901"
   app_no: "045"
   kitta: "400"
-approvals: []
+approvals:
+  - action: edit_application
+    names: ["सुरक्षित गर्नुहोस् / Save"]
+    id: "045"
 tags: [bilingual, numerals]
 success:
   - {path: applications.045.kitta, op: equals, value: 400}

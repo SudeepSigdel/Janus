@@ -21,7 +21,7 @@ evidence.
 
 | id | milestone | why now | status |
 |---|---|---|---|
-| H1 | Close the open audit findings S1, S3, S9, R1 (High/Critical; 7 strict xfails in `tests/`). Remove each marker as its fix lands. | These are the claims the project is built on (invariants 1, 4, 6). They were deferred for the deadline. | todo |
+| H1 | Close the open audit findings S1, S3, S9, R1. **Code done 2026-11-01** (unit 606 passed, browser 210 passed; markers removed). **Still owed:** dev-N3 run of the planner (S1 title/role/URL changes and S3 now gating Save and Next as consequential; 12 edit tasks gained an `edit_application` approval) — Ollama was down, so no model run happened. S2 was already fixed (R1 milestone). S4, S6, S8, S10, S11, S12 remain xfail. | These are the claims the project is built on (invariants 1, 4, 6). | in-progress |
 | H2 | Robustness R2–R6 (timeouts, dialogs, new tabs, file inputs, settle wait) and R9 eval speed (`127.0.0.1`, browser reuse). | Needed before any site we did not write. | todo |
 | H3 | Live mode (needs an owner decision, see below): headed browser, human approval per consequential action, the user's own account, egress split for page subresources. | Real use is the reason the project exists. | todo |
 | H4 | Site 3 (utility or bank transfer) and `profiles/<site>.yaml` so a site is configured in one file. | Results rest on two author-built sites. | todo |

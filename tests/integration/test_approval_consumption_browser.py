@@ -219,6 +219,8 @@ def test_submit_stops_completed_at_the_receipt_with_no_done_step(page: Page, bas
     )
 
     assert result.status == "completed"
+    # AUDIT S3: "Next: review" is a consequential staging POST, but only the approval's final
+    # name (Submit application) consumes it, so the run still takes three legs.
     assert calls["n"] == 3
 
     state = _state(base_url)
@@ -243,6 +245,8 @@ def test_login_submit_denied_by_apply_issue_consumes_nothing(
 
     def handler(request: httpx.Request) -> httpx.Response:
         calls["n"] += 1
+        if calls["n"] > 1:
+            return _chat("share-01", [{"op": "DONE", "status": "partial"}])
         snapshot = extract_snapshot(page)
         return _chat(
             "share-01",
@@ -263,7 +267,7 @@ def test_login_submit_denied_by_apply_issue_consumes_nothing(
 
     policy = Policy(
         allowed_origins=frozenset({sharesewa_base_url}),
-        allowed_ops=frozenset({"FILL_FORM", "SUBMIT"}),
+        allowed_ops=frozenset({"FILL_FORM", "SUBMIT", "DONE"}),
         max_steps=10,
     )
     result = run_task(
@@ -282,13 +286,15 @@ def test_login_submit_denied_by_apply_issue_consumes_nothing(
         ],
     )
 
-    assert result.status == "blocked"
-    assert result.gate_block == "authorize_action"
-    assert result.steps_run == 1  # only the (non-consequential) FILL_FORM ran
-    assert calls["n"] == 1  # denial ends the run; no second leg is attempted
+    # AUDIT S3: a password form is authentication, not an approval-gated action, so the login
+    # runs without touching the apply_issue approval; the next leg (a DONE) ends the run, and no
+    # application is created.
+    assert result.steps_run == 2
+    assert result.gate_block is None
+    assert calls["n"] == 2
 
     state = _state(sharesewa_base_url)
-    assert state["logged_in"] is False
+    assert state["logged_in"] is True
     assert len(state["applications"]) == 5  # no new application created
 
 
