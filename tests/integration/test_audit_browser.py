@@ -268,3 +268,13 @@ def test_s3_post_form_button_is_flagged_but_login_and_get_forms_are_not(
         if e.role == "button"
     }
     assert flagged == {"Save": True, "Go": False, "Check": False, "Find": False}
+
+
+# --- R5: a file input is not a text field ---------------------------------------------------
+
+
+def test_r5_file_input_is_not_a_textbox(page: Page, sites: tuple[_Site, _Site]) -> None:
+    portal, _ = sites
+    _open(page, portal, "<input type=file name=doc><input name=q>")
+    roles = [e.role for e in extract_snapshot(page).elements]
+    assert roles == ["generic", "textbox"]

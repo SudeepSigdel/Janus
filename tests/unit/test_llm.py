@@ -239,7 +239,7 @@ def test_vision_never_uses_the_hosted_chat_client() -> None:
     settings = Settings(chat_base_url="https://api.groq.com/openai/v1", chat_model="qwen/qwen3-32b")
     client = LLMClient(settings, transport=httpx.MockTransport(handler))
     client.chat_vision_json("read it", [b"img"], {"type": "object"})
-    assert hosts == ["localhost"]
+    assert hosts == ["127.0.0.1"]
 
 
 def test_vision_bad_content_raises() -> None:

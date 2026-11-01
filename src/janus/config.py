@@ -11,7 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field
 class Settings(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    ollama_base_url: str = "http://localhost:11434"
+    ollama_base_url: str = "http://127.0.0.1:11434"  # not "localhost": IPv6 fallback costs ~2 s per reconnect on Windows (AUDIT P1)
     planner_model: str = "janus-planner"
     base_model: str = "qwen3:8b"
     fallback_models: tuple[str, ...] = ("qwen2.5:7b-instruct", "qwen3:4b")

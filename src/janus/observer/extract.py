@@ -84,6 +84,7 @@ _JS = (
     if (tag === 'input') {
       const type = (el.getAttribute('type') || 'text').toLowerCase();
       if (type === 'submit' || type === 'button') return 'button';
+      if (type === 'file') return 'generic';  // AUDIT R5: fill() would crash on a file input
       if (type === 'checkbox') return 'checkbox';
       if (type === 'radio') return 'radio';
       return 'textbox';
