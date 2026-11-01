@@ -1,7 +1,8 @@
-"""The only AI entry point: an OpenAI-compatible client for open-weight models.
+"""The only AI entry point: an OpenAI-compatible client (httpx).
 
-Embeddings and model listing use local Ollama (loopback only). Chat may optionally use a hosted
-endpoint (`Settings.chat_base_url`), but only for open-weight model families.
+Embeddings, model listing and anything that sees a user's documents (vision, OCR) use local
+Ollama (loopback only). Chat may use any OpenAI-compatible hosted endpoint
+(`Settings.chat_base_url`), open-weight or proprietary.
 
 Output is returned as raw parsed JSON; callers must validate it (see janus/validator/).
 """
@@ -22,21 +23,6 @@ from janus.config import Settings, get_settings
 
 class NonLocalEndpointError(ValueError):
     """Raised when the configured LLM endpoint is not a loopback address."""
-
-
-class ProprietaryModelError(ValueError):
-    """Raised when a hosted chat model is not on the open-weight allowlist."""
-
-
-# Open-weight families only (hosted chat). Extend deliberately; never add closed models.
-OPEN_WEIGHT_FAMILIES = ("qwen", "gpt-oss", "llama", "gemma", "deepseek", "glm", "kimi", "phi")
-
-
-def assert_open_weight(model: str) -> None:
-    name = model.lower().rsplit("/", 1)[-1]
-    if name.startswith("gpt-oss") or any(name.startswith(f) for f in OPEN_WEIGHT_FAMILIES):
-        return
-    raise ProprietaryModelError(f"refusing model not on the open-weight allowlist: {model!r}")
 
 
 MAX_RATE_LIMIT_RETRIES = 8
@@ -110,7 +96,6 @@ class LLMClient:
         if self.settings.chat_base_url:
             if not self.settings.chat_model:
                 raise ValueError("chat_base_url requires chat_model")
-            assert_open_weight(self.settings.chat_model)
             headers = {}
             if self.settings.chat_api_key:
                 headers["Authorization"] = f"Bearer {self.settings.chat_api_key}"
@@ -188,8 +173,6 @@ class LLMClient:
         # Thinking off (PLAN.md): otherwise qwen3 spends the budget on reasoning.
         if s.chat_reasoning_effort:
             payload["reasoning_effort"] = s.chat_reasoning_effort
-        if s.chat_base_url:
-            assert_open_weight(payload["model"])
         data = self._request(
             "POST",
             "/chat/completions" if s.chat_base_url else "/v1/chat/completions",
@@ -218,7 +201,6 @@ class LLMClient:
         Images are personal documents, so this call only ever uses the loopback Ollama client
         (`self._http`), never the hosted chat client, whatever `JANUS_CHAT_*` says."""
         name = model or self.settings.vision_model
-        assert_open_weight(name)
         payload: dict[str, Any] = {
             "model": name,
             "stream": False,

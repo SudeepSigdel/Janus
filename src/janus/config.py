@@ -1,4 +1,4 @@
-"""Settings: model tags, local Ollama URL, optional hosted open-weight chat endpoint, limits."""
+"""Settings: model tags, local Ollama URL, optional hosted chat endpoint, limits."""
 
 from __future__ import annotations
 
@@ -27,8 +27,8 @@ class Settings(BaseModel):
     # run locally through RapidOCR). It reads digit strings the vision models misread. Needs the
     # `ui` extra; without it the photo is read by the vision models alone.
     ocr_enabled: bool = True
-    # Optional hosted OpenAI-compatible endpoint for chat only (open-weight models only,
-    # enforced in llm.assert_open_weight). Embeddings always stay on local Ollama.
+    # Optional hosted OpenAI-compatible endpoint for chat only (any model, open-weight or
+    # proprietary). Embeddings, vision and OCR always stay on local Ollama.
     chat_base_url: str | None = None
     chat_model: str | None = None
     chat_api_key: str | None = Field(default=None, repr=False)

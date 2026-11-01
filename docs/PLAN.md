@@ -1,15 +1,42 @@
-# Janus — Frogtoberfest 2026 Plan
+# Janus — Plan
 
-Status legend: `todo | in-progress | done | blocked`. One milestone per session, run in order (solo developer).
-Update the Status line when a milestone's Accept commands pass. Scope creep goes under "Later".
+Originally built for Frogtoberfest 2026. That slice is complete; this plan no longer has a deadline.
+
+Status legend: `todo | in-progress | done | blocked`. One milestone per session (solo developer).
+Update the Status line when a milestone's Accept commands pass.
 
 Decisions: ≤8GB VRAM (or CPU) · Apache 2.0 · solo · fresh codebase (AegisWeb is ideas only).
 Models: planner `qwen3:8b` (Q4, thinking off), fallbacks `qwen2.5:7b-instruct`, `qwen3:4b`; embeddings `bge-m3`.
 Janus and the baseline use the same derived Ollama model (`janus-planner`, `num_ctx 8192` set in the Modelfile,
 because the OpenAI-compatible endpoint ignores `num_ctx`).
 
-**Calendar:** Sep 26–30: M0–M1b · Oct 1–7: M2–M4 · Oct 8–14: M5–M6 · Oct 15–21: M7–M8 · Oct 22–26: M9–M10 ·
-Oct 27–31: M11–M13. First action in M0: confirm the Frogtoberfest rules on pre-October work and the deadline, then shift this calendar if needed.
+**Sessions read only this section and the milestone they work on.** Everything under "History" is a
+record of finished work, kept because source comments and docs cite milestone ids (P5, Q2, B3, ...).
+
+# Roadmap (written 2026-11-01)
+
+Phase 1 is the first slice: a plan-then-execute agent, two replica portals, 62 tasks, an
+injection suite, outside benchmarks. Phase 2 starts here. Order is security first, then reach, then
+evidence.
+
+| id | milestone | why now | status |
+|---|---|---|---|
+| H1 | Close the open audit findings S1, S3, S9, R1 (High/Critical; 7 strict xfails in `tests/`). Remove each marker as its fix lands. | These are the claims the project is built on (invariants 1, 4, 6). They were deferred for the deadline. | todo |
+| H2 | Robustness R2–R6 (timeouts, dialogs, new tabs, file inputs, settle wait) and R9 eval speed (`127.0.0.1`, browser reuse). | Needed before any site we did not write. | todo |
+| H3 | Live mode (needs an owner decision, see below): headed browser, human approval per consequential action, the user's own account, egress split for page subresources. | Real use is the reason the project exists. | todo |
+| H4 | Site 3 (utility or bank transfer) and `profiles/<site>.yaml` so a site is configured in one file. | Results rest on two author-built sites. | todo |
+| H5 | Observer: icon-only controls and nested click targets (D4+D5 plan under History). Validation errors as structure (D3). Typed per-row READs (D2). | The most common first fatal event on outside benchmarks. | todo |
+| H6 | Resume support in `janus-bench run` (a crash loses a whole night today); regenerate `results.md` and the README table from current records. | Evaluation cost and stale numbers. | todo |
+| H7 | Packaging: Docker compose (replicas plus Ollama), `pip install` docs, a small Python API. | Reuse by others. | todo |
+| H8 | Paper and public leaderboard (janus.md goals 2–3). | After H1–H4 so the claims are the hardened ones. | todo |
+
+**Live-mode wording (approved 2026-11-01 with "continue"; apply to CLAUDE.md when H3 starts):** CLAUDE.md says "Replica sites only. Never automate live government,
+bank, or broker sites." That is a safety rule, not a contest rule, so it was not changed. The
+proposed rewording: "The benchmark and CI use replica sites only. The runtime may drive live sites
+only in live mode (headed, human approval for every consequential action, the user's own account)."
+The "open-weight models only" rule was dropped on 2026-11-01: any model is allowed via `llm.py`; embeddings, vision and OCR stay local for privacy.
+
+# History (Phase 1)
 
 ## Proposed repo layout
 ```
@@ -59,7 +86,6 @@ Smoke test (10 en/ne prompts, thinking off via `reasoning_effort: none`; results
 qwen3:4b 10/10 valid, 10 correct, 0.9s · qwen2.5:7b-instruct 10/10 valid, 8 correct, 1.1s · qwen3:8b 9/10 valid, 9 correct, 4.0s.
 Default planner: qwen3:8b kept (the prompts are trivial and the sample is 10, so the ranking by validity is not decisive;
 `janus-planner` is built FROM it). Revisit in M5 on real planning prompts; qwen3:4b is the fast fallback.
-Frogtoberfest pre-October-work rules and deadline: not yet confirmed.
 Scope: `pyproject.toml` (uv, ruff, pytest markers `browser`/`ollama`), Apache-2.0 LICENSE, `.gitignore`, `git init`;
 `src/janus/llm.py` (httpx, `/v1/chat/completions` with json_schema `response_format`, `/v1/embeddings`, refuses non-local base URL);
 `config.py`; `models/janus-planner.Modelfile` (num_ctx 8192); `janus doctor`;
@@ -529,14 +555,12 @@ version shipped: `uv run janus-bench demo --task nag-06 --out demo.html` runs th
 agent (`gullible`) and Janus on one injection task and writes one HTML page with both verdicts
 (from site state) and Janus's decision report. Committed output: `docs/demo/nag-06.html`
 (naive agent hijacked, Janus completed the task and resisted). The report is `janus/report.py`
-(`janus run --report FILE`, USABILITY_PLAN U4). Not done: a recorded video.
+(`janus run --report FILE`). A one-minute recorded video was added later.
 
 ## M13 — Buffer / submission
-Status: todo. Accept (revised 2026-10-17): public repo has README, architecture, limitations,
-AI_USAGE.md, `docs/demo/nag-06.html` plus `docs/WALKTHROUGH.md` (written walkthrough and video
-script); `uv run pytest` and ruff clean; release tagged. Remaining owner actions: confirm the
-Frogtoberfest rules and deadline, record the video if wanted, tag, make public, submit.
-Scope: fix slippage, tag a release, make the repo public, submit.
+Status: done (2026-11-01). The first slice shipped with README, architecture, limitations,
+AI_USAGE.md, `docs/demo/nag-06.html`, and a one-minute demo video (`docs/assets/janus-demo.mp4`).
+`docs/WALKTHROUGH.md` (a timed video script) was removed afterwards.
 
 ---
 
@@ -1287,10 +1311,6 @@ replica sites only). One addition:
 - A third site goes under "Later", as CLAUDE.md requires for anything beyond the slice (it is
   already listed there).
 
-**Scheduling note:** M13 (submission) is still `todo`, and the calendar above ends Oct 31. The
-Q-phase doesn't replace M13. Decided 2026-09-29: M13 runs after Q2 (Q0 → Q1 → Q3 → Q2 → M13),
-so the submission carries the fair baseline and both mechanism fixes; Q4a onward continue after
-submission if time allows before Oct 31.
 
 ## Q0 — Fair baseline (browser_use, dev, N=3)
 Status: done (2026-09-30). B1: browser_use 40/87 = 46.0% dev at N=3 (nag 19/42, share 21/45), ASR 0/27
@@ -1789,8 +1809,7 @@ Accept criteria per milestone: the table in `docs/AUDIT.md` ("Proposed R-milesto
 
 Goal: measure Janus on benchmarks we did not build, so results stop depending on two author-built
 sites (the overfitting concern in EXPERIMENTS.md CP4a), and let what breaks there choose the next
-agent changes. Decided with the developer 2026-10-11: B0-B2 before the Frogtoberfest freeze
-(Oct 24); B3/B4 only if time allows, otherwise after Oct 30.
+agent changes.
 
 **Phase rules** (P/Q rules still apply):
 - Development benchmarks: MiniWoB++ and X-WebAgentBench. Held-out, never tuned on: WebArena
@@ -1816,7 +1835,7 @@ Change: run Janus from a goal string and a start URL, with no task YAML:
 - answer channel (`janus.goal.extract_answer`): after the run, a schema-constrained call reads
   the page text and returns a typed answer to the *caller only*, never to the planner (a
   quarantined read, as in CaMeL).
-- `janus run --url URL --goal "..." [--headed]` (the U2 item of USABILITY_PLAN.md).
+- `janus run --url URL --goal "..." [--headed]`.
 Accept: unit tests; existing suites unchanged; the smoke split reproduces 5/8.
 
 ## B1 — MiniWoB++ (via BrowserGym)
@@ -2149,7 +2168,7 @@ attack success stays 0/72. Needs its own Step 0 (confirm the send, star and tras
 one name each with no conflicts) before any code. Hover-only pointer controls (social-media) stay
 under "Later".
 
-## Later (not in the Frogtoberfest slice)
+## Later (not scheduled in the roadmap above)
 Site 3 (utility or bank transfer), hybrid cloud planner over a privacy-abstracted view, other baselines (Nanobrowser, BrowserOS),
 manual closed-agent evals, public leaderboard, paper, vLLM/LM Studio backends.
 D2: deterministic selection over typed per-row READs (for example argmin price computed in code, not

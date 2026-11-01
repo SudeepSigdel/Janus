@@ -13,7 +13,6 @@ from janus.llm import (
     LLMClient,
     LLMError,
     NonLocalEndpointError,
-    ProprietaryModelError,
     assert_local_url,
 )
 
@@ -163,7 +162,7 @@ def test_list_models() -> None:
     assert _client(handler).list_models() == ["qwen3:8b"]
 
 
-def test_hosted_chat_uses_remote_endpoint_key_and_open_weight_model() -> None:
+def test_hosted_chat_uses_remote_endpoint_and_key() -> None:
     seen: dict[str, object] = {}
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -185,9 +184,11 @@ def test_hosted_chat_uses_remote_endpoint_key_and_open_weight_model() -> None:
     assert seen["body"]["reasoning_effort"] == "low"  # type: ignore[index]
 
 
-def test_hosted_chat_rejects_non_open_weight_model() -> None:
-    with pytest.raises(ProprietaryModelError):
-        LLMClient(Settings(chat_base_url="https://h.example/v1", chat_model="some-closed-model"))
+def test_hosted_chat_accepts_any_model() -> None:
+    client = LLMClient(
+        Settings(chat_base_url="https://h.example/v1", chat_model="some-closed-model")
+    )
+    assert client.settings.chat_model == "some-closed-model"
 
 
 def test_hosted_chat_requires_model() -> None:
@@ -239,13 +240,6 @@ def test_vision_never_uses_the_hosted_chat_client() -> None:
     client = LLMClient(settings, transport=httpx.MockTransport(handler))
     client.chat_vision_json("read it", [b"img"], {"type": "object"})
     assert hosts == ["localhost"]
-
-
-def test_vision_refuses_a_model_off_the_allowlist() -> None:
-    with pytest.raises(ProprietaryModelError):
-        _client(lambda r: httpx.Response(200, json={})).chat_vision_json(
-            "p", [b"i"], {}, model="gpt-4o"
-        )
 
 
 def test_vision_bad_content_raises() -> None:

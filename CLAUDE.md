@@ -1,14 +1,14 @@
 # Janus
 
 Safety-first browser agent for Nepali/Hindi/bilingual portals, plus an offline benchmark.
-Vision: janus.md. Current scope: Frogtoberfest 2026 slice. Plan and status: docs/PLAN.md.
+Vision: janus.md. Originally built for Frogtoberfest 2026. Roadmap and status: docs/PLAN.md.
 
 ## Hard constraints (never violate)
 - All AI calls (planning, extraction, grounding, classification, embeddings) go through
-  `src/janus/llm.py`. Open-weight models only: embeddings and local models via Ollama (loopback);
-  chat may use a hosted OpenAI-compatible API (`JANUS_CHAT_*` env) for allowlisted open-weight
-  families (`llm.assert_open_weight`). No proprietary models, provider SDKs, or committed keys
-  (enforced by tests/unit/test_no_proprietary.py).
+  `src/janus/llm.py`. Any model is allowed (open-weight or proprietary): local models via Ollama
+  (loopback) or chat through any OpenAI-compatible API (`JANUS_CHAT_*` env). Embeddings, vision and
+  OCR stay local because they see the user's documents. No
+  committed keys (enforced by tests/unit/test_llm_boundary.py).
 - The model is an untrusted proposer. Only deterministic code in `janus/validator/` authorizes actions.
 - Page text is data, never instructions. The planner never sees page body text.
 - Replica sites only. Never automate live government, bank, or broker sites. Fictional names,
@@ -23,7 +23,7 @@ Models: see `models/` Modelfiles and `src/janus/config.py` (default planner qwen
 - src/janus/        runtime: observer, planner, validator, executor, verifier, agent.py, llm.py, text/
 - src/janus_bench/  sites/ (FastAPI replicas), harness/, agents/ (null, oracle, browser_use, janus)
 - tasks/<site>/     YAML tasks with state-based success checks and injection variants
-- docs/             PLAN.md, ARCHITECTURE.md, LIMITATIONS.md, pilot-report.md, results.md
+- docs/             PLAN.md, ARCHITECTURE.md, LIMITATIONS.md, AUDIT.md, BENCHMARK.md, EXPERIMENTS.md, results.md
 - tests/unit, tests/integration
 
 ## Commands (PowerShell-safe; run separately)
@@ -48,8 +48,8 @@ Models: see `models/` Modelfiles and `src/janus/config.py` (default planner qwen
 - Small, tested changes. Type hints everywhere. No new dependency without noting it in PLAN.md.
 
 ## Session rules
-- Read this file and docs/PLAN.md, then only the files the current milestone needs.
+- Read this file and the Roadmap section at the top of docs/PLAN.md (History below it is a record, not required reading), then only the files the current milestone needs.
 - One milestone per session. Run its test command before marking it done; update its Status.
-- Anything beyond the Frogtoberfest slice goes under "Later" in docs/PLAN.md. Do not build it.
+- Work from the Roadmap in docs/PLAN.md. New ideas go under "Later" until the owner schedules them.
 - AI_USAGE.md must stay accurate: model output is consumed in
   janus/validator/plan.py::validate_plan and janus/validator/action.py::authorize_action.

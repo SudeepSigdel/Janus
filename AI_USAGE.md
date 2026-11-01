@@ -20,10 +20,10 @@ readers in `src/janus/extract_doc.py::extract_document`. Details for every call 
 
 Every AI call in this repo goes through `src/janus/llm.py::LLMClient`. Embeddings and
 local chat require a loopback Ollama (`assert_local_url`). Chat may optionally go to a hosted
-OpenAI-compatible endpoint (`JANUS_CHAT_BASE_URL`/`_MODEL`/`_API_KEY`), but only for
-open-weight model families (`assert_open_weight`); the key comes from the environment. There is no
-other AI entry point, and no proprietary API or SDK anywhere in `src/`
-(`tests/unit/test_no_proprietary.py` enforces this).
+OpenAI-compatible endpoint (`JANUS_CHAT_BASE_URL`/`_MODEL`/`_API_KEY`) running any model, open-weight
+or proprietary; the key comes from the environment. Vision, OCR and embeddings never leave
+the machine. There is no other AI entry point, and no committed key anywhere
+(`tests/unit/test_llm_boundary.py` enforces this).
 
 ## Models
 
@@ -48,8 +48,8 @@ smoke test.
 | `qwen2.5:7b-instruct`, `qwen3:4b` | local Ollama | Apache 2.0 | fallbacks and the M0 smoke test only |
 | `openai/gpt-oss-20b`, `qwen/qwen3-32b` | optional hosted OpenAI-compatible endpoint (Groq free tier) if `JANUS_CHAT_*` is set | Apache 2.0 | used once for a smoke run on 2026-10-09; not part of any reported result |
 
-All reported benchmark numbers come from the local `janus-planner` (qwen3:8b). No proprietary model
-is called anywhere in `src/` (`tests/unit/test_no_proprietary.py`). The optional `baseline` extra
+All reported benchmark numbers come from the local `janus-planner` (qwen3:8b); no number here was
+produced by a hosted model. The optional `baseline` extra
 installs `browser-use` (MIT), which pulls in the `openai` Python client package as a dependency; it
 is pointed only at the local Ollama and is used for the comparison agent, not by Janus itself.
 

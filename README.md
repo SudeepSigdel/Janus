@@ -6,15 +6,15 @@
   <a href="https://github.com/SudeepSigdel/Janus/actions/workflows/ci.yml"><img src="https://github.com/SudeepSigdel/Janus/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-2f6f9f" alt="License: Apache 2.0"></a>
   <img src="https://img.shields.io/badge/python-3.11%2B-2f6f9f" alt="Python 3.11+">
-  <a href="AI_USAGE.md"><img src="https://img.shields.io/badge/models-open--weight%20(Qwen3%2C%20bge--m3)-3ec9b0" alt="Open-weight models"></a>
+  <a href="AI_USAGE.md"><img src="https://img.shields.io/badge/models-open--weight%20(Qwen3%2C%20bge--m3)-3ec9b0" alt="Local open-weight models by default"></a>
   <img src="https://img.shields.io/badge/runs-offline%20on%208%20GB%20GPU-e7b65a" alt="Runs offline on an 8 GB GPU">
 </p>
 
 <h3 align="center">A browser agent for Nepali, Hindi and English portals that can't be talked into doing something else.</h3>
 
 Janus, the Roman god of doorways, has two faces. This Janus does too: **one face looks at the web
-page, the other faces your plan, and nothing the page says can change the plan.** A local
-open-weight model plans each step from a structural outline of the page (buttons, fields, labels),
+page, the other faces your plan, and nothing the page says can change the plan.** A model (local open-weight by default)
+plans each step from a structural outline of the page (buttons, fields, labels),
 never its body text. Deterministic code checks every step before it runs, and anything
 consequential (submit, cancel, withdraw, pay) waits for your approval.
 
@@ -24,7 +24,7 @@ consequential (submit, cancel, withdraw, pay) waits for your approval.
 - 🇳🇵 **Built for Nepali portals.** Devanagari digits, Bikram Sambat dates (converted by code, not
   by the model), and mixed नेपाली / हिन्दी / English pages.
 - 🔒 **Private and free to run.** Open-weight Qwen3 and bge-m3 through Ollama on your own
-  machine. No proprietary API anywhere, and a test enforces it.
+  machine. Any OpenAI-compatible hosted model can be swapped in; documents and embeddings always stay local.
 - 🧾 **Explains itself.** Every run can write a report of what it did, what it refused and why.
 
 ---
@@ -91,7 +91,7 @@ seven security invariants are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 | Layer | What it uses |
 |---|---|
 | Language and packaging | Python 3.11+, [uv](https://docs.astral.sh/uv/), Pydantic v2 (`extra="forbid"` on everything a model produces) |
-| Models (all open-weight, local) | Qwen3-8B as `janus-planner` and bge-m3 embeddings, through [Ollama](https://ollama.com) on loopback; qwen2.5vl:7b, gemma3:4b and PaddleOCR (rapidocr, ONNX) for photo to fill |
+| Models (open-weight and local by default) | Qwen3-8B as `janus-planner` and bge-m3 embeddings, through [Ollama](https://ollama.com) on loopback; qwen2.5vl:7b, gemma3:4b and PaddleOCR (rapidocr, ONNX) for photo to fill |
 | Browser | Playwright (Chromium): accessibility-tree outline, request allowlist, fingerprinted targets |
 | Safety core | Deterministic code in `src/janus/validator/` (plan and action checks), `src/janus/text/` (Devanagari digits, Bikram Sambat dates, trilingual consequential keywords) |
 | Web app and replica portals | FastAPI, Jinja2, uvicorn (`janus ui`, `janus-bench serve`) |
@@ -237,7 +237,7 @@ The full list, with why each is not fixed yet, is in [docs/LIMITATIONS.md](docs/
 - **More portals and real users.** A third replica site (utility or bank transfer) and a usability
   study with people who complete Nepali portal tasks today.
 - **Optional larger planner.** A hybrid planner that sends only a privacy-abstracted outline to a
-  bigger open-weight model, plus vLLM and LM Studio backends.
+  bigger model, plus vLLM and LM Studio backends.
 - **Voice and accessibility.** Voice goals in Nepali, and photo to fill that misreads less.
 
 The full backlog is under "Later" in [docs/PLAN.md](docs/PLAN.md); known gaps are in
@@ -260,7 +260,7 @@ design target; it has not yet been tested with real users.
 
 | claim | how to check it |
 |---|---|
-| No proprietary model or SDK in the runtime | `uv run pytest tests/unit/test_no_proprietary.py` |
+| No committed keys | `uv run pytest tests/unit/test_llm_boundary.py` |
 | The runtime never imports the benchmark | `uv run pytest tests/unit/test_import_boundary.py` |
 | Janus resists the planted instruction | `uv run janus-bench demo --task nag-06` |
 | Every injection case is a real attack | `uv run pytest -m browser -k injection` (a deliberately gullible agent triggers each one) |
@@ -299,5 +299,5 @@ Issues and pull requests are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.
 ## License and attribution
 
 Apache 2.0. Models: Qwen3 (Apache 2.0, Alibaba Qwen team) and bge-m3 (MIT, BAAI), run through
-Ollama. Built for Frogtoberfest 2026. The replica portals are fictional: invented names, no real
+Ollama. Originally built for Frogtoberfest 2026. The replica portals are fictional: invented names, no real
 logos or emblems. Janus is never pointed at a real government, bank or broker site by this project.

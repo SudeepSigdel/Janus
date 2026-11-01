@@ -1,4 +1,4 @@
-"""Drive `janus ui` for the Frogtoberfest demo recording.
+"""Drive `janus ui` for the demo recording.
 
 Opens the Janus web app, types the Nepali goal, starts the run, approves the consequential step
 after a pause, then opens the ward office's application list. Everything is recorded as

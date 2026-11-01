@@ -4,8 +4,8 @@ Thanks for helping. Janus is a safety-first browser agent, so a few rules matter
 
 ## Ground rules
 
-- **Open-weight models only.** Every AI call goes through `src/janus/llm.py`. No proprietary
-  models, provider SDKs or committed keys. `tests/unit/test_no_proprietary.py` checks this.
+- **One AI entry point.** Every AI call goes through `src/janus/llm.py` (any model). No
+  committed keys. `tests/unit/test_llm_boundary.py` checks this.
 - **The model proposes, code decides.** Only deterministic code in `src/janus/validator/`
   authorizes actions. Do not add a path where model output acts without being validated.
 - **Page text is data.** The planner never sees page body text. If a feature needs page content,
@@ -41,7 +41,7 @@ Model tests (`-m ollama`) and benchmark runs need Ollama with the models in the 
 - A new task on an existing replica site (see `docs/BENCHMARK.md`).
 - A new injection payload in another language or a new category.
 - Clearer messages in the run report (`src/janus/report.py`).
-- Running the benchmark with another open-weight model and reporting the numbers.
+- Running the benchmark with another model and reporting the numbers.
 
 ## Reporting a security issue
 

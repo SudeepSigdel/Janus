@@ -18,7 +18,7 @@ Nobody has built or measured either of these things for the South Asian web. Tha
 
 ## The idea, in one sentence
 
-An open-source browser agent that plans before it reads untrusted page content, validates every step deterministically before acting, and is proven — via a purpose-built benchmark — to work better and resist injection better than existing agents on Nepali, Hindi, and bilingual portals, using only open-weight models.
+An open-source browser agent that plans before it reads untrusted page content, validates every step deterministically before acting, and is proven — via a purpose-built benchmark — to work better and resist injection better than existing agents on Nepali, Hindi, and bilingual portals. Open-weight models run it locally by default; any OpenAI-compatible model can be used.
 
 ## Two things being built (one project, two outputs)
 
@@ -30,7 +30,7 @@ A plan-then-execute browser automation runtime, evolved from the AegisWeb hackat
 - **Typed, task-level planning.** Instead of "click element #47," the model commits to a plan made of typed operations (e.g. `fill_application(name, citizenship_no, date)`), decided *before* it is exposed to the page's full untrusted content where possible. This is the core defense against hijacking-style prompt injection: injected text can influence values, but it can't add new actions or unlock capabilities the plan didn't already have.
 - **Deterministic validation and capability policy.** Every proposed action is schema-checked, normalized, and matched against an explicit capability policy before anything touches the live page. The model is always an untrusted proposer; only code authorizes.
 - **Controlled execution + verification.** A narrow executor performs only approved actions (CLICK, TYPE, SELECT, SCROLL, NAVIGATE, and typed site-specific operations where available). The page is re-observed afterward to confirm the action actually had the intended effect — not just assumed success.
-- **Runs entirely on open, self-hostable models** (Ollama / vLLM / LM Studio, Qwen/Llama/Mistral-class models) — no proprietary API dependency, by design, not just by budget constraint.
+- **Model-agnostic, local by default.** Runs on open, self-hostable models (Ollama / vLLM / LM Studio, Qwen/Llama/Mistral-class) with no API needed; any OpenAI-compatible hosted model, including proprietary ones, can be swapped in. The model is an untrusted proposer either way.
 - **Optional hybrid mode (future):** a stronger cloud planner can be used deliberately, but only over a privacy-abstracted view of the page (placeholders instead of raw PII), never the raw DOM — so "local-first" stays true even when a cloud model is in the loop.
 
 **What it is not:** a general-purpose "browse anything" agent. It's scoped to the class of sites the benchmark covers — forms-heavy, bilingual, regional portals — because that's where the value and the evidence are.
@@ -55,7 +55,7 @@ The expected headline finding: existing agents' success rates drop and injection
 - Multilingual agent benchmarks (X-WebAgentBench, MAPS) show agents degrade sharply outside English, both in capability and security — but no one has built this for Nepali or Hindi.
 - This is a gap a small, skilled, zero-budget team based in Nepal is unusually well-positioned to fill: local knowledge of the actual portals, an existing security-first architecture to build on, and open-weight models that make the whole pipeline reproducible by anyone.
 
-## Long-term goals (not just Frogtoberfest)
+## Long-term goals
 
 1. **Open-source release** of the Janus runtime and benchmark, aimed at real reuse — clear docs, one-command setup, permissive license (MIT/Apache 2.0).
 2. **A public benchmark and leaderboard** that becomes a reference point other researchers and agent builders cite and contribute to.
@@ -63,17 +63,17 @@ The expected headline finding: existing agents' success rates drop and injection
 4. **Community growth** — good-first-issues for new replica sites, tasks, translations, and injection cases, so the benchmark grows through contributions rather than solo effort.
 5. **Visibility over revenue** — this is explicitly not a commercial product. The goal is research credibility, open-source traction, and the kind of attention that helps with grad school, jobs, or being taken seriously in the agent-security community.
 
-## Near-term milestone: Frogtoberfest 2026
+## First slice (originally built for Frogtoberfest 2026)
 
-Frogtoberfest (Leapfrog Technology, Oct 2026, "Build with AI," open-weight models only) is the forcing function for a first working slice:
+The first working slice, built for Frogtoberfest (Leapfrog Technology, Oct 2026), is complete:
 
 - The Janus runtime: local open model → structured extraction → typed plan → deterministic validator → executor → verification. This is what makes it clearly pass the "AI output consumed programmatically" bar.
 - ~1–3 replica Nepali/bilingual portals, ~30 tasks, a few injection cases.
 - A live comparison: one open baseline agent (e.g. Browser Use) vs. Janus on the same tasks — ideally with a "baseline gets hijacked, Janus doesn't" moment for the demo.
 - Full required docs: README, architecture overview, limitations, AI usage disclosure naming the exact validator function that consumes the model's plan, demo video.
-- Constraint: open-weight models end-to-end, no proprietary APIs anywhere in the pipeline (this is a hard rule for the submission, not just a budget one).
+- Models: open-weight end to end for that slice. This is no longer a constraint.
 
-Frogtoberfest output becomes the seed for the full benchmark and paper — not the finish line.
+The first slice is the seed for the full benchmark and paper — not the finish line.
 
 ## Open questions / honest risks to track
 
